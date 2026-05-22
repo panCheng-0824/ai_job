@@ -24,23 +24,7 @@
     "model_key": "pc0824tq"
   },
 
-  {
-    "model_type": "chat",
-    "model_level": "top",
-    "model_provider": "openai",
-    "model_name": "deepseek-v4-pro",
-    "model_api": "https://api.deepseek.com",
-    "model_key": "sk-d20e1b4660a14076a2961026b663382d"
-  },
 
-    {
-    "model_type": "chat",
-    "model_level": "top-pro",
-    "model_provider": "openai",
-    "model_name": "doubao-seed-character-251128",
-    "model_api": "https://ark.cn-beijing.volces.com/api/v3",
-    "model_key": "ark-e96cca34-8de0-43a4-914d-e3e6a7b1b2d0-c2321"
-  },
   {
     "model_type": "embedding",
     "model_level": "low",
