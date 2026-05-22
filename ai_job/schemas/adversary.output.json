@@ -1,0 +1,24 @@
+{
+  "$comment": "红队对抗：多字段结构化，无 primary_field 时整段以 JSON 字符串写入结果",
+  "title": "AdversarialReview",
+  "type": "object",
+  "properties": {
+    "risk_level": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "整体风险档位"
+    },
+    "issues": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "具体问题点"
+    },
+    "suggestions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "改进建议"
+    }
+  },
+  "required": ["risk_level", "issues", "suggestions"],
+  "additionalProperties": false
+}

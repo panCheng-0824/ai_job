@@ -1,0 +1,96 @@
+[
+  {
+    "company_name": "杭州智联未来科技有限公司",
+    "credit_code": "91330108MA2HXXXX1A",
+    "registration_status": "存续",
+    "legal_representative": "张伟",
+    "registered_capital": "1000万人民币",
+    "paid_in_capital": "320万人民币",
+    "established_date": "2019-04-18",
+    "business_term": "2019-04-18 至 无固定期限",
+    "company_type": "有限责任公司(自然人投资或控股)",
+    "industry": "软件和信息技术服务业",
+    "employee_count_range": "100-199人",
+    "taxpayer_type": "增值税一般纳税人",
+    "registration_authority": "杭州市高新区(滨江)市场监督管理局",
+    "registered_address": "浙江省杭州市滨江区江南大道88号A座1203室",
+    "business_scope": [
+      "技术服务、技术开发、技术咨询、技术交流",
+      "人工智能应用软件开发",
+      "企业管理咨询",
+      "计算机系统集成"
+    ],
+    "contact_info": {
+      "phone": "0571-88886666",
+      "email": "contact@futurelink-tech.com",
+      "website": "https://www.futurelink-tech.com"
+    },
+    "shareholders": [
+      {
+        "name": "张伟",
+        "ratio": "55%"
+      },
+      {
+        "name": "杭州云启投资合伙企业(有限合伙)",
+        "ratio": "45%"
+      }
+    ],
+    "branches_count": 2,
+    "administrative_penalty_count": 0,
+    "judicial_risk_level": "低",
+    "intellectual_property": {
+      "trademark_count": 8,
+      "patent_count": 3,
+      "software_copyright_count": 24
+    }
+  },
+  {
+    "company_name": "上海云策数据服务股份有限公司",
+    "credit_code": "91310000MA1KXXXX9P",
+    "registration_status": "存续",
+    "legal_representative": "刘倩",
+    "registered_capital": "5000万人民币",
+    "paid_in_capital": "2100万人民币",
+    "established_date": "2016-09-06",
+    "business_term": "2016-09-06 至 2036-09-05",
+    "company_type": "股份有限公司(非上市、自然人投资或控股)",
+    "industry": "互联网和相关服务",
+    "employee_count_range": "500-999人",
+    "taxpayer_type": "增值税一般纳税人",
+    "registration_authority": "上海市市场监督管理局",
+    "registered_address": "上海市浦东新区张江高科技园区博云路299号5幢",
+    "business_scope": [
+      "数据处理服务",
+      "信息系统运行维护服务",
+      "信息技术咨询服务",
+      "企业征信业务相关技术服务(依法须经批准的项目除外)"
+    ],
+    "contact_info": {
+      "phone": "021-66668888",
+      "email": "ir@yunce-data.com",
+      "website": "https://www.yunce-data.com"
+    },
+    "shareholders": [
+      {
+        "name": "刘倩",
+        "ratio": "34%"
+      },
+      {
+        "name": "上海科创成长基金",
+        "ratio": "31%"
+      },
+      {
+        "name": "员工持股平台",
+        "ratio": "35%"
+      }
+    ],
+    "branches_count": 5,
+    "administrative_penalty_count": 1,
+    "judicial_risk_level": "中",
+    "intellectual_property": {
+      "trademark_count": 15,
+      "patent_count": 12,
+      "software_copyright_count": 48
+    }
+  }
+]

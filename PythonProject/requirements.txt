@@ -1,0 +1,18 @@
+fastapi
+uvicorn[standard]
+pydantic
+redis
+
+langchain-ollama
+langchain-core
+langchain-openai
+langgraph
+langchain
+
+# RAG / Milvus（Day5/Day6 用到；如果你暂时不学向量库可先不装）
+pymilvus
+
+
+# Knowledge Graph / Neo4j（只有启用 NEO4J_* 环境变量才会用到）
+neo4j
+

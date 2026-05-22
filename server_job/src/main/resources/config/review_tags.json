@@ -1,0 +1,16 @@
+{
+  "job_review_tags": [
+    {"id": "jr_match", "label": "与岗位描述相符"},
+    {"id": "jr_growth", "label": "成长空间明确"},
+    {"id": "jr_interview", "label": "面试流程清晰"},
+    {"id": "jr_payfair", "label": "薪资信息透明"},
+    {"id": "jr_commute", "label": "通勤/地点可接受"}
+  ],
+  "company_review_tags": [
+    {"id": "cr_info", "label": "企业信息真实"},
+    {"id": "cr_culture", "label": "文化氛围正面"},
+    {"id": "cr_benefit", "label": "福利说明清楚"},
+    {"id": "cr_response", "label": "沟通反馈及时"},
+    {"id": "cr_stability", "label": "业务相对稳定"}
+  ]
+}

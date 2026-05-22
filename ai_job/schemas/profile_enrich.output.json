@@ -1,0 +1,28 @@
+{
+  "$comment": "用户画像补充：结构化建议，便于落库或人工审核",
+  "title": "ProfileEnrichment",
+  "type": "object",
+  "properties": {
+    "merge_highlights": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "可合并进画像的要点"
+    },
+    "suggested_profile_patch": {
+      "type": "object",
+      "description": "建议新增或覆盖的字段（键值字典）",
+      "additionalProperties": true
+    },
+    "discard_noise": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "不建议写入画像的噪声"
+    },
+    "confidence_notes": {
+      "type": "string",
+      "description": "不确定项或待验证说明"
+    }
+  },
+  "required": ["merge_highlights", "suggested_profile_patch", "discard_noise"],
+  "additionalProperties": false
+}

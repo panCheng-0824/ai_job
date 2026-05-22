@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Day4 Web UI (FastAPI + Agent + MCP + Redis Context)</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #111a33;
+      --muted: #8ea0c5;
+      --text: #e9eefc;
+      --accent: #6aa7ff;
+      --danger: #ff6a6a;
+      --ok: #48d08b;
+      --border: rgba(255,255,255,0.10);
+      --shadow: rgba(0,0,0,0.35);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    }
+    body { margin: 0; background: radial-gradient(1200px 600px at 20% 0%, #182a5a 0%, var(--bg) 50%); color: var(--text); }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
+    .title { display:flex; justify-content:space-between; align-items:flex-end; gap: 12px; margin: 10px 0 18px; }
+    .title h1 { margin: 0; font-size: 20px; letter-spacing: 0.2px; }
+    .title .sub { color: var(--muted); font-size: 13px; }
+    .grid { display:grid; grid-template-columns: 1.2fr 0.8fr; gap: 14px; }
+    .card { background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03)); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 10px 30px var(--shadow); overflow:hidden; }
+    .card .hd { padding: 12px 14px; border-bottom: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap: 12px; }
+    .card .hd .h { font-weight: 650; font-size: 13px; color: #dbe6ff; }
+    .card .bd { padding: 14px; }
+    .row { display:flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .row > * { flex: 0 0 auto; }
+    .grow { flex: 1 1 auto; }
+    input, textarea, select {
+      background: rgba(0,0,0,0.25);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 10px;
+      outline: none;
+    }
+    input::placeholder, textarea::placeholder { color: rgba(233,238,252,0.55); }
+    textarea { width: 100%; min-height: 90px; resize: vertical; }
+    button {
+      background: rgba(106,167,255,0.14);
+      border: 1px solid rgba(106,167,255,0.35);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { background: rgba(106,167,255,0.20); }
+    button:disabled { cursor: not-allowed; opacity: 0.6; }
+    .btn-danger { background: rgba(255,106,106,0.12); border-color: rgba(255,106,106,0.35); }
+    .btn-ghost { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.14); }
+    .pill { font-size: 12px; color: var(--muted); border: 1px solid var(--border); padding: 6px 10px; border-radius: 999px; background: rgba(0,0,0,0.15); }
+    .pill b { color: var(--text); }
+    .status { font-size: 12px; color: var(--muted); }
+    .status.ok { color: var(--ok); }
+    .status.bad { color: var(--danger); }
+    .chat { display:flex; flex-direction:column; gap: 10px; max-height: 520px; overflow:auto; padding-right: 4px; }
+    .msg { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: rgba(0,0,0,0.20); }
+    .msg .meta { color: var(--muted); font-size: 12px; margin-bottom: 6px; display:flex; justify-content:space-between; gap: 10px; }
+    .msg .content { white-space: pre-wrap; line-height: 1.45; font-size: 13px; }
+    .msg.user { border-color: rgba(106,167,255,0.35); background: rgba(106,167,255,0.08); }
+    .msg.assistant { border-color: rgba(255,255,255,0.12); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .small { font-size: 12px; color: var(--muted); }
+    .hr { height: 1px; background: var(--border); margin: 12px 0; }
+    .progress { height: 10px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow:hidden; border: 1px solid var(--border); }
+    .progress > div { height: 100%; background: linear-gradient(90deg, #6aa7ff, #48d08b); width: 0%; }
+    .progress.warn > div { background: linear-gradient(90deg, #ffcc66, #ff6a6a); }
+    @media (max-width: 920px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title">
+      <div>
+        <h1>Day4 Web UI</h1>
+        <div class="sub">FastAPI + LangChain Agent + MCP(JSON-RPC) + Redis 上下文(request_id)</div>
+      </div>
+      <div class="pill">API: <b id="apiBase" class="mono"></b></div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="hd">
+          <div class="h">对话 / Chat</div>
+          <div class="status" id="statusText">未连接</div>
+        </div>
+        <div class="bd">
+          <div class="row">
+            <div class="pill grow">request_id: <b id="requestId" class="mono">（未创建）</b></div>
+            <button id="btnStart">创建会话</button>
+            <button id="btnClear" class="btn-danger" disabled>清空会话</button>
+          </div>
+          <div style="margin-top:10px">
+            <div class="row" style="justify-content:space-between">
+              <div class="small">上下文占用：<span id="ctxText" class="mono">0 / ?</span>（<span id="ctxRatio" class="mono">0%</span>）</div>
+              <label class="small"><input id="chkCompress" type="checkbox" /> 启用压缩（接近上限时）</label>
+            </div>
+            <div class="progress" id="ctxBar"><div></div></div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="chat" id="chatBox"></div>
+
+          <div class="hr"></div>
+          <div class="row">
+            <input id="chatInput" class="grow" placeholder="输入消息，回车发送" />
+            <button id="btnSend" disabled>发送</button>
+          </div>
+          <div class="small" style="margin-top:8px">
+            提示：如果你在 /mcp tools/call 时传同一个 request_id，工具结果会写进同一份上下文，后续 /chat 可直接利用。
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hd">
+          <div class="h">MCP(JSON-RPC) & Tools</div>
+          <div class="pill">端口默认 8001</div>
+        </div>
+        <div class="bd">
+          <div class="row">
+            <button id="btnToolsList" class="btn-ghost">tools/list</button>
+            <button id="btnMcpCall" class="btn-ghost">tools/call</button>
+          </div>
+
+          <div style="margin-top:10px">
+            <div class="small">tools/call 参数（会自动带上当前 request_id）</div>
+            <div class="row" style="margin-top:6px">
+              <input id="toolName" class="grow" placeholder="工具名，例如 calculate / search" value="calculate" />
+            </div>
+            <textarea id="toolArgs" class="mono" placeholder='arguments(JSON)，例如 {"expression":"1+2"}'>{"expression":"1+2"}</textarea>
+          </div>
+
+          <div class="hr"></div>
+          <div class="small">响应输出</div>
+          <textarea id="out" class="mono" readonly style="min-height:220px"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const apiBase = `${location.protocol}//${location.host}`;
+    document.getElementById("apiBase").textContent = apiBase;
+
+    const els = {
+      statusText: document.getElementById("statusText"),
+      requestId: document.getElementById("requestId"),
+      btnStart: document.getElementById("btnStart"),
+      btnClear: document.getElementById("btnClear"),
+      btnSend: document.getElementById("btnSend"),
+      chatInput: document.getElementById("chatInput"),
+      chatBox: document.getElementById("chatBox"),
+      ctxText: document.getElementById("ctxText"),
+      ctxRatio: document.getElementById("ctxRatio"),
+      ctxBar: document.getElementById("ctxBar"),
+      chkCompress: document.getElementById("chkCompress"),
+      btnToolsList: document.getElementById("btnToolsList"),
+      btnMcpCall: document.getElementById("btnMcpCall"),
+      toolName: document.getElementById("toolName"),
+      toolArgs: document.getElementById("toolArgs"),
+      out: document.getElementById("out"),
+    };
+
+    const state = {
+      requestId: null,
+      maxContextChars: null,
+      blockRatio: 0.9,
+      contextChars: 0
+    };
+
+    function setStatus(text, kind) {
+      els.statusText.textContent = text;
+      els.statusText.className = "status " + (kind || "");
+    }
+
+    function appendMsg(role, content, metaRight) {
+      const div = document.createElement("div");
+      div.className = `msg ${role}`;
+      div.innerHTML = `
+        <div class="meta">
+          <div class="mono">${role}</div>
+          <div class="small">${metaRight || ""}</div>
+        </div>
+        <div class="content"></div>
+      `;
+      div.querySelector(".content").textContent = content;
+      els.chatBox.appendChild(div);
+      els.chatBox.scrollTop = els.chatBox.scrollHeight;
+    }
+
+    function updateCtxUI() {
+      const max = state.maxContextChars || 0;
+      const ratio = max ? (state.contextChars / max) : 0;
+      els.ctxText.textContent = `${state.contextChars} / ${max || "?"}`;
+      els.ctxRatio.textContent = `${Math.round(ratio * 100)}%`;
+      const pct = Math.min(100, Math.max(0, ratio * 100));
+      const bar = els.ctxBar.querySelector("div");
+      bar.style.width = pct + "%";
+      if (ratio >= state.blockRatio) {
+        els.ctxBar.classList.add("warn");
+      } else {
+        els.ctxBar.classList.remove("warn");
+      }
+    }
+
+    async function api(path, opts) {
+      const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { raw: text }; }
+      if (!res.ok) {
+        const detail = data?.detail || data?.error?.message || JSON.stringify(data);
+        throw new Error(`${res.status} ${res.statusText}: ${detail}`);
+      }
+      return data;
+    }
+
+    async function startSession() {
+      setStatus("创建会话中...", "");
+      const data = await api("/session/start", { method: "POST", body: "{}" });
+      state.requestId = data.request_id;
+      state.maxContextChars = data.max_context_chars;
+      state.blockRatio = data.block_ratio;
+      state.contextChars = 0;
+      els.requestId.textContent = state.requestId;
+      els.btnSend.disabled = false;
+      els.btnClear.disabled = false;
+      els.chatBox.innerHTML = "";
+      appendMsg("assistant", "会话已创建。你可以开始聊天，或先用 MCP tools/call 写入上下文。", "system");
+      updateCtxUI();
+      setStatus("就绪", "ok");
+    }
+
+    async function clearSession() {
+      if (!state.requestId) return;
+      setStatus("清理会话中...", "");
+      await api(`/history/${state.requestId}`, { method: "DELETE" });
+      state.contextChars = 0;
+      els.chatBox.innerHTML = "";
+      appendMsg("assistant", "会话已清空。你可以继续聊天（仍使用同一个 request_id），或重新创建会话。", "system");
+      updateCtxUI();
+      setStatus("就绪", "ok");
+    }
+
+    async function sendChat() {
+      const msg = els.chatInput.value.trim();
+      if (!msg) return;
+      if (!state.requestId) { alert("请先创建会话（/session/start）"); return; }
+      els.chatInput.value = "";
+      appendMsg("user", msg, "");
+      setStatus("模型思考中...", "");
+      try {
+        const data = await api("/chat", {
+          method: "POST",
+          body: JSON.stringify({
+            request_id: state.requestId,
+            message: msg,
+            enable_compression: els.chkCompress.checked
+          })
+        });
+        state.contextChars = data.context_chars || state.contextChars;
+        updateCtxUI();
+        appendMsg("assistant", data.reply || "", data.compressed ? "compressed" : "");
+        setStatus("就绪", "ok");
+      } catch (e) {
+        appendMsg("assistant", `请求失败：${e.message}`, "error");
+        setStatus("出错", "bad");
+      }
+    }
+
+    async function mcpList() {
+      try {
+        const data = await api("/mcp", {
+          method: "POST",
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" })
+        });
+        els.out.value = JSON.stringify(data, null, 2);
+      } catch (e) {
+        els.out.value = `ERROR: ${e.message}`;
+      }
+    }
+
+    async function mcpCall() {
+      if (!state.requestId) { alert("建议先创建会话，这样工具结果会写入上下文"); }
+      let args;
+      try {
+        args = JSON.parse(els.toolArgs.value);
+      } catch (e) {
+        alert("arguments 必须是合法 JSON");
+        return;
+      }
+      const params = { name: els.toolName.value.trim(), arguments: args };
+      if (state.requestId) params.request_id = state.requestId;
+      try {
+        const data = await api("/mcp", {
+          method: "POST",
+          body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params })
+        });
+        els.out.value = JSON.stringify(data, null, 2);
+        // 由于工具结果写入上下文，这里顺便刷新一下“字符数”（通过拉 history）
+        if (state.requestId) {
+          const h = await api(`/history/${state.requestId}`, { method: "GET" });
+          state.contextChars = h.context_chars || state.contextChars;
+          updateCtxUI();
+        }
+      } catch (e) {
+        els.out.value = `ERROR: ${e.message}`;
+      }
+    }
+
+    async function refreshHealth() {
+      try {
+        await api("/health", { method: "GET" });
+        setStatus("就绪", "ok");
+      } catch (e) {
+        setStatus("服务不可用/Redis未连上", "bad");
+      }
+    }
+
+    els.btnStart.addEventListener("click", () => startSession().catch(e => alert(e.message)));
+    els.btnClear.addEventListener("click", () => clearSession().catch(e => alert(e.message)));
+    els.btnSend.addEventListener("click", () => sendChat());
+    els.chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChat(); });
+    els.btnToolsList.addEventListener("click", () => mcpList());
+    els.btnMcpCall.addEventListener("click", () => mcpCall());
+
+    refreshHealth();
+    updateCtxUI();
+  </script>
+</body>
+</html>
+

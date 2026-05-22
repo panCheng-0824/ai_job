@@ -1,0 +1,563 @@
+{
+  "doc-65b045cb9a9395d547ebba7a9ff64aa2": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-65b045cb9a9395d547ebba7a9ff64aa2"
+    ],
+    "content_summary": "# 岗位信息：深圳菲亚兰德科技集团股份有限公司招聘算法工程师\n\n## 基本信息\n- 岗位ID：27f4d25a-f5a4-11ef-a337-0242ac120005\n- 招聘标题：算法工程师\n- 岗位类型：0\n- 行业：仪器/仪表/工业自动化/电气\n- 领域：仪器/仪表/工业自动化/电气\n- 地址：广东省广州市越秀区先烈中路69号2205房、2206房、2212房、2215房、2216房、2315-2317房\n- 学历要求：本科及以上\n- 专业要求：专业不限\n- 薪资范围：11k-27k\n- ...",
+    "content_length": 757,
+    "created_at": "2026-04-30T07:26:48.616596+00:00",
+    "updated_at": "2026-04-30T07:27:35.048178+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260430_152648_18c45f8c",
+    "metadata": {
+      "processing_start_time": 1777534008,
+      "processing_end_time": 1777534055
+    }
+  },
+  "job-27f4e549-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-9bbcc9a98e438abc3412bbfb048a23ed"
+    ],
+    "content_summary": "# 岗位信息：众恒汽车部件有限公司招聘财务管培生\n\n## 基本信息\n- 岗位ID：27f4e549-f5a4-11ef-a337-0242ac120005\n- 招聘标题：财务管培生\n- 岗位类型：0\n- 行业：汽车/摩托车（制造/维护/配件/销售/服务）\n- 领域：汽车/摩托车（制造/维护/配件/销售/服务）\n- 地址：浙江省嘉兴市嘉兴市和风路786号\n- 学历要求：本科及以上\n- 专业要求：财务管理 会计 金融\n- 薪资范围：6k-10k\n- 招聘人数：5\n- 发布时间：02-24 16:58...",
+    "content_length": 817,
+    "created_at": "2026-05-12T13:48:37.926019+00:00",
+    "updated_at": "2026-05-12T13:49:54.330746+00:00",
+    "file_path": "job-27f4e549-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260512_214837_38e2335c",
+    "metadata": {
+      "processing_start_time": 1778593717,
+      "processing_end_time": 1778593794
+    }
+  },
+  "job-27ff92e5-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-359714407607a2e038e181e2ea751d2b"
+    ],
+    "content_summary": "# 岗位信息：众恒汽车部件有限公司招聘财务管培生\n\n## 基本信息\n- 岗位ID：27ff92e5-f5a4-11ef-a337-0242ac120005\n- 招聘标题：财务管培生\n- 岗位类型：0\n- 行业：汽车/摩托车（制造/维护/配件/销售/服务）\n- 领域：汽车/摩托车（制造/维护/配件/销售/服务）\n- 地址：浙江省嘉兴市嘉兴市和风路786号\n- 学历要求：本科及以上\n- 专业要求：财务管理 会计 金融\n- 薪资范围：6k-10k\n- 招聘人数：5\n- 发布时间：02-24 16:58...",
+    "content_length": 817,
+    "created_at": "2026-05-12T14:05:06.285306+00:00",
+    "updated_at": "2026-05-12T14:05:51.644532+00:00",
+    "file_path": "job-27ff92e5-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260512_220506_612abe1e",
+    "metadata": {
+      "processing_start_time": 1778594706,
+      "processing_end_time": 1778594751
+    }
+  },
+  "job-27fce9a1-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-eead019ec96be0e5c3df321750de0097"
+    ],
+    "content_summary": "# 岗位信息：上海鄂炬医药科技有限公司招聘项目工程师（机械/自动化）\n\n## 基本信息\n- 岗位ID：27fce9a1-f5a4-11ef-a337-0242ac120005\n- 招聘标题：西班牙语翻译（实习生）\n- 岗位类型：0\n- 行业：机械制造/机电/重工\n- 领域：仪器/仪表/工业自动化/电气\n- 地址：上海市嘉定区上海市奉贤区庄行镇庄良路1418号6幢1413室\n- 学历要求：本科及以上\n- 专业要求：西班牙语\n- 薪资范围：7k-9k\n- 招聘人数：2\n- 发布时间：02-24 10...",
+    "content_length": 404,
+    "created_at": "2026-05-14T02:24:53.654637+00:00",
+    "updated_at": "2026-05-14T02:25:22.876206+00:00",
+    "file_path": "job-27fce9a1-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_102453_fcbaf5e7",
+    "metadata": {
+      "processing_start_time": 1778725493,
+      "processing_end_time": 1778725522
+    }
+  },
+  "job-27fcf6b4-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-06f8ab10329e25a9957df3d798585134"
+    ],
+    "content_summary": "# 岗位信息：东莞康源电子有限公司招聘品质工程师（25届）\n\n## 基本信息\n- 岗位ID：27fcf6b4-f5a4-11ef-a337-0242ac120005\n- 招聘标题：品质工程师（25届）\n- 岗位类型：0\n- 行业：电子技术/半导体/集成电路\n- 领域：--\n- 地址：广东省东莞市虎门南栅第四工业区\n- 学历要求：本科及以上\n- 专业要求：化学类 材料类 机械类 电气类 自动化类\n- 薪资范围：8k-12k\n- 招聘人数：6\n- 发布时间：02-24 10:38\n- 创建时间：20...",
+    "content_length": 390,
+    "created_at": "2026-05-14T02:47:10.939705+00:00",
+    "updated_at": "2026-05-14T02:48:22.897599+00:00",
+    "file_path": "job-27fcf6b4-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_104710_393db8d5",
+    "metadata": {
+      "processing_start_time": 1778726830,
+      "processing_end_time": 1778726902
+    }
+  },
+  "job-27fd023e-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-fef07d2e86dea98e158e93bc4c2c0562"
+    ],
+    "content_summary": "# 岗位信息：庆阳市普庆工程咨询有限责任公司招聘水利工程设计人员\n\n## 基本信息\n- 岗位ID：27fd023e-f5a4-11ef-a337-0242ac120005\n- 招聘标题：水利工程设计人员\n- 岗位类型：0\n- 行业：电气/电力/水利\n- 领域：--\n- 地址：甘肃省庆阳市甘肃省庆阳市西峰区西大街圣鼎国际1号楼1单元402室\n- 学历要求：专科及以上\n- 专业要求：水利水电工程、水文、水资源利用、农田水利、土木工程\n- 薪资范围：3k-5k\n- 招聘人数：5\n- 发布时间：02-2...",
+    "content_length": 411,
+    "created_at": "2026-05-14T05:18:53.890016+00:00",
+    "updated_at": "2026-05-14T05:19:00.848718+00:00",
+    "file_path": "job-27fd023e-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_131853_d8937c3c",
+    "metadata": {
+      "processing_start_time": 1778735933,
+      "processing_end_time": 1778735940
+    }
+  },
+  "job-27fcefa6-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-99f295e5d5d91631c28bbfa1351da2be"
+    ],
+    "content_summary": "# 岗位信息：东莞康源电子有限公司招聘产品工程师（25届）\n\n## 基本信息\n- 岗位ID：27fcefa6-f5a4-11ef-a337-0242ac120005\n- 招聘标题：产品工程师（25届）\n- 岗位类型：0\n- 行业：电子技术/半导体/集成电路\n- 领域：--\n- 地址：广东省东莞市虎门南栅第四工业区\n- 学历要求：本科及以上\n- 专业要求：化学类 材料类 机械类 电气类 自动化类\n- 薪资范围：8k-12k\n- 招聘人数：8\n- 发布时间：02-24 10:38\n- 创建时间：20...",
+    "content_length": 390,
+    "created_at": "2026-05-14T06:43:37.469549+00:00",
+    "updated_at": "2026-05-14T06:43:42.575516+00:00",
+    "file_path": "job-27fcefa6-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_144337_62dc4627",
+    "metadata": {
+      "processing_start_time": 1778741017,
+      "processing_end_time": 1778741022
+    }
+  },
+  "job-27fcec32-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-4530000538a86fc326f7f38593aba2a9"
+    ],
+    "content_summary": "# 岗位信息：东莞康源电子有限公司招聘设计工程师（25届）\n\n## 基本信息\n- 岗位ID：27fcec32-f5a4-11ef-a337-0242ac120005\n- 招聘标题：设计工程师（25届）\n- 岗位类型：0\n- 行业：电子技术/半导体/集成电路\n- 领域：--\n- 地址：广东省东莞市虎门南栅第四工业区\n- 学历要求：本科及以上\n- 专业要求：化学类 材料类 机械类 电气类 自动化类\n- 薪资范围：8k-12k\n- 招聘人数：6\n- 发布时间：02-24 10:42\n- 创建时间：20...",
+    "content_length": 390,
+    "created_at": "2026-05-14T06:44:00.740944+00:00",
+    "updated_at": "2026-05-14T06:44:40.886582+00:00",
+    "file_path": "job-27fcec32-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_144400_69da5436",
+    "metadata": {
+      "processing_start_time": 1778741040,
+      "processing_end_time": 1778741080
+    }
+  },
+  "job-27fcf90f-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-93e9264d9d77d9df0bacb4bb41d82e71"
+    ],
+    "content_summary": "# 岗位信息：东莞康源电子有限公司招聘工艺工程师（25届）\n\n## 基本信息\n- 岗位ID：27fcf90f-f5a4-11ef-a337-0242ac120005\n- 招聘标题：工艺工程师（25届）\n- 岗位类型：0\n- 行业：电子技术/半导体/集成电路\n- 领域：--\n- 地址：广东省东莞市虎门南栅第四工业区\n- 学历要求：本科及以上\n- 专业要求：化学类 材料类 机械类 电气类 自动化类\n- 薪资范围：8k-12k\n- 招聘人数：10\n- 发布时间：02-24 10:39\n- 创建时间：2...",
+    "content_length": 391,
+    "created_at": "2026-05-14T06:51:58.912796+00:00",
+    "updated_at": "2026-05-14T06:53:26.861817+00:00",
+    "file_path": "job-27fcf90f-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145158_7ab2006c",
+    "metadata": {
+      "processing_start_time": 1778741518,
+      "processing_end_time": 1778741606
+    }
+  },
+  "job-27fcffd4-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-0e970f4efdb62b7f190dba7239c5b61c"
+    ],
+    "content_summary": "# 岗位信息：东莞康源电子有限公司招聘研发工程师\n\n## 基本信息\n- 岗位ID：27fcffd4-f5a4-11ef-a337-0242ac120005\n- 招聘标题：研发工程师\n- 岗位类型：0\n- 行业：电子技术/半导体/集成电路\n- 领域：--\n- 地址：广东省东莞市虎门南栅第四工业区\n- 学历要求：本科及以上\n- 专业要求：化学类 材料类 机械类 电子类 自动化类\n- 薪资范围：10k-15k\n- 招聘人数：10\n- 发布时间：02-24 10:24\n- 创建时间：2025-02-26...",
+    "content_length": 382,
+    "created_at": "2026-05-14T06:51:59.033335+00:00",
+    "updated_at": "2026-05-14T06:54:30.077296+00:00",
+    "file_path": "job-27fcffd4-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_e8203e31",
+    "metadata": {
+      "processing_start_time": 1778741613,
+      "processing_end_time": 1778741670
+    }
+  },
+  "job-27fd070a-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-bef7c15fdc783e774cf4e6d3731e3910"
+    ],
+    "content_summary": "# 岗位信息：河南百硕商务服务有限公司招聘移动10086接听客服\n\n## 基本信息\n- 岗位ID：27fd070a-f5a4-11ef-a337-0242ac120005\n- 招聘标题：移动10086接听客服\n- 岗位类型：0\n- 行业：专业服务（财会/法律/翻译/人力资源等）\n- 领域：专业服务（财会/法律/翻译/人力资源等）\n- 地址：河南省郑州市郑州市金水区优胜南路26号合盛时代商务4楼4E\n- 学历要求：不限\n- 专业要求：不限\n- 薪资范围：3k-8k\n- 招聘人数：100\n- 发布时...",
+    "content_length": 414,
+    "created_at": "2026-05-14T06:51:59.035074+00:00",
+    "updated_at": "2026-05-14T06:54:53.716953+00:00",
+    "file_path": "job-27fd070a-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_4585bccd",
+    "metadata": {
+      "processing_start_time": 1778741658,
+      "processing_end_time": 1778741693
+    }
+  },
+  "job-27fd0e23-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-b70502fabdaf3977d31256921de5664f"
+    ],
+    "content_summary": "# 岗位信息：总部营销管理预备生\n\n## 基本信息\n- 岗位ID：27fd0e23-f5a4-11ef-a337-0242ac120005\n- 招聘标题：总部营销管理预备生\n- 岗位类型：0\n- 行业：原材料及加工（金属/木材/橡胶/塑料/玻璃/陶瓷/建材）\n- 领域：--\n- 地址：上海市奉贤区http://www.crosplus.com/\n- 学历要求：本科及以上\n- 专业要求：专业不限\n- 薪资范围：6k-8k\n- 招聘人数：6\n- 发布时间：02-24 10:16\n- 创建时间：202...",
+    "content_length": 394,
+    "created_at": "2026-05-14T06:51:59.092992+00:00",
+    "updated_at": "2026-05-14T06:55:38.817312+00:00",
+    "file_path": "job-27fd0e23-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_c4930ef9",
+    "metadata": {
+      "processing_start_time": 1778741693,
+      "processing_end_time": 1778741738
+    }
+  },
+  "job-27fd104c-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-aab150d46c601cf9b019adeedcdeb1a0"
+    ],
+    "content_summary": "# 岗位信息：安远双胞胎畜牧有限公司招聘营养师\n\n## 基本信息\n- 岗位ID：27fd104c-f5a4-11ef-a337-0242ac120005\n- 招聘标题：营养师\n- 岗位类型：0\n- 行业：农/林/牧/渔\n- 领域：农/林/牧/渔\n- 地址：广西南宁市南宁市沿海经济开发区南北二级公路9公里处\n- 学历要求：硕士及以上\n- 专业要求：\"1、学历：硕士及以上； 2、专业：动物营养与饲料科学,畜牧学(营养方向）； 3、对数据敏感、有利润思维意识，良好的沟通能力、执行力和学习力，具备基本的...",
+    "content_length": 465,
+    "created_at": "2026-05-14T06:51:59.120965+00:00",
+    "updated_at": "2026-05-14T06:56:17.317272+00:00",
+    "file_path": "job-27fd104c-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_51ece1bd",
+    "metadata": {
+      "processing_start_time": 1778741725,
+      "processing_end_time": 1778741777
+    }
+  },
+  "job-27fd1510-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-785d4a9980d6c58dc156bd66fc79fc86"
+    ],
+    "content_summary": "# 岗位信息：安远双胞胎畜牧有限公司招聘建筑工程岗\n\n## 基本信息\n- 岗位ID：27fd1510-f5a4-11ef-a337-0242ac120005\n- 招聘标题：建筑工程岗\n- 岗位类型：0\n- 行业：农/林/牧/渔\n- 领域：农/林/牧/渔\n- 地址：广西南宁市南宁市沿海经济开发区南北二级公路9公里处\n- 学历要求：本科及以上\n- 专业要求：\"1、学历：本科及以上； 2、专业：设计、造价、土木工程、工程管理等相关专业； 3、良好的沟通协调能力，逻辑思维清晰； 4、抗压能力与责任意识；...",
+    "content_length": 487,
+    "created_at": "2026-05-14T06:51:59.121263+00:00",
+    "updated_at": "2026-05-14T06:56:30.273545+00:00",
+    "file_path": "job-27fd1510-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_2ff76c61",
+    "metadata": {
+      "processing_start_time": 1778741738,
+      "processing_end_time": 1778741790
+    }
+  },
+  "job-27fd1844-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-c0d3a947bc49d2d96ef9175a92e8ee5f"
+    ],
+    "content_summary": "# 岗位信息：无责6000不要求通话量+高提成接受无经验\n\n## 基本信息\n- 岗位ID：27fd1844-f5a4-11ef-a337-0242ac120005\n- 招聘标题：销售专员\n- 岗位类型：0\n- 行业：投资/基金/证券/期货\n- 领域：其他\n- 地址：四川省成都市中国（四川）自由贸易试验区成都高新区天府大道北段869号1栋2单元20层1号\n- 学历要求：不限\n- 专业要求：专业不限\n- 薪资范围：10k-25k\n- 招聘人数：30\n- 发布时间：02-24 10:16\n- 创建时间...",
+    "content_length": 396,
+    "created_at": "2026-05-14T06:51:59.142193+00:00",
+    "updated_at": "2026-05-14T06:57:16.278030+00:00",
+    "file_path": "job-27fd1844-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_029a221b",
+    "metadata": {
+      "processing_start_time": 1778741777,
+      "processing_end_time": 1778741836
+    }
+  },
+  "job-27fd1d2b-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-0ed371d91f9792051320649f94e71ac4"
+    ],
+    "content_summary": "# 岗位信息：招聘养殖生产岗\n\n## 基本信息\n- 岗位ID：27fd1d2b-f5a4-11ef-a337-0242ac120005\n- 招聘标题：养殖生产岗\n- 岗位类型：0\n- 行业：农/林/牧/渔\n- 领域：农/林/牧/渔\n- 地址：广西南宁市南宁市沿海经济开发区南北二级公路9公里处\n- 学历要求：专科及以上\n- 专业要求：畜牧兽医、动科动医类相关专业优先\n- 薪资范围：4k-6k\n- 招聘人数：20\n- 发布时间：02-24 10:42\n- 创建时间：2025-02-26 12:07:...",
+    "content_length": 375,
+    "created_at": "2026-05-14T06:51:59.142669+00:00",
+    "updated_at": "2026-05-14T06:57:16.413721+00:00",
+    "file_path": "job-27fd1d2b-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_9d4c6e58",
+    "metadata": {
+      "processing_start_time": 1778741790,
+      "processing_end_time": 1778741836
+    }
+  },
+  "job-27fd1f46-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-8b3faa5ec1e610ffc29ba00989e615d3"
+    ],
+    "content_summary": "# 岗位信息：电话客服无责6000+高提成\n\n## 基本信息\n- 岗位ID：27fd1f46-f5a4-11ef-a337-0242ac120005\n- 招聘标题：电话客服\n- 岗位类型：0\n- 行业：投资/基金/证券/期货\n- 领域：其他\n- 地址：四川省成都市中国（四川）自由贸易试验区成都高新区天府大道北段869号1栋2单元20层1号\n- 学历要求：专科及以上\n- 专业要求：专业不限\n- 薪资范围：8k-15k\n- 招聘人数：30\n- 发布时间：02-24 10:16\n- 创建时间：2025...",
+    "content_length": 391,
+    "created_at": "2026-05-14T06:51:59.175870+00:00",
+    "updated_at": "2026-05-14T06:58:25.590430+00:00",
+    "file_path": "job-27fd1f46-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_a3d79efa",
+    "metadata": {
+      "processing_start_time": 1778741836,
+      "processing_end_time": 1778741905
+    }
+  },
+  "job-27fd25ff-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-c66d2e6f0f40a684b46324f39ed3be3a"
+    ],
+    "content_summary": "# 岗位信息：客服专员无责6000接受小白\n\n## 基本信息\n- 岗位ID：27fd25ff-f5a4-11ef-a337-0242ac120005\n- 招聘标题：客服\n- 岗位类型：0\n- 行业：投资/基金/证券/期货\n- 领域：其他\n- 地址：四川省成都市中国（四川）自由贸易试验区成都高新区天府大道北段869号1栋2单元20层1号\n- 学历要求：不限\n- 专业要求：专业不限\n- 薪资范围：8k-15k\n- 招聘人数：30\n- 发布时间：02-24 10:02\n- 创建时间：2025-02-2...",
+    "content_length": 386,
+    "created_at": "2026-05-14T06:51:59.176531+00:00",
+    "updated_at": "2026-05-14T06:58:16.745727+00:00",
+    "file_path": "job-27fd25ff-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_ce4e1d8b",
+    "metadata": {
+      "processing_start_time": 1778741836,
+      "processing_end_time": 1778741896
+    }
+  },
+  "job-27fd35d9-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-69f4426b8ded11ea3bc5675a58cbbe22"
+    ],
+    "content_summary": "# 岗位信息：庆阳市普庆工程咨询有限责任公司招聘技术人员\n\n## 基本信息\n- 岗位ID：27fd35d9-f5a4-11ef-a337-0242ac120005\n- 招聘标题：技术人员\n- 岗位类型：0\n- 行业：电气/电力/水利\n- 领域：--\n- 地址：甘肃省庆阳市甘肃省庆阳市西峰区西大街圣鼎国际1号楼1单元402室\n- 学历要求：专科及以上\n- 专业要求：水利专业、土木工程专业\n- 薪资范围：3k-6k\n- 招聘人数：6\n- 发布时间：02-24 10:23\n- 创建时间：2025-02...",
+    "content_length": 389,
+    "created_at": "2026-05-14T06:51:59.198049+00:00",
+    "updated_at": "2026-05-14T06:59:10.925459+00:00",
+    "file_path": "job-27fd35d9-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_43d79d12",
+    "metadata": {
+      "processing_start_time": 1778741896,
+      "processing_end_time": 1778741950
+    }
+  },
+  "job-27fd3d23-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-ed494f29e7c71d904c4c3a6441e03847"
+    ],
+    "content_summary": "# 岗位信息：四川泽鑫物业服务有限公司招聘绿化工\n\n## 基本信息\n- 岗位ID：27fd3d23-f5a4-11ef-a337-0242ac120005\n- 招聘标题：绿化工\n- 岗位类型：0\n- 行业：物业管理/商业中心\n- 领域：物业管理/商业中心，艺术设计\n- 地址：四川省成都市成都市双流区九江街道大渡路33号附1号（自主申报）\n- 学历要求：不限\n- 专业要求：环境设计、园林设计、艺术设计\n- 薪资范围：3k-4k\n- 招聘人数：10\n- 发布时间：02-24 11:06\n- 创建时间...",
+    "content_length": 394,
+    "created_at": "2026-05-14T06:51:59.198336+00:00",
+    "updated_at": "2026-05-14T06:59:22.719776+00:00",
+    "file_path": "job-27fd3d23-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_b2167a00",
+    "metadata": {
+      "processing_start_time": 1778741905,
+      "processing_end_time": 1778741962
+    }
+  },
+  "job-27fd4040-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-dae9ce8c818e04cf3cde64b8c2fc6c0b"
+    ],
+    "content_summary": "# 岗位信息：上海招聘高速公路收费员（包食宿）\n\n## 基本信息\n- 岗位ID：27fd4040-f5a4-11ef-a337-0242ac120005\n- 招聘标题：高速公路收费员（包食宿）\n- 岗位类型：0\n- 行业：专业服务（财会/法律/翻译/人力资源等）\n- 领域：专业服务（财会/法律/翻译/人力资源等）\n- 地址：上海市浦东新区上海市奉贤区肖南路368号1幢3层\n- 学历要求：不限\n- 专业要求：专业不限\n- 薪资范围：2.7k-4.5k\n- 招聘人数：50\n- 发布时间：02-24 ...",
+    "content_length": 404,
+    "created_at": "2026-05-14T06:51:59.216500+00:00",
+    "updated_at": "2026-05-14T06:59:58.351647+00:00",
+    "file_path": "job-27fd4040-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_21c72a77",
+    "metadata": {
+      "processing_start_time": 1778741951,
+      "processing_end_time": 1778741998
+    }
+  },
+  "job-27fd4509-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-a459dc94da0fad63533c2fb1872be782"
+    ],
+    "content_summary": "# 岗位信息：招聘暖通设计师\n\n## 基本信息\n- 岗位ID：27fd4509-f5a4-11ef-a337-0242ac120005\n- 招聘标题：暖通设计师\n- 岗位类型：0\n- 行业：房地产/建筑/建材/工程\n- 领域：房地产/建筑/建材/工程，新能源，环保，机械制造/机电/重工\n- 地址：四川省成都市成都市郫都区凉水井街388号万达MINISOHO\n- 学历要求：专科及以上\n- 专业要求：暖通专业 建筑环境与能源应用工程\n- 薪资范围：4k-6k\n- 招聘人数：1\n- 发布时间：02-2...",
+    "content_length": 409,
+    "created_at": "2026-05-14T06:51:59.217697+00:00",
+    "updated_at": "2026-05-14T07:00:17.960634+00:00",
+    "file_path": "job-27fd4509-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_19c8433e",
+    "metadata": {
+      "processing_start_time": 1778741962,
+      "processing_end_time": 1778742017
+    }
+  },
+  "job-27fd4a51-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-1d656cf17ecaaf64d11e4506c358ae70"
+    ],
+    "content_summary": "# 岗位信息：广州外贸跟单员\n\n## 基本信息\n- 岗位ID：27fd4a51-f5a4-11ef-a337-0242ac120005\n- 招聘标题：广州外贸跟单员\n- 岗位类型：0\n- 行业：原材料及加工（金属/木材/橡胶/塑料/玻璃/陶瓷/建材）\n- 领域：--\n- 地址：江苏省连云港市连云港市海州区苍梧路35号山水丽景广场AB楼B513室\n- 学历要求：本科及以上\n- 专业要求：专业不限\n- 薪资范围：6k-8k\n- 招聘人数：1\n- 发布时间：02-24 09:57\n- 创建时间：202...",
+    "content_length": 389,
+    "created_at": "2026-05-14T06:51:59.238359+00:00",
+    "updated_at": "2026-05-14T07:02:49.083763+00:00",
+    "file_path": "job-27fd4a51-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_392d8771",
+    "metadata": {
+      "processing_start_time": 1778742123,
+      "processing_end_time": 1778742169
+    }
+  },
+  "job-27fd4eac-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-2cc2af00e258d4dbc6b087f3f8e1e991"
+    ],
+    "content_summary": "# 岗位信息：佛山市青松科技股份有限公司招聘毫米波雷达信号处理工程师（点云算法）\n\n## 基本信息\n- 岗位ID：27fd4eac-f5a4-11ef-a337-0242ac120005\n- 招聘标题：毫米波雷达信号处理工程师（点云算法）\n- 岗位类型：0\n- 行业：电子技术/半导体/集成电路\n- 领域：电子技术/半导体/集成电路\n- 地址：广东省佛山市佛山市南海区桂城三山大道泰山北路青松科技园\n- 学历要求：硕士及以上\n- 专业要求：电气工程及其自动化 电子科学与技术 通信工程 自动化 电子信...",
+    "content_length": 447,
+    "created_at": "2026-05-14T06:51:59.238808+00:00",
+    "updated_at": "2026-05-14T07:03:05.264907+00:00",
+    "file_path": "job-27fd4eac-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_2dfd59c6",
+    "metadata": {
+      "processing_start_time": 1778742123,
+      "processing_end_time": 1778742185
+    }
+  },
+  "job-27fd622d-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-2f9aa5ffd1a72ffa1c9d3aa34b60c636"
+    ],
+    "content_summary": "# 岗位信息：东莞康源电子有限公司招聘研发工程师（25届）\n\n## 基本信息\n- 岗位ID：27fd622d-f5a4-11ef-a337-0242ac120005\n- 招聘标题：研发工程师（25届）\n- 岗位类型：0\n- 行业：电子技术/半导体/集成电路\n- 领域：--\n- 地址：广东省东莞市虎门南栅第四工业区\n- 学历要求：硕士及以上\n- 专业要求：化学类 材料类 机械类 电气类 自动化类\n- 薪资范围：10k-15k\n- 招聘人数：8\n- 发布时间：02-24 10:22\n- 创建时间：2...",
+    "content_length": 391,
+    "created_at": "2026-05-14T06:51:59.258359+00:00",
+    "updated_at": "2026-05-14T07:03:31.634560+00:00",
+    "file_path": "job-27fd622d-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_f5d83386",
+    "metadata": {
+      "processing_start_time": 1778742169,
+      "processing_end_time": 1778742211
+    }
+  },
+  "job-27fd6495-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-9236a88bfb0b54eeec0a59e03ba7a1a2"
+    ],
+    "content_summary": "# 岗位信息：市场运营、新媒体运营\n\n## 基本信息\n- 岗位ID：27fd6495-f5a4-11ef-a337-0242ac120005\n- 招聘标题：市场运营\n- 岗位类型：0\n- 行业：计算机软件\n- 领域：计算机软件，互联网/电子商务\n- 地址：天津市南开区南开三马路37号3A30\n- 学历要求：本科及以上\n- 专业要求：专业不限\n- 薪资范围：5k-7k\n- 招聘人数：2\n- 发布时间：02-24 10:38\n- 创建时间：2025-02-26 12:07:07\n\n## 企业信息\n-...",
+    "content_length": 363,
+    "created_at": "2026-05-14T06:51:59.258980+00:00",
+    "updated_at": "2026-05-14T07:03:48.241028+00:00",
+    "file_path": "job-27fd6495-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_3263ab3d",
+    "metadata": {
+      "processing_start_time": 1778742185,
+      "processing_end_time": 1778742228
+    }
+  },
+  "job-27fd676c-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-425c1a3d10a2d4ab75fae4dd58df7b43"
+    ],
+    "content_summary": "# 岗位信息：东莞徐记食品有限公司招聘技工\n\n## 基本信息\n- 岗位ID：27fd676c-f5a4-11ef-a337-0242ac120005\n- 招聘标题：技工\n- 岗位类型：0\n- 行业：快速消费品（食品/饮料/日化/烟酒）\n- 领域：快速消费品（食品/饮料/日化/烟酒）\n- 地址：广东省东莞市东城周屋工业区\n- 学历要求：专科及以上\n- 专业要求：食品 机械 机电 工业机器人 电气自动化 材料 化工 生物 化学 等相关专业\n- 薪资范围：5k-6k\n- 招聘人数：30\n- 发布时间：...",
+    "content_length": 410,
+    "created_at": "2026-05-14T06:51:59.280741+00:00",
+    "updated_at": "2026-05-14T07:04:29.181404+00:00",
+    "file_path": "job-27fd676c-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_b5c1b723",
+    "metadata": {
+      "processing_start_time": 1778742211,
+      "processing_end_time": 1778742269
+    }
+  },
+  "job-27fd6c1f-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-631e91752a24f0d82c022df48b63ef58"
+    ],
+    "content_summary": "# 岗位信息：东莞徐记食品有限公司招聘车间技工/技术员\n\n## 基本信息\n- 岗位ID：27fd6c1f-f5a4-11ef-a337-0242ac120005\n- 招聘标题：车间技工/技术员\n- 岗位类型：0\n- 行业：快速消费品（食品/饮料/日化/烟酒）\n- 领域：快速消费品（食品/饮料/日化/烟酒）\n- 地址：广东省东莞市东城周屋工业区\n- 学历要求：不限\n- 专业要求：专业不限\n- 薪资范围：5k-6k\n- 招聘人数：30\n- 发布时间：02-24 09:53\n- 创建时间：2025-0...",
+    "content_length": 385,
+    "created_at": "2026-05-14T06:51:59.281028+00:00",
+    "updated_at": "2026-05-14T07:04:23.897899+00:00",
+    "file_path": "job-27fd6c1f-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_7d13cd03",
+    "metadata": {
+      "processing_start_time": 1778742228,
+      "processing_end_time": 1778742263
+    }
+  },
+  "job-27fd6e56-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-68fdf5a0e9bc8b6e140c9a61f8c590dc"
+    ],
+    "content_summary": "# 岗位信息：东莞徐记食品有限公司招聘生产技术员\n\n## 基本信息\n- 岗位ID：27fd6e56-f5a4-11ef-a337-0242ac120005\n- 招聘标题：生产技术员\n- 岗位类型：0\n- 行业：快速消费品（食品/饮料/日化/烟酒）\n- 领域：快速消费品（食品/饮料/日化/烟酒）\n- 地址：广东省东莞市东城周屋工业区\n- 学历要求：专科及以上\n- 专业要求：机械 食品\n- 薪资范围：5.2k-6k\n- 招聘人数：30\n- 发布时间：02-24 09:52\n- 创建时间：2025-0...",
+    "content_length": 385,
+    "created_at": "2026-05-14T06:51:59.301919+00:00",
+    "updated_at": "2026-05-14T07:06:20.913179+00:00",
+    "file_path": "job-27fd6e56-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_3ad79e20",
+    "metadata": {
+      "processing_start_time": 1778742341,
+      "processing_end_time": 1778742380
+    }
+  },
+  "job-27fd706e-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-38c1ccb736ad9cec0bc7e83bdc613f82"
+    ],
+    "content_summary": "# 岗位信息：东莞徐记食品有限公司招聘储备主管\n\n## 基本信息\n- 岗位ID：27fd706e-f5a4-11ef-a337-0242ac120005\n- 招聘标题：储备主管\n- 岗位类型：0\n- 行业：快速消费品（食品/饮料/日化/烟酒）\n- 领域：快速消费品（食品/饮料/日化/烟酒）\n- 地址：广东省东莞市东城周屋工业区\n- 学历要求：本科及以上\n- 专业要求：食品 生物 机械 理工科类\n- 薪资范围：5.5k-6.8k\n- 招聘人数：15\n- 发布时间：02-24 09:54\n- 创建时...",
+    "content_length": 393,
+    "created_at": "2026-05-14T06:51:59.303499+00:00",
+    "updated_at": "2026-05-14T07:06:32.306977+00:00",
+    "file_path": "job-27fd706e-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_e994b9a1",
+    "metadata": {
+      "processing_start_time": 1778742341,
+      "processing_end_time": 1778742392
+    }
+  },
+  "job-27fd76b1-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-4801fdf03a4cd965fc9eb9c29b104828"
+    ],
+    "content_summary": "# 岗位信息：待遇丰厚，弹性坐班，包吃住\n\n## 基本信息\n- 岗位ID：27fd76b1-f5a4-11ef-a337-0242ac120005\n- 招聘标题：高中语文老师\n- 岗位类型：0\n- 行业：教育/培训/院校\n- 领域：教育/培训/院校\n- 地址：河北省承德市河北省承德市滦平县中兴东路99号\n- 学历要求：本科及以上\n- 专业要求：汉语言文学 语文学科教育\n- 薪资范围：5k-10k\n- 招聘人数：15\n- 发布时间：02-24 09:56\n- 创建时间：2025-02-26 12:...",
+    "content_length": 379,
+    "created_at": "2026-05-14T06:51:59.330419+00:00",
+    "updated_at": "2026-05-14T07:07:24.159393+00:00",
+    "file_path": "job-27fd76b1-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_2e92ea8b",
+    "metadata": {
+      "processing_start_time": 1778742381,
+      "processing_end_time": 1778742444
+    }
+  },
+  "job-27fd9287-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-0a4c74db72e5625d1418ad0c51ecc31b"
+    ],
+    "content_summary": "# 岗位信息：杭州卡洛实业有限公司招聘回收技术员\n\n## 基本信息\n- 岗位ID：27fd9287-f5a4-11ef-a337-0242ac120005\n- 招聘标题：回收技术员\n- 岗位类型：0\n- 行业：原材料及加工（金属/木材/橡胶/塑料/玻璃/陶瓷/建材）\n- 领域：--\n- 地址：浙江省杭州市浙江省杭州市建德市大同镇耀光路1号\n- 学历要求：本科及以上\n- 专业要求：化工 材料\n- 薪资范围：5k-6k\n- 招聘人数：5\n- 发布时间：02-24 16:53\n- 创建时间：2025-...",
+    "content_length": 637,
+    "created_at": "2026-05-14T06:51:59.354739+00:00",
+    "updated_at": "2026-05-14T07:10:40.830614+00:00",
+    "file_path": "job-27fd9287-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_ed49eb3c",
+    "metadata": {
+      "processing_start_time": 1778742581,
+      "processing_end_time": 1778742640
+    }
+  },
+  "job-27fd8c6c-f5a4-11ef-a337-0242ac120005": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-4ec51a39dcb81d45e6881af69633a1e9"
+    ],
+    "content_summary": "# 岗位信息：小学道法/初中道法/高中政治（接受顶岗实习生）\n\n## 基本信息\n- 岗位ID：27fd8c6c-f5a4-11ef-a337-0242ac120005\n- 招聘标题：道法教师（接受顶岗实习生）\n- 岗位类型：0\n- 行业：教育/培训/院校\n- 领域：--\n- 地址：广东省深圳市广东省深圳市龙华区清湖社区半里大厦706\n- 学历要求：专科及以上\n- 专业要求：思想政治教育\n- 薪资范围：5k-18k\n- 招聘人数：5\n- 发布时间：02-24 16:09\n- 创建时间：2025-0...",
+    "content_length": 598,
+    "created_at": "2026-05-14T06:51:59.356496+00:00",
+    "updated_at": "2026-05-14T07:11:18.338172+00:00",
+    "file_path": "job-27fd8c6c-f5a4-11ef-a337-0242ac120005.md",
+    "track_id": "insert_20260514_145159_92627bbc",
+    "metadata": {
+      "processing_start_time": 1778742640,
+      "processing_end_time": 1778742678
+    }
+  }
+}

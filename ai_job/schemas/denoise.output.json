@@ -1,0 +1,17 @@
+{
+  "$comment": "问题去噪管道：你可按业务修改字段名，并与 role_profiles 中 structured_primary_field 对齐",
+  "title": "DenoisedQuestion",
+  "type": "object",
+  "properties": {
+    "clean_question": {
+      "type": "string",
+      "description": "剔除噪声后的核心提问，保留约束与意图"
+    },
+    "noise_notes": {
+      "type": "string",
+      "description": "可选：剔除了哪些噪声（短）"
+    }
+  },
+  "required": ["clean_question"],
+  "additionalProperties": false
+}

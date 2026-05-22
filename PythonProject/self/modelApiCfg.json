@@ -1,0 +1,23 @@
+[
+  {
+    "model_level": "low",
+    "model_provider": "openai",
+    "model_name": "wen3.5-9B-MLX-4bit",
+    "model_api": "http://host.docker.internal:8000/v1",
+    "model_key": "pc0824tq"
+  },
+  {
+    "model_level": "mid",
+    "model_provider": "openai",
+    "model_name": "gemma-4-26b-a4b-it-4bit",
+    "model_api": "http://host.docker.internal:8000/v1",
+    "model_key": "pc0824tq"
+  },
+  {
+    "model_level": "high",
+    "model_provider": "openai",
+    "model_name": "gemma-4-31b-it-4bit",
+    "model_api": "http://host.docker.internal:8000/v1",
+    "model_key": "pc0824tq"
+  }
+]

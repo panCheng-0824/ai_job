@@ -1,0 +1,607 @@
+{
+  "doc-65b045cb9a9395d547ebba7a9ff64aa2": {
+    "entity_names": [
+      "BLDC",
+      "SVPWM",
+      "Algorithm Engineer",
+      "PID",
+      "Guangzhou, Guangdong",
+      "National College Student Employment Service Platform",
+      "Shenzhen Fialand Technology Group Co., Ltd.",
+      "Job ID 27f4d25a-f5a4-11ef-a337-0242ac120005",
+      "Motor Control Algorithm",
+      "PMSM"
+    ],
+    "count": 10,
+    "create_time": 1777534055,
+    "update_time": 1777534055,
+    "_id": "doc-65b045cb9a9395d547ebba7a9ff64aa2"
+  },
+  "job-27f4e549-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "National College Student Employment Service Platform",
+      "Finance Management Trainee",
+      "Job ID 27f4e549-f5a4-11ef-a337-0242ac120005",
+      "Zhongheng Automotive Parts Co., Ltd.",
+      "Finance Management, Accounting, Finance",
+      "Financial ERP System",
+      "Accounting Professional Qualification Certificate",
+      "Jiaxing, Zhejiang",
+      "Excel"
+    ],
+    "count": 9,
+    "create_time": 1778593794,
+    "update_time": 1778593794,
+    "_id": "job-27f4e549-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27ff92e5-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "National College Student Employment Service Platform",
+      "Excel, Financial ERP Systems",
+      "Finance Management Trainee",
+      "Jiaxing, Zhejiang Province",
+      "Zhongheng Automotive Components Co., Ltd.",
+      "Job ID: 27ff92e5-f5a4-11ef-a337-0242ac120005",
+      "Financial Management, Accounting, Finance",
+      "Automotive/Motorcycle Industry"
+    ],
+    "count": 8,
+    "create_time": 1778594751,
+    "update_time": 1778594751,
+    "_id": "job-27ff92e5-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fce9a1-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "7k-9k",
+      "Project Engineer (Mechanical/Automation)",
+      "Bachelor's Degree and Above",
+      "Zhuangliang Road 1418, Building 6, Room 1413, Zhuangxing Town, Fengxian District, Shanghai",
+      "Spanish Translator (Intern)",
+      "Shanghai Eju Pharmaceutical Technology Co., Ltd.",
+      "National College Student Employment Service Platform",
+      "Spanish"
+    ],
+    "count": 8,
+    "create_time": 1778725522,
+    "update_time": 1778725522,
+    "_id": "job-27fce9a1-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fcf6b4-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "Dongguan, Guangdong",
+      "National College Student Employment Service Platform",
+      "Job ID 27fcf6b6-f5a4-11ef-a337-0242ac120005",
+      "Chemistry, Materials, Mechanical, Electrical, Automation",
+      "Bachelor's Degree or Above",
+      "Humen Nanran Fourth Industrial Zone, Dongguan, Guangdong",
+      "Dongguan Kangyuan Electronics Co., Ltd.",
+      "Quality Engineer (Class of 25)",
+      "Job ID 27fcf6b4-f5a4-11ef-a337-0242ac120005"
+    ],
+    "count": 9,
+    "create_time": 1778726902,
+    "update_time": 1778726902,
+    "_id": "job-27fcf6b4-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd023e-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "西大街",
+      "水利水电工程, 水文, 水资源利用, 农田水利, 土木工程",
+      "水利工程设计人员",
+      "西峰区",
+      "庆阳市普庆工程咨询有限责任公司",
+      "27fd023e-f5a4-11ef-a337-0242ac120005",
+      "甘肃省庆阳市西峰区西大街圣鼎国际1号楼1单元402室",
+      "庆阳市",
+      "圣鼎国际",
+      "国家大学生就业服务平台",
+      "甘肃省"
+    ],
+    "count": 11,
+    "create_time": 1778735940,
+    "update_time": 1778735940,
+    "_id": "job-27fd023e-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fcefa6-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "National College Student Employment Service Platform",
+      "Bachelor's Degree or Above",
+      "Dongguan Kangyuan Electronics Co., Ltd.",
+      "Product Engineer (Class of 25)",
+      "Dongguan, Guangdong",
+      "8k-12k",
+      "Chemistry, Materials, Mechanical, Electrical, Automation",
+      "Humen Nan-zha Fourth Industrial Zone"
+    ],
+    "count": 8,
+    "create_time": 1778741022,
+    "update_time": 1778741022,
+    "_id": "job-27fcefa6-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fcec32-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "Job ID: 27fcec32-f5a4-11ef-a337-0242ac120005",
+      "National College Student Employment Service Platform",
+      "Creation Time",
+      "Design Engineer (Class of 25)",
+      "Salary Range",
+      "Guangdong Province",
+      "Release Time",
+      "Dongguan Kangyuan Electronics Co., Ltd.",
+      "Professional Requirements",
+      "Recruitment Number",
+      "Enterprise Unified Code",
+      "Humen Nan-zha Fourth Industrial Zone",
+      "Dongguan City",
+      "Educational Requirements"
+    ],
+    "count": 14,
+    "create_time": 1778741080,
+    "update_time": 1778741080,
+    "_id": "job-27fcec32-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fcf90f-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "National College Student Employment Service Platform",
+      "Humen",
+      "Bachelor's Degree or Above",
+      "Dongguan",
+      "Guangdong Province",
+      "Chemistry, Materials, Mechanical, Electrical, and Automation",
+      "Process Engineer (Class of 25)",
+      "Dongguan Kangyuan Electronics Co., Ltd.",
+      "Humen Nanran Fourth Industrial Zone"
+    ],
+    "count": 9,
+    "create_time": 1778741606,
+    "update_time": 1778741606,
+    "_id": "job-27fcf90f-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fcffd4-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "National College Student Employment Service Platform",
+      "Job ID 27fcffd4-f5a4-11ef-a337-0242ac120005",
+      "Humen",
+      "Guangdong Province",
+      "Industry: Electronic Technology/Semiconductor/Integrated Circuit",
+      "Degree Requirement: Bachelor's Degree or above",
+      "Dongguan Kangyuan Electronics Co., Ltd.",
+      "Professional Requirements: Chemistry, Materials, Mechanical, Electronic, Automation",
+      "Dongguan City",
+      "Enterprise Unified Code: 27fd622d-f5a4-11ef-a337-0242ac120005",
+      "Salary Range: 10k-15k",
+      "Research and Development Engineer",
+      "Nanran",
+      "Humen Nanran Fourth Industrial Zone",
+      "Recruitment Number: 10"
+    ],
+    "count": 15,
+    "create_time": 1778741670,
+    "update_time": 1778741670,
+    "_id": "job-27fcffd4-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd070a-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "河南省郑州市",
+      "100",
+      "移动10086接听客服",
+      "27fd070a-f5a4-11ef-a337-0242ac120005",
+      "国家大学生就业服务平台",
+      "3k-8k",
+      "河南百硕商务服务有限公司",
+      "专业服务",
+      "郑州市金水区优胜南路26号合盛时代商务4楼4E"
+    ],
+    "count": 9,
+    "create_time": 1778741693,
+    "update_time": 1778741693,
+    "_id": "job-27fd070a-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd0e23-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "Job ID",
+      "6k-8k",
+      "Headquarters Marketing Management Trainee",
+      "Zuoshangming She Home Furnishing (Shanghai) Co., Ltd.",
+      "National College Student Employment Service Platform",
+      "Creation Time",
+      "Raw Materials and Processing",
+      "Release Date",
+      "Recruitment Number",
+      "Bachelor's Degree and Above",
+      "Fengxian District, Shanghai"
+    ],
+    "count": 11,
+    "create_time": 1778741738,
+    "update_time": 1778741738,
+    "_id": "job-27fd0e23-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd104c-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "National College Student Employment Service Platform",
+      "Nutritionist",
+      "Master's Degree or Higher",
+      "Anyuan Twins Livestock Co., Ltd.",
+      "Recruitment Number 3",
+      "Salary Range 4k-6k",
+      "Animal Husbandry",
+      "Nanning Coastal Economic Development Zone",
+      "Animal Nutrition and Feed Science",
+      "Nanning, Guangxi",
+      "Job ID 27fd104c-f5a4-11ef-a337-0242ac120005"
+    ],
+    "count": 11,
+    "create_time": 1778741777,
+    "update_time": 1778741777,
+    "_id": "job-27fd104c-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd1510-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "Guangxi",
+      "CAD, Tianzheng, Glodon",
+      "National College Student Employment Service Platform",
+      "Nanning",
+      "Coastal Economic Development Zone",
+      "Bachelor's Degree or Above",
+      "Design, Costing, Civil Engineering, Engineering Management",
+      "Job ID 27fd1510-f5a4-11ef-a337-0242ac120005",
+      "Anyuan Twins Livestock Co., Ltd.",
+      "Construction Engineering Position"
+    ],
+    "count": 10,
+    "create_time": 1778741790,
+    "update_time": 1778741790,
+    "_id": "job-27fd1510-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd1844-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "Tianfu Avenue North Section",
+      "National College Student Employment Service Platform",
+      "Job ID 27fd1844-f5a4-11ef-a337-0242ac120005",
+      "Investment/Fund/Securities/Futures",
+      "Sichuan Xinyuan Shengda Information Technology Co., Ltd.",
+      "Salary Range 10k-25k",
+      "Chengdu",
+      "Sichuan Province",
+      "Sales Specialist",
+      "Chengdu High-tech Zone",
+      "Unified Social Credit Code 27fd25ff-f5a4-11ef-a337-0242ac120005"
+    ],
+    "count": 11,
+    "create_time": 1778741836,
+    "update_time": 1778741836,
+    "_id": "job-27fd1844-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd1d2b-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "National College Student Employment Service Platform",
+      "Nanning Coastal Economic Development Zone",
+      "Anyuan Twins Livestock Co., Ltd.",
+      "Animal Husbandry and Veterinary Medicine",
+      "Guangxi Nanning City",
+      "Breeding Production Position",
+      "Agriculture, Forestry, Animal Husbandry, and Fishery"
+    ],
+    "count": 7,
+    "create_time": 1778741836,
+    "update_time": 1778741836,
+    "_id": "job-27fd1d2b-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd25ff-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "Tianfu Avenue North Section 869, Building 1, Unit 2, 20th Floor, No. 1, Chengdu High-tech Zone, China (Sichuan) Pilot Free Trade Zone, Chengdu, Sichuan Province",
+      "Sichuan Xinyuan Shengda Information Technology Co., Ltd.",
+      "National College Student Employment Service Platform",
+      "Job ID 27fd25ff-f5a4-11ef-a337-0242ac120005",
+      "Investment/Fund/Securities/Futures",
+      "Customer Service Specialist Role"
+    ],
+    "count": 6,
+    "create_time": 1778741896,
+    "update_time": 1778741896,
+    "_id": "job-27fd25ff-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd1f46-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "Job ID",
+      "Tianfu Avenue North Section",
+      "Job ID 27fd1f46-f5a4-11ef-a337-0242ac120005",
+      "Investment/Fund/Securities/Futures",
+      "Sichuan Xinyuan Shengda Information Technology Co., Ltd.",
+      "Release Time",
+      "Salary Range",
+      "Creation Time",
+      "Sichuan Province",
+      "National College Student Employment Service Platform",
+      "Enterprise Unified Code",
+      "Chengdu High-tech Zone",
+      "Telephone Customer Service",
+      "Recruitment Number"
+    ],
+    "count": 14,
+    "create_time": 1778741905,
+    "update_time": 1778741905,
+    "_id": "job-27fd1f46-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd35d9-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "甘肃省庆阳市",
+      "技术人员",
+      "西峰区",
+      "岗位ID: 27fd35d9-f5a4-11ef-a337-0242ac120005",
+      "庆阳市普庆工程咨询有限责任公司",
+      "土木工程专业",
+      "甘肃省庆阳市西峰区西大街圣鼎国际1号楼1单元402室",
+      "水利专业",
+      "国家大学生就业服务平台"
+    ],
+    "count": 9,
+    "create_time": 1778741950,
+    "update_time": 1778741950,
+    "_id": "job-27fd35d9-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd3d23-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "Shuangliu District, Chengdu, Sichuan",
+      "National College Student Employment Service Platform",
+      "Job ID 27fd3d23-f5a4-11ef-a337-0242ac120005",
+      "Landscape Design",
+      "Environmental Design",
+      "Art Design",
+      "Sichuan Zexin Property Service Co., Ltd.",
+      "Landscape Worker"
+    ],
+    "count": 8,
+    "create_time": 1778741962,
+    "update_time": 1778741962,
+    "_id": "job-27fd3d23-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd4040-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "National College Student Employment Service Platform",
+      "Creation Time",
+      "Shanghai Hangpu Industrial Co., Ltd.",
+      "Salary Range",
+      "Professional Services",
+      "Xiaonan Road 368, Building 1, 3rd Floor, Fengxian District, Pudong New Area, Shanghai",
+      "Highway Toll Collector",
+      "Job ID 27fd4040-f5a4-11ef-a337-0242ac120005",
+      "Publication Time",
+      "Recruitment Number",
+      "Shanghai"
+    ],
+    "count": 11,
+    "create_time": 1778741998,
+    "update_time": 1778741998,
+    "_id": "job-27fd4040-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd4509-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "Building Environment and Energy Application Engineering",
+      "National College Student Employment Service Platform",
+      "Sichuan Fuyuanrui Construction Engineering Co., Ltd.",
+      "Real Estate/Construction/Building Materials/Engineering",
+      "New Energy",
+      "Sichuan Province",
+      "Chengdu",
+      "Environmental Protection",
+      "HVAC Designer",
+      "HVAC Professional",
+      "Pidu District",
+      "Wanda MINISOHO",
+      "Mechanical Manufacturing/Electromechanical/Heavy Industry"
+    ],
+    "count": 13,
+    "create_time": 1778742017,
+    "update_time": 1778742017,
+    "_id": "job-27fd4509-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd4a51-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "Shanshui Lijing Plaza",
+      "Cangwu Road",
+      "Job ID 27fd4a51-f5a4-11ef-a337-0242ac120005",
+      "Raw Materials and Processing",
+      "Guangzhou Foreign Trade Merchandiser",
+      "Jiangsu Province",
+      "Haizhu District",
+      "National College Student Employment Service Platform",
+      "Haizhou District",
+      "Lianyungang Jinhua Shelving Co., Ltd.",
+      "Lianyungang City"
+    ],
+    "count": 11,
+    "create_time": 1778742169,
+    "update_time": 1778742169,
+    "_id": "job-27fd4a51-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd4eac-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "Qingsong Technology Park",
+      "Nanhai District",
+      "Foshan City",
+      "National College Student Employment Service Platform",
+      "Foshan Qingsong Technology Co., Ltd.",
+      "Guangdong Province",
+      "Electronic Technology/Semiconductor/Integrated Circuit",
+      "Master's Degree or Higher",
+      "Millimeter Wave Radar Signal Processing Engineer (Point Cloud Algorithm)"
+    ],
+    "count": 9,
+    "create_time": 1778742185,
+    "update_time": 1778742185,
+    "_id": "job-27fd4eac-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd622d-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "Dongguan City",
+      "Guangdong Province",
+      "10k-15k",
+      "Master's Degree and Above",
+      "R&D Engineer (Class of 2025)",
+      "Dongguan Kangyuan Electronics Co., Ltd.",
+      "Chemistry, Materials, Mechanical, Electrical, Automation",
+      "National College Student Employment Service Platform",
+      "Humen Nanran Fourth Industrial Zone",
+      "Job ID 27fd622d-f5a4-11ef-a337-0242ac120005"
+    ],
+    "count": 10,
+    "create_time": 1778742211,
+    "update_time": 1778742211,
+    "_id": "job-27fd622d-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd6495-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "Tianjin Nankai District Nankai Third Road No. 37, 3A30",
+      "Tianjin Digital Jump Technology Co., Ltd.",
+      "Private Enterprise",
+      "Tianjin",
+      "Market Operations",
+      "Nankai District",
+      "Bachelor's Degree and Above",
+      "National College Student Employment Service Platform",
+      "Internet/E-commerce",
+      "Computer Software",
+      "New Media Operations",
+      "Job ID 27fd6495-f5a4-11ef-a337-0242ac120005",
+      "5k-7k"
+    ],
+    "count": 13,
+    "create_time": 1778742228,
+    "update_time": 1778742228,
+    "_id": "job-27fd6495-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd6c1f-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "Dongguan City",
+      "Dongguan Xuji Food Co., Ltd.",
+      "Workshop Technician/Technician",
+      "Fast-Moving Consumer Goods",
+      "National College Student Employment Service Platform",
+      "Guangdong Province",
+      "Dongcheng Zhouwu Industrial Zone",
+      "Job ID 27fd6c1f-f5a4-11ef-a337-0242ac120005"
+    ],
+    "count": 8,
+    "create_time": 1778742263,
+    "update_time": 1778742263,
+    "_id": "job-27fd6c1f-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd676c-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "Associate Degree and Above",
+      "Dongguan City",
+      "Technician",
+      "30 People",
+      "February 26, 2025",
+      "Fast-Moving Consumer Goods",
+      "Job ID 27fd676c-f5a4-11ef-a337-0242ac120005",
+      "Technical Majors",
+      "February 24",
+      "National College Student Employment Service Platform",
+      "东莞徐记食品有限公司",
+      "Salary Range 5k-6k",
+      "Dongcheng Zhouwu Industrial Zone",
+      "Guangdong Province"
+    ],
+    "count": 14,
+    "create_time": 1778742269,
+    "update_time": 1778742269,
+    "_id": "job-27fd676c-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd6e56-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "机械",
+      "东莞徐记食品有限公司",
+      "国家大学生就业服务平台",
+      "生产技术员",
+      "食品",
+      "快速消费品",
+      "27fd706e-f5a4-11ef-a337-0242ac120005",
+      "广东省东莞市东城周屋工业区",
+      "27fd6e56-f5a4-11ef-a337-0242ac120005"
+    ],
+    "count": 9,
+    "create_time": 1778742380,
+    "update_time": 1778742380,
+    "_id": "job-27fd6e56-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd706e-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "National College Student Employment Service Platform",
+      "Dongcheng Zhouwu Industrial Zone",
+      "Reserve Supervisor",
+      "15 Recruitment Headcount",
+      "Dongguan, Guangdong",
+      "Job ID 27fd706e-f5a4-11ef-a337-0242ac120005",
+      "Food, Biology, Mechanical, and Science/Engineering",
+      "Bachelor's Degree and Above",
+      "5.5k-6.8k Salary Range",
+      "Fast-Moving Consumer Goods",
+      "Dongguan Xuji Food Co., Ltd."
+    ],
+    "count": 11,
+    "create_time": 1778742392,
+    "update_time": 1778742392,
+    "_id": "job-27fd706e-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd76b1-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "National College Student Employment Service Platform",
+      "Chinese Language and Literature",
+      "286f6778-f5a4-11ef-a337-0242ac120005",
+      "Luanping County",
+      "Chinese Language and Literature Education",
+      "Hebei Province",
+      "Chengde Wenmao Senior High School Co., Ltd.",
+      "5k-10k",
+      "Educational/Training/Institutional Industry",
+      "Bachelor's Degree and Above",
+      "High School Chinese Teacher",
+      "Zhongxing East Road",
+      "27fd76b1-f5a4-11ef-a337-0242ac120005",
+      "Chengde City"
+    ],
+    "count": 14,
+    "create_time": 1778742444,
+    "update_time": 1778742444,
+    "_id": "job-27fd76b1-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd9287-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "DMF Recycling Process",
+      "Hangzhou Carlo Industrial Co., Ltd.",
+      "Recycling Technician",
+      "DMF Recycling System",
+      "Chemical Engineering and Materials",
+      "Jian de City",
+      "Yaoguang Road",
+      "Datong Town",
+      "Hangzhou",
+      "National College Student Employment Service Platform",
+      "Zhejiang Province"
+    ],
+    "count": 11,
+    "create_time": 1778742640,
+    "update_time": 1778742640,
+    "_id": "job-27fd9287-f5a4-11ef-a337-0242ac120005"
+  },
+  "job-27fd8c6c-f5a4-11ef-a337-0242ac120005": {
+    "entity_names": [
+      "Job ID: 27fd8c6c-f5a4-11ef-a337-0242ac120005",
+      "Internship Requirements",
+      "Teacher's Certificate",
+      "Job Title: Primary/Junior/Senior High School Morality and Rule of Law or Politics Teacher",
+      "Shenzhen Datang Mingsheng Enterprise Management Consulting Co., Ltd.",
+      "Ideological and Political Education",
+      "Salary Range 5k-18k",
+      "Guangdong Province, Shenzhen, Longhua District, Qinghu Community, Banli Building, Room 706",
+      "Internship Salary Structure",
+      "National College Student Employment Service Platform"
+    ],
+    "count": 10,
+    "create_time": 1778742678,
+    "update_time": 1778742678,
+    "_id": "job-27fd8c6c-f5a4-11ef-a337-0242ac120005"
+  }
+}

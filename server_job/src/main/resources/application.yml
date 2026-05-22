@@ -1,0 +1,74 @@
+spring:
+  application:
+    name: server_job
+  mvc:
+    async:
+      # 全局异步请求超时（含未单独指定 WebAsyncTask 的 StreamingResponseBody 等），避免默认 ~30s 长会话被掐断
+      request-timeout: 30m
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:app_db}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:pc0824tq}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:pc0824tq}
+      database: ${REDIS_DATABASE:0}
+      timeout: 5s
+    mongodb:
+      uri: mongodb://${MONGODB_USER:${MONGO_INITDB_ROOT_USERNAME:root}}:${MONGODB_PASSWORD:${MONGO_INITDB_ROOT_PASSWORD:pc0824tq}}@${MONGODB_HOST:localhost}:${MONGODB_PORT:27017}/${MONGODB_DATABASE:server_job}?authSource=admin
+    neo4j:
+      uri: bolt://${NEO4J_HOST:localhost}:${NEO4J_BOLT_PORT:7687}
+      authentication:
+        username: ${NEO4J_USER:neo4j}
+        password: ${NEO4J_PASSWORD:pc0824tq}
+    elasticsearch:
+      uris: http://${ELASTICSEARCH_HOST:localhost}:${ELASTICSEARCH_PORT:9200}
+      username: ${ELASTICSEARCH_USER:elastic}
+      password: ${ELASTICSEARCH_PASSWORD:elastic123456}
+
+server:
+  port: 8002
+
+# 聊天 SSE 单独 WebAsyncTask 超时（可与全局 spring.mvc.async.request-timeout 一致或更大，例如长推理）
+chat:
+  stream:
+    async-request-timeout: 10m
+
+# 登录成功后写入 Redis，供 ai_job 按学号读取（键前缀 + 学号）
+student:
+  redis-key-prefix: ${STUDENT_PROFILE_REDIS_PREFIX:student:profile:}
+  cache-ttl-hours: ${STUDENT_PROFILE_CACHE_TTL_HOURS:168}
+
+rocketmq:
+  name-server: ${ROCKETMQ_NAMESERVER:localhost:9876}
+  producer:
+    group: ${ROCKETMQ_PRODUCER_GROUP:server_job_producer}
+  consumer:
+    group: ${ROCKETMQ_CONSUMER_GROUP:server_job_consumer}
+
+milvus:
+  host: ${MILVUS_HOST:localhost}
+  port: ${MILVUS_PORT:19530}
+  username: ${MILVUS_USER:root}
+  password: ${MILVUS_PASSWORD:Milvus}
+  database: ${MILVUS_DATABASE:default}
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+
+ai-job:
+  base-url: ${AI_JOB_BASE_URL:http://127.0.0.1:8001}
+  rag:
+    insert-path: ${AI_JOB_RAG_INSERT_PATH:/rag/lightrag/insert}
+    greprag-text-to-md-path: ${AI_JOB_GREPRAG_TEXT_TO_MD_PATH:/rag/greprag/text-to-md}
+    source: ${AI_JOB_RAG_SOURCE:server_job}
+    # 批量/并行 RAG 同步线程池核心线程数；队列容量为 Integer.MAX_VALUE（不限制排队长度）
+    sync-thread-pool-core-size: ${AI_JOB_RAG_SYNC_THREAD_POOL_CORE_SIZE:3}

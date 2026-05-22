@@ -1,0 +1,216 @@
+:root {
+  --primary-color: #6366f1;
+  --secondary-color: #a855f7;
+  --text-main: #1f2937;
+  --text-muted: #6b7280;
+  --bg-color: #f8fafc;
+  --card-bg: #ffffff;
+  --danger: #dc2626;
+  --line: rgba(31, 41, 55, 0.08);
+  --transition: all .3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Poppins", "Noto Sans SC", sans-serif;
+  background: var(--bg-color);
+  color: var(--text-main);
+}
+
+header {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.nav-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 20px;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.logo {
+  font-size: 1.3rem;
+  font-weight: 700;
+  background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.nav-select {
+  min-width: 190px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 0.9rem;
+  background: #fff;
+  color: var(--text-main);
+}
+
+.nav-links {
+  list-style: none;
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-links a {
+  text-decoration: none;
+  color: var(--text-main);
+  font-size: 0.95rem;
+}
+
+.nav-links a.active,
+.nav-links a:hover {
+  color: var(--primary-color);
+}
+
+.panel {
+  background: var(--card-bg);
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  padding: 18px;
+}
+
+.field,
+.select {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.92rem;
+  background: #fff;
+}
+
+.field:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.14);
+}
+
+/* 全站按钮：显式去掉系统 appearance，避免 Safari/部分环境下像纯文本 */
+.btn,
+button.fav-btn,
+button.fol-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  line-height: 1.25;
+  cursor: pointer;
+  text-decoration: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.btn {
+  border: 1px solid transparent;
+  background: var(--primary-color);
+  color: #fff;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn.secondary {
+  background: #fff;
+  color: var(--text-main);
+  border: 1px solid #d1d5db;
+}
+
+.btn.secondary:hover {
+  border-color: #a5b4fc;
+  background: #f8fafc;
+}
+
+.btn.primary {
+  background: var(--primary-color);
+  color: #fff;
+  border-color: var(--primary-color);
+}
+
+.btn.danger {
+  background: #fff;
+  color: var(--danger);
+  border: 1px solid #fecaca;
+}
+
+.btn.danger:hover {
+  background: #fef2f2;
+}
+
+/* 岗位列表 / 企业列表：收藏、关注 */
+button.fav-btn,
+button.fol-btn {
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+}
+
+button.fav-btn:hover,
+button.fol-btn:hover {
+  border-color: #a5b4fc;
+  background: #f8fafc;
+}
+
+button.fav-btn.on,
+button.fol-btn.on {
+  border-color: #a5b4fc;
+  background: #eef2ff;
+  color: var(--primary-color);
+}
+
+.error {
+  color: var(--danger);
+  min-height: 20px;
+  font-weight: 600;
+}
+
+.widget h3 {
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
+
+.widget p,
+.widget li {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.widget ul {
+  list-style: none;
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+}
+
+.widget a {
+  text-decoration: none;
+  color: var(--primary-color);
+}

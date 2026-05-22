@@ -1,0 +1,9 @@
+{
+  "pipeline_stage_logs": true,
+  "pipeline_llm_progress": true,
+  "pipeline_llm_warn_after_s": 20,
+  "pipeline_llm_timeout_s": 25,
+  "role004_llm_timeout_s": 120,
+  "pipeline_llm_max_retries": 0,
+  "pipeline_llm_skip_structured": true
+}

@@ -1,0 +1,159 @@
+[
+  {
+    "student_id": "STU2026001",
+    "name": "李明轩",
+    "gender": "男",
+    "age": 20,
+    "phone": "13800001111",
+    "email": "limingxuan@example.com",
+    "hometown": "浙江杭州",
+    "grade": "2023级",
+    "school_info": {
+      "school_name": "华东信息工程大学",
+      "campus": "主校区",
+      "college": "计算机与人工智能学院",
+      "major": "软件工程",
+      "class_name": "软工2302班",
+      "advisor": "周老师"
+    },
+    "major_info": {
+      "major_direction": "智能软件开发",
+      "core_courses": [
+        "数据结构",
+        "操作系统",
+        "数据库系统",
+        "软件工程导论",
+        "机器学习基础"
+      ],
+      "career_interest": [
+        "后端开发",
+        "AI应用工程"
+      ]
+    },
+    "honors_info": [
+      {
+        "title": "校级优秀学生干部",
+        "level": "校级",
+        "date": "2025-12"
+      },
+      {
+        "title": "程序设计竞赛二等奖",
+        "level": "省级",
+        "date": "2025-05"
+      }
+    ],
+    "psychological_info": {
+      "overall_status": "稳定",
+      "stress_level": "中",
+      "sleep_quality": "一般",
+      "social_adaptation": "良好",
+      "risk_note": "无明显风险",
+      "support_suggestion": [
+        "考试周建议增加运动频次",
+        "保持每周一次学习计划复盘"
+      ]
+    },
+    "scholarship_info": [
+      {
+        "name": "国家励志奖学金",
+        "year": "2025",
+        "amount_cny": 5000
+      },
+      {
+        "name": "校级一等奖学金",
+        "year": "2024",
+        "amount_cny": 3000
+      }
+    ],
+    "grade_gpa_info": {
+      "gpa": 3.72,
+      "gpa_scale": 4.0,
+      "major_rank": 12,
+      "major_total": 146,
+      "average_score": 88.4,
+      "failed_courses": 0,
+      "latest_term_scores": {
+        "数据结构": 91,
+        "操作系统": 86,
+        "数据库系统": 89,
+        "计算机网络": 87
+      }
+    }
+  },
+  {
+    "student_id": "STU2026002",
+    "name": "王若彤",
+    "gender": "女",
+    "age": 21,
+    "phone": "13900002222",
+    "email": "wangruotong@example.com",
+    "hometown": "江苏苏州",
+    "grade": "2022级",
+    "school_info": {
+      "school_name": "江南科技大学",
+      "campus": "东校区",
+      "college": "数据科学学院",
+      "major": "数据科学与大数据技术",
+      "class_name": "大数据2201班",
+      "advisor": "陈老师"
+    },
+    "major_info": {
+      "major_direction": "数据分析与商业智能",
+      "core_courses": [
+        "概率统计",
+        "Python数据分析",
+        "数据挖掘",
+        "机器学习",
+        "数据可视化"
+      ],
+      "career_interest": [
+        "数据分析师",
+        "算法工程师"
+      ]
+    },
+    "honors_info": [
+      {
+        "title": "三好学生",
+        "level": "院级",
+        "date": "2025-06"
+      },
+      {
+        "title": "全国大学生数学建模竞赛省二等奖",
+        "level": "省级",
+        "date": "2024-10"
+      }
+    ],
+    "psychological_info": {
+      "overall_status": "较稳定",
+      "stress_level": "中高",
+      "sleep_quality": "偏差",
+      "social_adaptation": "良好",
+      "risk_note": "近期因就业压力出现焦虑倾向，建议持续关注",
+      "support_suggestion": [
+        "进行分阶段求职目标设定",
+        "建议参与学校心理中心减压课程"
+      ]
+    },
+    "scholarship_info": [
+      {
+        "name": "校级二等奖学金",
+        "year": "2025",
+        "amount_cny": 2000
+      }
+    ],
+    "grade_gpa_info": {
+      "gpa": 3.54,
+      "gpa_scale": 4.0,
+      "major_rank": 28,
+      "major_total": 120,
+      "average_score": 84.7,
+      "failed_courses": 0,
+      "latest_term_scores": {
+        "机器学习": 88,
+        "数据挖掘": 85,
+        "商务智能": 83,
+        "数据可视化": 86
+      }
+    }
+  }
+]

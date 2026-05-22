@@ -1,0 +1,18 @@
+{
+  "$comment": "上下文压缩管道：摘要进入 chat_history；keywords 可选",
+  "title": "CompressedContext",
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "去噪后的多轮上下文摘要"
+    },
+    "keywords": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "可选：关键词"
+    }
+  },
+  "required": ["summary"],
+  "additionalProperties": false
+}

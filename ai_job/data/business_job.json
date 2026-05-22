@@ -1,0 +1,174 @@
+[
+  {
+    "job_id": "JOB2026001",
+    "job_title": "Python后端开发工程师",
+    "job_category": "技术",
+    "city": "杭州",
+    "district": "滨江区",
+    "work_location": "线下办公",
+    "experience_required": "3-5年",
+    "education_required": "本科及以上",
+    "salary_range_month": "20k-35k",
+    "salary_months": 15,
+    "skills_required": [
+      "Python",
+      "FastAPI",
+      "MySQL",
+      "Redis",
+      "Docker"
+    ],
+    "job_description": "负责企业级AI应用后端服务开发，参与需求分析、接口设计、性能优化与线上问题排查。",
+    "job_highlights": [
+      "核心业务团队",
+      "年度调薪",
+      "技术成长路径清晰"
+    ],
+    "recruiter": {
+      "name": "陈女士",
+      "title": "技术招聘经理",
+      "active_status": "本周活跃"
+    },
+    "publish_date": "2026-04-15",
+    "company_relation": {
+      "company_name": "杭州智联未来科技有限公司",
+      "credit_code": "91330108MA2HXXXX1A"
+    }
+  },
+  {
+    "job_id": "JOB2026002",
+    "job_title": "AI应用工程师",
+    "job_category": "技术",
+    "city": "杭州",
+    "district": "滨江区",
+    "work_location": "线下办公",
+    "experience_required": "1-3年",
+    "education_required": "本科及以上",
+    "salary_range_month": "18k-30k",
+    "salary_months": 14,
+    "skills_required": [
+      "LangChain",
+      "Prompt Engineering",
+      "Python",
+      "向量数据库"
+    ],
+    "job_description": "负责大模型应用场景落地，设计智能体工作流，构建检索增强与工具调用链路。",
+    "job_highlights": [
+      "AI前沿项目",
+      "双休",
+      "餐补交通补贴"
+    ],
+    "recruiter": {
+      "name": "刘先生",
+      "title": "HRBP",
+      "active_status": "今日活跃"
+    },
+    "publish_date": "2026-04-18",
+    "company_relation": {
+      "company_name": "杭州智联未来科技有限公司",
+      "credit_code": "91330108MA2HXXXX1A"
+    }
+  },
+  {
+    "job_id": "JOB2026003",
+    "job_title": "数据分析师",
+    "job_category": "数据",
+    "city": "上海",
+    "district": "浦东新区",
+    "work_location": "线下办公",
+    "experience_required": "2-4年",
+    "education_required": "本科及以上",
+    "salary_range_month": "16k-26k",
+    "salary_months": 13,
+    "skills_required": [
+      "SQL",
+      "Python",
+      "Tableau",
+      "统计分析"
+    ],
+    "job_description": "负责业务数据分析与指标体系建设，输出经营分析报告并支持业务决策。",
+    "job_highlights": [
+      "业务数据核心岗",
+      "季度奖金",
+      "晋升机制完善"
+    ],
+    "recruiter": {
+      "name": "王女士",
+      "title": "招聘主管",
+      "active_status": "本周活跃"
+    },
+    "publish_date": "2026-04-12",
+    "company_relation": {
+      "company_name": "上海云策数据服务股份有限公司",
+      "credit_code": "91310000MA1KXXXX9P"
+    }
+  },
+  {
+    "job_id": "JOB2026004",
+    "job_title": "Java后端工程师",
+    "job_category": "技术",
+    "city": "上海",
+    "district": "浦东新区",
+    "work_location": "线下办公",
+    "experience_required": "3-5年",
+    "education_required": "本科及以上",
+    "salary_range_month": "22k-38k",
+    "salary_months": 15,
+    "skills_required": [
+      "Java",
+      "Spring Boot",
+      "Kafka",
+      "MySQL",
+      "微服务"
+    ],
+    "job_description": "负责高并发业务系统设计与开发，推进服务治理、链路稳定性和系统性能优化。",
+    "job_highlights": [
+      "大规模数据平台",
+      "六险一金",
+      "年终奖"
+    ],
+    "recruiter": {
+      "name": "赵先生",
+      "title": "资深招聘顾问",
+      "active_status": "今日活跃"
+    },
+    "publish_date": "2026-04-19",
+    "company_relation": {
+      "company_name": "上海云策数据服务股份有限公司",
+      "credit_code": "91310000MA1KXXXX9P"
+    }
+  },
+  {
+    "job_id": "JOB2026005",
+    "job_title": "产品经理（数据方向）",
+    "job_category": "产品",
+    "city": "上海",
+    "district": "浦东新区",
+    "work_location": "线下办公",
+    "experience_required": "3-5年",
+    "education_required": "本科及以上",
+    "salary_range_month": "20k-32k",
+    "salary_months": 14,
+    "skills_required": [
+      "需求分析",
+      "数据产品设计",
+      "A/B测试",
+      "跨团队协作"
+    ],
+    "job_description": "负责数据产品从需求到上线的全流程，推动分析平台能力建设与业务落地。",
+    "job_highlights": [
+      "核心产品线",
+      "年度体检",
+      "团队氛围好"
+    ],
+    "recruiter": {
+      "name": "孙女士",
+      "title": "招聘经理",
+      "active_status": "本周活跃"
+    },
+    "publish_date": "2026-04-16",
+    "company_relation": {
+      "company_name": "上海云策数据服务股份有限公司",
+      "credit_code": "91310000MA1KXXXX9P"
+    }
+  }
+]

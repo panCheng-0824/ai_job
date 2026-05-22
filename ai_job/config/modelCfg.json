@@ -1,0 +1,93 @@
+[
+  {
+    "model_type": "chat",
+    "model_level": "low",
+    "model_provider": "openai",
+    "model_name": "Qwen3.6-27B-OptiQ-4bit",
+    "model_api": "http://127.0.0.1:8000/v1",
+    "model_key": "pc0824tq"
+  },
+  {
+    "model_type": "chat",
+    "model_level": "mid",
+    "model_provider": "openai",
+    "model_name": "gemma-4-26b-a4b-it-4bit",
+    "model_api": "http://127.0.0.1:8000/v1",
+    "model_key": "pc0824tq"
+  },
+  {
+    "model_type": "chat",
+    "model_level": "high",
+    "model_provider": "openai",
+    "model_name": "gemma-4-31b-it-4bit",
+    "model_api": "http://127.0.0.1:8000/v1",
+    "model_key": "pc0824tq"
+  },
+
+  {
+    "model_type": "chat",
+    "model_level": "top",
+    "model_provider": "openai",
+    "model_name": "deepseek-v4-pro",
+    "model_api": "https://api.deepseek.com",
+    "model_key": "sk-d20e1b4660a14076a2961026b663382d"
+  },
+
+    {
+    "model_type": "chat",
+    "model_level": "top-pro",
+    "model_provider": "openai",
+    "model_name": "doubao-seed-character-251128",
+    "model_api": "https://ark.cn-beijing.volces.com/api/v3",
+    "model_key": "ark-e96cca34-8de0-43a4-914d-e3e6a7b1b2d0-c2321"
+  },
+  {
+    "model_type": "embedding",
+    "model_level": "low",
+    "model_provider": "openai",
+    "model_name": "nomicai-modernbert-embed-base-bf16",
+    "model_api": "http://127.0.0.1:8000/v1",
+    "model_key": "pc0824tq"
+  },
+  {
+    "model_type": "embedding",
+    "model_level": "mid",
+    "model_provider": "openai",
+    "model_name": "Qwen3-Embedding-0.6B-4bit-DWQ",
+    "model_api": "http://127.0.0.1:8000/v1",
+    "model_key": "pc0824tq"
+  },
+
+  {
+    "model_type": "tts",
+    "model_level": "low",
+    "model_provider": "openai",
+    "model_name": "Qwen3-TTS-12Hz-1.7B-Base-bf16",
+    "model_api": "http://127.0.0.1:8000/v1",
+    "model_key": "pc0824tq"
+  },
+    {
+    "model_type": "tts",
+    "model_level": "mid",
+    "model_provider": "openai",
+    "model_name": "Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit",
+    "model_api": "http://127.0.0.1:8000/v1",
+    "model_key": "pc0824tq"
+  },
+  {
+    "model_type": "asr",
+    "model_level": "low",
+    "model_provider": "openai",
+    "model_name": "Qwen3-ASR-0.6B-MLX-4bit",
+    "model_api": "http://127.0.0.1:8000/v1",
+    "model_key": "pc0824tq"
+  },
+    {
+    "model_type": "asr",
+    "model_level": "mid",
+    "model_provider": "openai",
+    "model_name": "VibeVoice-ASR-4bit",
+    "model_api": "http://127.0.0.1:8000/v1",
+    "model_key": "pc0824tq"
+  }
+]

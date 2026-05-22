@@ -1,0 +1,5 @@
+{"id":"q1","mode":"rag","question":"Day6 这个 demo 的写入流程（ingest）包含哪些步骤？请按顺序列出来。","expected_keywords":["清洗","分块","嵌入","写入","Milvus"]}
+{"id":"q2","mode":"rag","question":"Day6 查询时为什么要拆成子问题？它解决什么问题？","expected_keywords":["子问题","多路","召回","覆盖"]}
+{"id":"q3","mode":"agent","question":"计算 (10+5)*2 的结果","expected_keywords":["30"]}
+{"id":"q4","mode":"agent","question":"用一句话解释什么是 Tool（在 LangChain/Agent 语境下）","expected_keywords":["工具","函数","调用"]}
+

@@ -1,0 +1,2265 @@
+{
+  "BLDC": {
+    "chunk_ids": [
+      "chunk-65b045cb9a9395d547ebba7a9ff64aa2"
+    ],
+    "count": 1,
+    "create_time": 1777534053,
+    "update_time": 1777534053,
+    "_id": "BLDC"
+  },
+  "Job ID 27f4d25a-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-65b045cb9a9395d547ebba7a9ff64aa2"
+    ],
+    "count": 1,
+    "create_time": 1777534053,
+    "update_time": 1777534053,
+    "_id": "Job ID 27f4d25a-f5a4-11ef-a337-0242ac120005"
+  },
+  "Algorithm Engineer": {
+    "chunk_ids": [
+      "chunk-65b045cb9a9395d547ebba7a9ff64aa2"
+    ],
+    "count": 1,
+    "create_time": 1777534053,
+    "update_time": 1777534053,
+    "_id": "Algorithm Engineer"
+  },
+  "National College Student Employment Service Platform": {
+    "chunk_ids": [
+      "chunk-65b045cb9a9395d547ebba7a9ff64aa2",
+      "chunk-9bbcc9a98e438abc3412bbfb048a23ed",
+      "chunk-359714407607a2e038e181e2ea751d2b",
+      "chunk-eead019ec96be0e5c3df321750de0097",
+      "chunk-06f8ab10329e25a9957df3d798585134",
+      "chunk-99f295e5d5d91631c28bbfa1351da2be",
+      "chunk-4530000538a86fc326f7f38593aba2a9",
+      "chunk-93e9264d9d77d9df0bacb4bb41d82e71",
+      "chunk-0e970f4efdb62b7f190dba7239c5b61c",
+      "chunk-b70502fabdaf3977d31256921de5664f",
+      "chunk-aab150d46c601cf9b019adeedcdeb1a0",
+      "chunk-785d4a9980d6c58dc156bd66fc79fc86",
+      "chunk-0ed371d91f9792051320649f94e71ac4",
+      "chunk-c0d3a947bc49d2d96ef9175a92e8ee5f",
+      "chunk-c66d2e6f0f40a684b46324f39ed3be3a",
+      "chunk-8b3faa5ec1e610ffc29ba00989e615d3",
+      "chunk-ed494f29e7c71d904c4c3a6441e03847",
+      "chunk-dae9ce8c818e04cf3cde64b8c2fc6c0b",
+      "chunk-a459dc94da0fad63533c2fb1872be782",
+      "chunk-1d656cf17ecaaf64d11e4506c358ae70",
+      "chunk-2cc2af00e258d4dbc6b087f3f8e1e991",
+      "chunk-2f9aa5ffd1a72ffa1c9d3aa34b60c636",
+      "chunk-9236a88bfb0b54eeec0a59e03ba7a1a2",
+      "chunk-631e91752a24f0d82c022df48b63ef58",
+      "chunk-425c1a3d10a2d4ab75fae4dd58df7b43",
+      "chunk-38c1ccb736ad9cec0bc7e83bdc613f82",
+      "chunk-4801fdf03a4cd965fc9eb9c29b104828",
+      "chunk-0a4c74db72e5625d1418ad0c51ecc31b",
+      "chunk-4ec51a39dcb81d45e6881af69633a1e9"
+    ],
+    "count": 29,
+    "update_time": 1778742676,
+    "_id": "National College Student Employment Service Platform"
+  },
+  "Shenzhen Fialand Technology Group Co., Ltd.": {
+    "chunk_ids": [
+      "chunk-65b045cb9a9395d547ebba7a9ff64aa2"
+    ],
+    "count": 1,
+    "create_time": 1777534053,
+    "update_time": 1777534053,
+    "_id": "Shenzhen Fialand Technology Group Co., Ltd."
+  },
+  "PMSM": {
+    "chunk_ids": [
+      "chunk-65b045cb9a9395d547ebba7a9ff64aa2"
+    ],
+    "count": 1,
+    "create_time": 1777534053,
+    "update_time": 1777534053,
+    "_id": "PMSM"
+  },
+  "Guangzhou, Guangdong": {
+    "chunk_ids": [
+      "chunk-65b045cb9a9395d547ebba7a9ff64aa2"
+    ],
+    "count": 1,
+    "create_time": 1777534053,
+    "update_time": 1777534053,
+    "_id": "Guangzhou, Guangdong"
+  },
+  "Motor Control Algorithm": {
+    "chunk_ids": [
+      "chunk-65b045cb9a9395d547ebba7a9ff64aa2"
+    ],
+    "count": 1,
+    "create_time": 1777534053,
+    "update_time": 1777534053,
+    "_id": "Motor Control Algorithm"
+  },
+  "SVPWM": {
+    "chunk_ids": [
+      "chunk-65b045cb9a9395d547ebba7a9ff64aa2"
+    ],
+    "count": 1,
+    "create_time": 1777534053,
+    "update_time": 1777534053,
+    "_id": "SVPWM"
+  },
+  "PID": {
+    "chunk_ids": [
+      "chunk-65b045cb9a9395d547ebba7a9ff64aa2"
+    ],
+    "count": 1,
+    "create_time": 1777534053,
+    "update_time": 1777534053,
+    "_id": "PID"
+  },
+  "Zhongheng Automotive Parts Co., Ltd.": {
+    "chunk_ids": [
+      "chunk-9bbcc9a98e438abc3412bbfb048a23ed"
+    ],
+    "count": 1,
+    "create_time": 1778593792,
+    "update_time": 1778593792,
+    "_id": "Zhongheng Automotive Parts Co., Ltd."
+  },
+  "Jiaxing, Zhejiang": {
+    "chunk_ids": [
+      "chunk-9bbcc9a98e438abc3412bbfb048a23ed"
+    ],
+    "count": 1,
+    "create_time": 1778593792,
+    "update_time": 1778593792,
+    "_id": "Jiaxing, Zhejiang"
+  },
+  "Finance Management Trainee": {
+    "chunk_ids": [
+      "chunk-9bbcc9a98e438abc3412bbfb048a23ed",
+      "chunk-359714407607a2e038e181e2ea751d2b"
+    ],
+    "count": 2,
+    "update_time": 1778594750,
+    "_id": "Finance Management Trainee"
+  },
+  "Job ID 27f4e549-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-9bbcc9a98e438abc3412bbfb048a23ed"
+    ],
+    "count": 1,
+    "create_time": 1778593792,
+    "update_time": 1778593792,
+    "_id": "Job ID 27f4e549-f5a4-11ef-a337-0242ac120005"
+  },
+  "Excel": {
+    "chunk_ids": [
+      "chunk-9bbcc9a98e438abc3412bbfb048a23ed"
+    ],
+    "count": 1,
+    "create_time": 1778593792,
+    "update_time": 1778593792,
+    "_id": "Excel"
+  },
+  "Finance Management, Accounting, Finance": {
+    "chunk_ids": [
+      "chunk-9bbcc9a98e438abc3412bbfb048a23ed"
+    ],
+    "count": 1,
+    "create_time": 1778593792,
+    "update_time": 1778593792,
+    "_id": "Finance Management, Accounting, Finance"
+  },
+  "Financial ERP System": {
+    "chunk_ids": [
+      "chunk-9bbcc9a98e438abc3412bbfb048a23ed"
+    ],
+    "count": 1,
+    "create_time": 1778593792,
+    "update_time": 1778593792,
+    "_id": "Financial ERP System"
+  },
+  "Accounting Professional Qualification Certificate": {
+    "chunk_ids": [
+      "chunk-9bbcc9a98e438abc3412bbfb048a23ed"
+    ],
+    "count": 1,
+    "create_time": 1778593793,
+    "update_time": 1778593793,
+    "_id": "Accounting Professional Qualification Certificate"
+  },
+  "Job ID: 27ff92e5-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-359714407607a2e038e181e2ea751d2b"
+    ],
+    "count": 1,
+    "create_time": 1778594750,
+    "update_time": 1778594750,
+    "_id": "Job ID: 27ff92e5-f5a4-11ef-a337-0242ac120005"
+  },
+  "Zhongheng Automotive Components Co., Ltd.": {
+    "chunk_ids": [
+      "chunk-359714407607a2e038e181e2ea751d2b"
+    ],
+    "count": 1,
+    "create_time": 1778594750,
+    "update_time": 1778594750,
+    "_id": "Zhongheng Automotive Components Co., Ltd."
+  },
+  "Financial Management, Accounting, Finance": {
+    "chunk_ids": [
+      "chunk-359714407607a2e038e181e2ea751d2b"
+    ],
+    "count": 1,
+    "create_time": 1778594750,
+    "update_time": 1778594750,
+    "_id": "Financial Management, Accounting, Finance"
+  },
+  "Jiaxing, Zhejiang Province": {
+    "chunk_ids": [
+      "chunk-359714407607a2e038e181e2ea751d2b"
+    ],
+    "count": 1,
+    "create_time": 1778594750,
+    "update_time": 1778594750,
+    "_id": "Jiaxing, Zhejiang Province"
+  },
+  "Automotive/Motorcycle Industry": {
+    "chunk_ids": [
+      "chunk-359714407607a2e038e181e2ea751d2b"
+    ],
+    "count": 1,
+    "create_time": 1778594750,
+    "update_time": 1778594750,
+    "_id": "Automotive/Motorcycle Industry"
+  },
+  "Excel, Financial ERP Systems": {
+    "chunk_ids": [
+      "chunk-359714407607a2e038e181e2ea751d2b"
+    ],
+    "count": 1,
+    "create_time": 1778594750,
+    "update_time": 1778594750,
+    "_id": "Excel, Financial ERP Systems"
+  },
+  "Bachelor's Degree and Above": {
+    "chunk_ids": [
+      "chunk-eead019ec96be0e5c3df321750de0097",
+      "chunk-b70502fabdaf3977d31256921de5664f",
+      "chunk-9236a88bfb0b54eeec0a59e03ba7a1a2",
+      "chunk-38c1ccb736ad9cec0bc7e83bdc613f82",
+      "chunk-4801fdf03a4cd965fc9eb9c29b104828"
+    ],
+    "count": 5,
+    "update_time": 1778742442,
+    "_id": "Bachelor's Degree and Above"
+  },
+  "Shanghai Eju Pharmaceutical Technology Co., Ltd.": {
+    "chunk_ids": [
+      "chunk-eead019ec96be0e5c3df321750de0097"
+    ],
+    "count": 1,
+    "create_time": 1778725521,
+    "update_time": 1778725521,
+    "_id": "Shanghai Eju Pharmaceutical Technology Co., Ltd."
+  },
+  "Spanish Translator (Intern)": {
+    "chunk_ids": [
+      "chunk-eead019ec96be0e5c3df321750de0097"
+    ],
+    "count": 1,
+    "create_time": 1778725521,
+    "update_time": 1778725521,
+    "_id": "Spanish Translator (Intern)"
+  },
+  "Zhuangliang Road 1418, Building 6, Room 1413, Zhuangxing Town, Fengxian District, Shanghai": {
+    "chunk_ids": [
+      "chunk-eead019ec96be0e5c3df321750de0097"
+    ],
+    "count": 1,
+    "create_time": 1778725521,
+    "update_time": 1778725521,
+    "_id": "Zhuangliang Road 1418, Building 6, Room 1413, Zhuangxing Town, Fengxian District, Shanghai"
+  },
+  "Project Engineer (Mechanical/Automation)": {
+    "chunk_ids": [
+      "chunk-eead019ec96be0e5c3df321750de0097"
+    ],
+    "count": 1,
+    "create_time": 1778725521,
+    "update_time": 1778725521,
+    "_id": "Project Engineer (Mechanical/Automation)"
+  },
+  "Spanish": {
+    "chunk_ids": [
+      "chunk-eead019ec96be0e5c3df321750de0097"
+    ],
+    "count": 1,
+    "create_time": 1778725521,
+    "update_time": 1778725521,
+    "_id": "Spanish"
+  },
+  "7k-9k": {
+    "chunk_ids": [
+      "chunk-eead019ec96be0e5c3df321750de0097"
+    ],
+    "count": 1,
+    "create_time": 1778725521,
+    "update_time": 1778725521,
+    "_id": "7k-9k"
+  },
+  "Chemistry, Materials, Mechanical, Electrical, Automation": {
+    "chunk_ids": [
+      "chunk-06f8ab10329e25a9957df3d798585134",
+      "chunk-99f295e5d5d91631c28bbfa1351da2be",
+      "chunk-2f9aa5ffd1a72ffa1c9d3aa34b60c636"
+    ],
+    "count": 3,
+    "update_time": 1778742210,
+    "_id": "Chemistry, Materials, Mechanical, Electrical, Automation"
+  },
+  "Dongguan, Guangdong": {
+    "chunk_ids": [
+      "chunk-06f8ab10329e25a9957df3d798585134",
+      "chunk-99f295e5d5d91631c28bbfa1351da2be",
+      "chunk-38c1ccb736ad9cec0bc7e83bdc613f82"
+    ],
+    "count": 3,
+    "update_time": 1778742390,
+    "_id": "Dongguan, Guangdong"
+  },
+  "Dongguan Kangyuan Electronics Co., Ltd.": {
+    "chunk_ids": [
+      "chunk-06f8ab10329e25a9957df3d798585134",
+      "chunk-99f295e5d5d91631c28bbfa1351da2be",
+      "chunk-4530000538a86fc326f7f38593aba2a9",
+      "chunk-93e9264d9d77d9df0bacb4bb41d82e71",
+      "chunk-0e970f4efdb62b7f190dba7239c5b61c",
+      "chunk-2f9aa5ffd1a72ffa1c9d3aa34b60c636"
+    ],
+    "count": 6,
+    "update_time": 1778742209,
+    "_id": "Dongguan Kangyuan Electronics Co., Ltd."
+  },
+  "Humen Nanran Fourth Industrial Zone, Dongguan, Guangdong": {
+    "chunk_ids": [
+      "chunk-06f8ab10329e25a9957df3d798585134"
+    ],
+    "count": 1,
+    "create_time": 1778726902,
+    "update_time": 1778726902,
+    "_id": "Humen Nanran Fourth Industrial Zone, Dongguan, Guangdong"
+  },
+  "Job ID 27fcf6b6-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-06f8ab10329e25a9957df3d798585134"
+    ],
+    "count": 1,
+    "create_time": 1778726902,
+    "update_time": 1778726902,
+    "_id": "Job ID 27fcf6b6-f5a4-11ef-a337-0242ac120005"
+  },
+  "Quality Engineer (Class of 25)": {
+    "chunk_ids": [
+      "chunk-06f8ab10329e25a9957df3d798585134"
+    ],
+    "count": 1,
+    "create_time": 1778726902,
+    "update_time": 1778726902,
+    "_id": "Quality Engineer (Class of 25)"
+  },
+  "Bachelor's Degree or Above": {
+    "chunk_ids": [
+      "chunk-06f8ab10329e25a9957df3d798585134",
+      "chunk-99f295e5d5d91631c28bbfa1351da2be",
+      "chunk-93e9264d9d77d9df0bacb4bb41d82e71",
+      "chunk-785d4a9980d6c58dc156bd66fc79fc86"
+    ],
+    "count": 4,
+    "update_time": 1778741788,
+    "_id": "Bachelor's Degree or Above"
+  },
+  "Job ID 27fcf6b4-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-06f8ab10329e25a9957df3d798585134"
+    ],
+    "count": 1,
+    "create_time": 1778726902,
+    "update_time": 1778726902,
+    "_id": "Job ID 27fcf6b4-f5a4-11ef-a337-0242ac120005"
+  },
+  "庆阳市普庆工程咨询有限责任公司": {
+    "chunk_ids": [
+      "chunk-fef07d2e86dea98e158e93bc4c2c0562",
+      "chunk-69f4426b8ded11ea3bc5675a58cbbe22"
+    ],
+    "count": 2,
+    "update_time": 1778741940,
+    "_id": "庆阳市普庆工程咨询有限责任公司"
+  },
+  "水利工程设计人员": {
+    "chunk_ids": [
+      "chunk-fef07d2e86dea98e158e93bc4c2c0562"
+    ],
+    "count": 1,
+    "create_time": 1778735939,
+    "update_time": 1778735939,
+    "_id": "水利工程设计人员"
+  },
+  "甘肃省庆阳市西峰区西大街圣鼎国际1号楼1单元402室": {
+    "chunk_ids": [
+      "chunk-fef07d2e86dea98e158e93bc4c2c0562",
+      "chunk-69f4426b8ded11ea3bc5675a58cbbe22"
+    ],
+    "count": 2,
+    "update_time": 1778741940,
+    "_id": "甘肃省庆阳市西峰区西大街圣鼎国际1号楼1单元402室"
+  },
+  "水利水电工程, 水文, 水资源利用, 农田水利, 土木工程": {
+    "chunk_ids": [
+      "chunk-fef07d2e86dea98e158e93bc4c2c0562"
+    ],
+    "count": 1,
+    "create_time": 1778735939,
+    "update_time": 1778735939,
+    "_id": "水利水电工程, 水文, 水资源利用, 农田水利, 土木工程"
+  },
+  "国家大学生就业服务平台": {
+    "chunk_ids": [
+      "chunk-fef07d2e86dea98e158e93bc4c2c0562",
+      "chunk-bef7c15fdc783e774cf4e6d3731e3910",
+      "chunk-69f4426b8ded11ea3bc5675a58cbbe22",
+      "chunk-68fdf5a0e9bc8b6e140c9a61f8c590dc"
+    ],
+    "count": 4,
+    "update_time": 1778742379,
+    "_id": "国家大学生就业服务平台"
+  },
+  "27fd023e-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-fef07d2e86dea98e158e93bc4c2c0562"
+    ],
+    "count": 1,
+    "create_time": 1778735939,
+    "update_time": 1778735939,
+    "_id": "27fd023e-f5a4-11ef-a337-0242ac120005"
+  },
+  "庆阳市": {
+    "chunk_ids": [
+      "chunk-fef07d2e86dea98e158e93bc4c2c0562"
+    ],
+    "count": 1,
+    "create_time": 1778735939,
+    "update_time": 1778735939,
+    "_id": "庆阳市"
+  },
+  "甘肃省": {
+    "chunk_ids": [
+      "chunk-fef07d2e86dea98e158e93bc4c2c0562"
+    ],
+    "count": 1,
+    "create_time": 1778735939,
+    "update_time": 1778735939,
+    "_id": "甘肃省"
+  },
+  "西峰区": {
+    "chunk_ids": [
+      "chunk-fef07d2e86dea98e158e93bc4c2c0562",
+      "chunk-69f4426b8ded11ea3bc5675a58cbbe22"
+    ],
+    "count": 2,
+    "update_time": 1778741940,
+    "_id": "西峰区"
+  },
+  "西大街": {
+    "chunk_ids": [
+      "chunk-fef07d2e86dea98e158e93bc4c2c0562"
+    ],
+    "count": 1,
+    "create_time": 1778735940,
+    "update_time": 1778735940,
+    "_id": "西大街"
+  },
+  "圣鼎国际": {
+    "chunk_ids": [
+      "chunk-fef07d2e86dea98e158e93bc4c2c0562"
+    ],
+    "count": 1,
+    "create_time": 1778735940,
+    "update_time": 1778735940,
+    "_id": "圣鼎国际"
+  },
+  "Product Engineer (Class of 25)": {
+    "chunk_ids": [
+      "chunk-99f295e5d5d91631c28bbfa1351da2be"
+    ],
+    "count": 1,
+    "create_time": 1778741021,
+    "update_time": 1778741021,
+    "_id": "Product Engineer (Class of 25)"
+  },
+  "Humen Nan-zha Fourth Industrial Zone": {
+    "chunk_ids": [
+      "chunk-99f295e5d5d91631c28bbfa1351da2be",
+      "chunk-4530000538a86fc326f7f38593aba2a9"
+    ],
+    "count": 2,
+    "update_time": 1778741079,
+    "_id": "Humen Nan-zha Fourth Industrial Zone"
+  },
+  "8k-12k": {
+    "chunk_ids": [
+      "chunk-99f295e5d5d91631c28bbfa1351da2be"
+    ],
+    "count": 1,
+    "create_time": 1778741021,
+    "update_time": 1778741021,
+    "_id": "8k-12k"
+  },
+  "Job ID: 27fcec32-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-4530000538a86fc326f7f38593aba2a9"
+    ],
+    "count": 1,
+    "create_time": 1778741079,
+    "update_time": 1778741079,
+    "_id": "Job ID: 27fcec32-f5a4-11ef-a337-0242ac120005"
+  },
+  "Educational Requirements": {
+    "chunk_ids": [
+      "chunk-4530000538a86fc326f7f38593aba2a9"
+    ],
+    "count": 1,
+    "create_time": 1778741079,
+    "update_time": 1778741079,
+    "_id": "Educational Requirements"
+  },
+  "Design Engineer (Class of 25)": {
+    "chunk_ids": [
+      "chunk-4530000538a86fc326f7f38593aba2a9"
+    ],
+    "count": 1,
+    "create_time": 1778741079,
+    "update_time": 1778741079,
+    "_id": "Design Engineer (Class of 25)"
+  },
+  "Dongguan City": {
+    "chunk_ids": [
+      "chunk-4530000538a86fc326f7f38593aba2a9",
+      "chunk-0e970f4efdb62b7f190dba7239c5b61c",
+      "chunk-2f9aa5ffd1a72ffa1c9d3aa34b60c636",
+      "chunk-631e91752a24f0d82c022df48b63ef58",
+      "chunk-425c1a3d10a2d4ab75fae4dd58df7b43"
+    ],
+    "count": 5,
+    "update_time": 1778742262,
+    "_id": "Dongguan City"
+  },
+  "Guangdong Province": {
+    "chunk_ids": [
+      "chunk-4530000538a86fc326f7f38593aba2a9",
+      "chunk-93e9264d9d77d9df0bacb4bb41d82e71",
+      "chunk-0e970f4efdb62b7f190dba7239c5b61c",
+      "chunk-2cc2af00e258d4dbc6b087f3f8e1e991",
+      "chunk-2f9aa5ffd1a72ffa1c9d3aa34b60c636",
+      "chunk-631e91752a24f0d82c022df48b63ef58",
+      "chunk-425c1a3d10a2d4ab75fae4dd58df7b43"
+    ],
+    "count": 7,
+    "update_time": 1778742262,
+    "_id": "Guangdong Province"
+  },
+  "Professional Requirements": {
+    "chunk_ids": [
+      "chunk-4530000538a86fc326f7f38593aba2a9"
+    ],
+    "count": 1,
+    "create_time": 1778741079,
+    "update_time": 1778741079,
+    "_id": "Professional Requirements"
+  },
+  "Salary Range": {
+    "chunk_ids": [
+      "chunk-4530000538a86fc326f7f38593aba2a9",
+      "chunk-8b3faa5ec1e610ffc29ba00989e615d3",
+      "chunk-dae9ce8c818e04cf3cde64b8c2fc6c0b"
+    ],
+    "count": 3,
+    "update_time": 1778741996,
+    "_id": "Salary Range"
+  },
+  "Recruitment Number": {
+    "chunk_ids": [
+      "chunk-4530000538a86fc326f7f38593aba2a9",
+      "chunk-b70502fabdaf3977d31256921de5664f",
+      "chunk-8b3faa5ec1e610ffc29ba00989e615d3",
+      "chunk-dae9ce8c818e04cf3cde64b8c2fc6c0b"
+    ],
+    "count": 4,
+    "update_time": 1778742332,
+    "_id": "Recruitment Number"
+  },
+  "Release Time": {
+    "chunk_ids": [
+      "chunk-4530000538a86fc326f7f38593aba2a9",
+      "chunk-8b3faa5ec1e610ffc29ba00989e615d3"
+    ],
+    "count": 2,
+    "update_time": 1778741904,
+    "_id": "Release Time"
+  },
+  "Creation Time": {
+    "chunk_ids": [
+      "chunk-4530000538a86fc326f7f38593aba2a9",
+      "chunk-b70502fabdaf3977d31256921de5664f",
+      "chunk-8b3faa5ec1e610ffc29ba00989e615d3",
+      "chunk-dae9ce8c818e04cf3cde64b8c2fc6c0b"
+    ],
+    "count": 4,
+    "update_time": 1778742331,
+    "_id": "Creation Time"
+  },
+  "Enterprise Unified Code": {
+    "chunk_ids": [
+      "chunk-4530000538a86fc326f7f38593aba2a9",
+      "chunk-8b3faa5ec1e610ffc29ba00989e615d3"
+    ],
+    "count": 2,
+    "update_time": 1778742331,
+    "_id": "Enterprise Unified Code"
+  },
+  "Dongguan": {
+    "chunk_ids": [
+      "chunk-93e9264d9d77d9df0bacb4bb41d82e71"
+    ],
+    "count": 1,
+    "create_time": 1778741605,
+    "update_time": 1778741605,
+    "_id": "Dongguan"
+  },
+  "Chemistry, Materials, Mechanical, Electrical, and Automation": {
+    "chunk_ids": [
+      "chunk-93e9264d9d77d9df0bacb4bb41d82e71"
+    ],
+    "count": 1,
+    "create_time": 1778741605,
+    "update_time": 1778741605,
+    "_id": "Chemistry, Materials, Mechanical, Electrical, and Automation"
+  },
+  "Process Engineer (Class of 25)": {
+    "chunk_ids": [
+      "chunk-93e9264d9d77d9df0bacb4bb41d82e71"
+    ],
+    "count": 1,
+    "create_time": 1778741605,
+    "update_time": 1778741605,
+    "_id": "Process Engineer (Class of 25)"
+  },
+  "Humen Nanran Fourth Industrial Zone": {
+    "chunk_ids": [
+      "chunk-93e9264d9d77d9df0bacb4bb41d82e71",
+      "chunk-0e970f4efdb62b7f190dba7239c5b61c",
+      "chunk-2f9aa5ffd1a72ffa1c9d3aa34b60c636"
+    ],
+    "count": 3,
+    "update_time": 1778742209,
+    "_id": "Humen Nanran Fourth Industrial Zone"
+  },
+  "Humen": {
+    "chunk_ids": [
+      "chunk-93e9264d9d77d9df0bacb4bb41d82e71",
+      "chunk-0e970f4efdb62b7f190dba7239c5b61c"
+    ],
+    "count": 2,
+    "update_time": 1778741667,
+    "_id": "Humen"
+  },
+  "Environmental Design": {
+    "chunk_ids": [
+      "chunk-ed494f29e7c71d904c4c3a6441e03847"
+    ],
+    "count": 1,
+    "update_time": 1778742562,
+    "_id": "Environmental Design"
+  },
+  "Investment/Fund/Securities/Futures": {
+    "chunk_ids": [
+      "chunk-c0d3a947bc49d2d96ef9175a92e8ee5f",
+      "chunk-c66d2e6f0f40a684b46324f39ed3be3a",
+      "chunk-8b3faa5ec1e610ffc29ba00989e615d3"
+    ],
+    "count": 3,
+    "update_time": 1778742076,
+    "_id": "Investment/Fund/Securities/Futures"
+  },
+  "Job ID 27fcffd4-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-0e970f4efdb62b7f190dba7239c5b61c"
+    ],
+    "count": 1,
+    "create_time": 1778741667,
+    "update_time": 1778741667,
+    "_id": "Job ID 27fcffd4-f5a4-11ef-a337-0242ac120005"
+  },
+  "Research and Development Engineer": {
+    "chunk_ids": [
+      "chunk-0e970f4efdb62b7f190dba7239c5b61c"
+    ],
+    "count": 1,
+    "create_time": 1778741667,
+    "update_time": 1778741667,
+    "_id": "Research and Development Engineer"
+  },
+  "Nanran": {
+    "chunk_ids": [
+      "chunk-0e970f4efdb62b7f190dba7239c5b61c"
+    ],
+    "count": 1,
+    "create_time": 1778741668,
+    "update_time": 1778741668,
+    "_id": "Nanran"
+  },
+  "Industry: Electronic Technology/Semiconductor/Integrated Circuit": {
+    "chunk_ids": [
+      "chunk-0e970f4efdb62b7f190dba7239c5b61c"
+    ],
+    "count": 1,
+    "create_time": 1778741668,
+    "update_time": 1778741668,
+    "_id": "Industry: Electronic Technology/Semiconductor/Integrated Circuit"
+  },
+  "Salary Range: 10k-15k": {
+    "chunk_ids": [
+      "chunk-0e970f4efdb62b7f190dba7239c5b61c"
+    ],
+    "count": 1,
+    "create_time": 1778741668,
+    "update_time": 1778741668,
+    "_id": "Salary Range: 10k-15k"
+  },
+  "Recruitment Number: 10": {
+    "chunk_ids": [
+      "chunk-0e970f4efdb62b7f190dba7239c5b61c"
+    ],
+    "count": 1,
+    "create_time": 1778741668,
+    "update_time": 1778741668,
+    "_id": "Recruitment Number: 10"
+  },
+  "Degree Requirement: Bachelor's Degree or above": {
+    "chunk_ids": [
+      "chunk-0e970f4efdb62b7f190dba7239c5b61c"
+    ],
+    "count": 1,
+    "create_time": 1778741668,
+    "update_time": 1778741668,
+    "_id": "Degree Requirement: Bachelor's Degree or above"
+  },
+  "Professional Requirements: Chemistry, Materials, Mechanical, Electronic, Automation": {
+    "chunk_ids": [
+      "chunk-0e970f4efdb62b7f190dba7239c5b61c"
+    ],
+    "count": 1,
+    "create_time": 1778741668,
+    "update_time": 1778741668,
+    "_id": "Professional Requirements: Chemistry, Materials, Mechanical, Electronic, Automation"
+  },
+  "Enterprise Unified Code: 27fd622d-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-0e970f4efdb62b7f190dba7239c5b61c"
+    ],
+    "count": 1,
+    "create_time": 1778741668,
+    "update_time": 1778741668,
+    "_id": "Enterprise Unified Code: 27fd622d-f5a4-11ef-a337-0242ac120005"
+  },
+  "河南百硕商务服务有限公司": {
+    "chunk_ids": [
+      "chunk-bef7c15fdc783e774cf4e6d3731e3910"
+    ],
+    "count": 1,
+    "create_time": 1778741692,
+    "update_time": 1778741692,
+    "_id": "河南百硕商务服务有限公司"
+  },
+  "郑州市金水区优胜南路26号合盛时代商务4楼4E": {
+    "chunk_ids": [
+      "chunk-bef7c15fdc783e774cf4e6d3731e3910"
+    ],
+    "count": 1,
+    "create_time": 1778741692,
+    "update_time": 1778741692,
+    "_id": "郑州市金水区优胜南路26号合盛时代商务4楼4E"
+  },
+  "移动10086接听客服": {
+    "chunk_ids": [
+      "chunk-bef7c15fdc783e774cf4e6d3731e3910"
+    ],
+    "count": 1,
+    "create_time": 1778741692,
+    "update_time": 1778741692,
+    "_id": "移动10086接听客服"
+  },
+  "27fd070a-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-bef7c15fdc783e774cf4e6d3731e3910"
+    ],
+    "count": 1,
+    "create_time": 1778741692,
+    "update_time": 1778741692,
+    "_id": "27fd070a-f5a4-11ef-a337-0242ac120005"
+  },
+  "专业服务": {
+    "chunk_ids": [
+      "chunk-bef7c15fdc783e774cf4e6d3731e3910"
+    ],
+    "count": 1,
+    "create_time": 1778741692,
+    "update_time": 1778741692,
+    "_id": "专业服务"
+  },
+  "河南省郑州市": {
+    "chunk_ids": [
+      "chunk-bef7c15fdc783e774cf4e6d3731e3910"
+    ],
+    "count": 1,
+    "create_time": 1778741692,
+    "update_time": 1778741692,
+    "_id": "河南省郑州市"
+  },
+  "3k-8k": {
+    "chunk_ids": [
+      "chunk-bef7c15fdc783e774cf4e6d3731e3910"
+    ],
+    "count": 1,
+    "create_time": 1778741692,
+    "update_time": 1778741692,
+    "_id": "3k-8k"
+  },
+  "100": {
+    "chunk_ids": [
+      "chunk-bef7c15fdc783e774cf4e6d3731e3910"
+    ],
+    "count": 1,
+    "create_time": 1778741692,
+    "update_time": 1778741692,
+    "_id": "100"
+  },
+  "Nanning, Guangxi": {
+    "chunk_ids": [
+      "chunk-aab150d46c601cf9b019adeedcdeb1a0"
+    ],
+    "count": 1,
+    "update_time": 1778742332,
+    "_id": "Nanning, Guangxi"
+  },
+  "Job ID": {
+    "chunk_ids": [
+      "chunk-b70502fabdaf3977d31256921de5664f",
+      "chunk-8b3faa5ec1e610ffc29ba00989e615d3"
+    ],
+    "count": 2,
+    "update_time": 1778742331,
+    "_id": "Job ID"
+  },
+  "Headquarters Marketing Management Trainee": {
+    "chunk_ids": [
+      "chunk-b70502fabdaf3977d31256921de5664f"
+    ],
+    "count": 1,
+    "create_time": 1778741737,
+    "update_time": 1778741737,
+    "_id": "Headquarters Marketing Management Trainee"
+  },
+  "Zuoshangming She Home Furnishing (Shanghai) Co., Ltd.": {
+    "chunk_ids": [
+      "chunk-b70502fabdaf3977d31256921de5664f"
+    ],
+    "count": 1,
+    "create_time": 1778741737,
+    "update_time": 1778741737,
+    "_id": "Zuoshangming She Home Furnishing (Shanghai) Co., Ltd."
+  },
+  "Fengxian District, Shanghai": {
+    "chunk_ids": [
+      "chunk-b70502fabdaf3977d31256921de5664f"
+    ],
+    "count": 1,
+    "create_time": 1778741737,
+    "update_time": 1778741737,
+    "_id": "Fengxian District, Shanghai"
+  },
+  "Raw Materials and Processing": {
+    "chunk_ids": [
+      "chunk-b70502fabdaf3977d31256921de5664f",
+      "chunk-1d656cf17ecaaf64d11e4506c358ae70"
+    ],
+    "count": 2,
+    "update_time": 1778742167,
+    "_id": "Raw Materials and Processing"
+  },
+  "6k-8k": {
+    "chunk_ids": [
+      "chunk-b70502fabdaf3977d31256921de5664f"
+    ],
+    "count": 1,
+    "create_time": 1778741737,
+    "update_time": 1778741737,
+    "_id": "6k-8k"
+  },
+  "Release Date": {
+    "chunk_ids": [
+      "chunk-b70502fabdaf3977d31256921de5664f"
+    ],
+    "count": 1,
+    "create_time": 1778741737,
+    "update_time": 1778741737,
+    "_id": "Release Date"
+  },
+  "Master's Degree or Higher": {
+    "chunk_ids": [
+      "chunk-aab150d46c601cf9b019adeedcdeb1a0",
+      "chunk-2cc2af00e258d4dbc6b087f3f8e1e991"
+    ],
+    "count": 2,
+    "update_time": 1778742183,
+    "_id": "Master's Degree or Higher"
+  },
+  "Anyuan Twins Livestock Co., Ltd.": {
+    "chunk_ids": [
+      "chunk-aab150d46c601cf9b019adeedcdeb1a0",
+      "chunk-785d4a9980d6c58dc156bd66fc79fc86",
+      "chunk-0ed371d91f9792051320649f94e71ac4"
+    ],
+    "count": 3,
+    "update_time": 1778741831,
+    "_id": "Anyuan Twins Livestock Co., Ltd."
+  },
+  "Animal Husbandry": {
+    "chunk_ids": [
+      "chunk-aab150d46c601cf9b019adeedcdeb1a0"
+    ],
+    "count": 1,
+    "create_time": 1778741775,
+    "update_time": 1778741775,
+    "_id": "Animal Husbandry"
+  },
+  "Nanning Coastal Economic Development Zone": {
+    "chunk_ids": [
+      "chunk-aab150d46c601cf9b019adeedcdeb1a0",
+      "chunk-0ed371d91f9792051320649f94e71ac4"
+    ],
+    "count": 2,
+    "update_time": 1778741831,
+    "_id": "Nanning Coastal Economic Development Zone"
+  },
+  "Animal Nutrition and Feed Science": {
+    "chunk_ids": [
+      "chunk-aab150d46c601cf9b019adeedcdeb1a0"
+    ],
+    "count": 1,
+    "create_time": 1778741775,
+    "update_time": 1778741775,
+    "_id": "Animal Nutrition and Feed Science"
+  },
+  "Nutritionist": {
+    "chunk_ids": [
+      "chunk-aab150d46c601cf9b019adeedcdeb1a0"
+    ],
+    "count": 1,
+    "create_time": 1778741775,
+    "update_time": 1778741775,
+    "_id": "Nutritionist"
+  },
+  "Job ID 27fd104c-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-aab150d46c601cf9b019adeedcdeb1a0"
+    ],
+    "count": 1,
+    "create_time": 1778741775,
+    "update_time": 1778741775,
+    "_id": "Job ID 27fd104c-f5a4-11ef-a337-0242ac120005"
+  },
+  "Salary Range 4k-6k": {
+    "chunk_ids": [
+      "chunk-aab150d46c601cf9b019adeedcdeb1a0"
+    ],
+    "count": 1,
+    "create_time": 1778741776,
+    "update_time": 1778741776,
+    "_id": "Salary Range 4k-6k"
+  },
+  "Recruitment Number 3": {
+    "chunk_ids": [
+      "chunk-aab150d46c601cf9b019adeedcdeb1a0"
+    ],
+    "count": 1,
+    "create_time": 1778741776,
+    "update_time": 1778741776,
+    "_id": "Recruitment Number 3"
+  },
+  "Nanning": {
+    "chunk_ids": [
+      "chunk-785d4a9980d6c58dc156bd66fc79fc86"
+    ],
+    "count": 1,
+    "create_time": 1778741788,
+    "update_time": 1778741788,
+    "_id": "Nanning"
+  },
+  "Design, Costing, Civil Engineering, Engineering Management": {
+    "chunk_ids": [
+      "chunk-785d4a9980d6c58dc156bd66fc79fc86"
+    ],
+    "count": 1,
+    "create_time": 1778741788,
+    "update_time": 1778741788,
+    "_id": "Design, Costing, Civil Engineering, Engineering Management"
+  },
+  "Construction Engineering Position": {
+    "chunk_ids": [
+      "chunk-785d4a9980d6c58dc156bd66fc79fc86"
+    ],
+    "count": 1,
+    "create_time": 1778741788,
+    "update_time": 1778741788,
+    "_id": "Construction Engineering Position"
+  },
+  "Job ID 27fd1510-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-785d4a9980d6c58dc156bd66fc79fc86"
+    ],
+    "count": 1,
+    "create_time": 1778741788,
+    "update_time": 1778741788,
+    "_id": "Job ID 27fd1510-f5a4-11ef-a337-0242ac120005"
+  },
+  "Coastal Economic Development Zone": {
+    "chunk_ids": [
+      "chunk-785d4a9980d6c58dc156bd66fc79fc86"
+    ],
+    "count": 1,
+    "create_time": 1778741788,
+    "update_time": 1778741788,
+    "_id": "Coastal Economic Development Zone"
+  },
+  "Guangxi": {
+    "chunk_ids": [
+      "chunk-785d4a9980d6c58dc156bd66fc79fc86"
+    ],
+    "count": 1,
+    "create_time": 1778741788,
+    "update_time": 1778741788,
+    "_id": "Guangxi"
+  },
+  "CAD, Tianzheng, Glodon": {
+    "chunk_ids": [
+      "chunk-785d4a9980d6c58dc156bd66fc79fc86"
+    ],
+    "count": 1,
+    "create_time": 1778741789,
+    "update_time": 1778741789,
+    "_id": "CAD, Tianzheng, Glodon"
+  },
+  "Guangxi Nanning City": {
+    "chunk_ids": [
+      "chunk-0ed371d91f9792051320649f94e71ac4"
+    ],
+    "count": 1,
+    "create_time": 1778741831,
+    "update_time": 1778741831,
+    "_id": "Guangxi Nanning City"
+  },
+  "Animal Husbandry and Veterinary Medicine": {
+    "chunk_ids": [
+      "chunk-0ed371d91f9792051320649f94e71ac4"
+    ],
+    "count": 1,
+    "create_time": 1778741831,
+    "update_time": 1778741831,
+    "_id": "Animal Husbandry and Veterinary Medicine"
+  },
+  "Breeding Production Position": {
+    "chunk_ids": [
+      "chunk-0ed371d91f9792051320649f94e71ac4"
+    ],
+    "count": 1,
+    "create_time": 1778741831,
+    "update_time": 1778741831,
+    "_id": "Breeding Production Position"
+  },
+  "Agriculture, Forestry, Animal Husbandry, and Fishery": {
+    "chunk_ids": [
+      "chunk-0ed371d91f9792051320649f94e71ac4"
+    ],
+    "count": 1,
+    "create_time": 1778741831,
+    "update_time": 1778741831,
+    "_id": "Agriculture, Forestry, Animal Husbandry, and Fishery"
+  },
+  "Sales Specialist": {
+    "chunk_ids": [
+      "chunk-c0d3a947bc49d2d96ef9175a92e8ee5f"
+    ],
+    "count": 1,
+    "create_time": 1778741834,
+    "update_time": 1778741834,
+    "_id": "Sales Specialist"
+  },
+  "Sichuan Xinyuan Shengda Information Technology Co., Ltd.": {
+    "chunk_ids": [
+      "chunk-c0d3a947bc49d2d96ef9175a92e8ee5f",
+      "chunk-c66d2e6f0f40a684b46324f39ed3be3a",
+      "chunk-8b3faa5ec1e610ffc29ba00989e615d3"
+    ],
+    "count": 3,
+    "update_time": 1778741904,
+    "_id": "Sichuan Xinyuan Shengda Information Technology Co., Ltd."
+  },
+  "Chengdu High-tech Zone": {
+    "chunk_ids": [
+      "chunk-c0d3a947bc49d2d96ef9175a92e8ee5f",
+      "chunk-8b3faa5ec1e610ffc29ba00989e615d3"
+    ],
+    "count": 2,
+    "update_time": 1778741904,
+    "_id": "Chengdu High-tech Zone"
+  },
+  "Job ID 27fd1844-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-c0d3a947bc49d2d96ef9175a92e8ee5f"
+    ],
+    "count": 1,
+    "create_time": 1778741834,
+    "update_time": 1778741834,
+    "_id": "Job ID 27fd1844-f5a4-11ef-a337-0242ac120005"
+  },
+  "Salary Range 10k-25k": {
+    "chunk_ids": [
+      "chunk-c0d3a947bc49d2d96ef9175a92e8ee5f"
+    ],
+    "count": 1,
+    "create_time": 1778741834,
+    "update_time": 1778741834,
+    "_id": "Salary Range 10k-25k"
+  },
+  "Sichuan Province": {
+    "chunk_ids": [
+      "chunk-c0d3a947bc49d2d96ef9175a92e8ee5f",
+      "chunk-8b3faa5ec1e610ffc29ba00989e615d3",
+      "chunk-a459dc94da0fad63533c2fb1872be782"
+    ],
+    "count": 3,
+    "update_time": 1778742016,
+    "_id": "Sichuan Province"
+  },
+  "Chengdu": {
+    "chunk_ids": [
+      "chunk-c0d3a947bc49d2d96ef9175a92e8ee5f",
+      "chunk-a459dc94da0fad63533c2fb1872be782"
+    ],
+    "count": 2,
+    "update_time": 1778742016,
+    "_id": "Chengdu"
+  },
+  "Tianfu Avenue North Section": {
+    "chunk_ids": [
+      "chunk-c0d3a947bc49d2d96ef9175a92e8ee5f",
+      "chunk-8b3faa5ec1e610ffc29ba00989e615d3"
+    ],
+    "count": 2,
+    "update_time": 1778741904,
+    "_id": "Tianfu Avenue North Section"
+  },
+  "Unified Social Credit Code 27fd25ff-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-c0d3a947bc49d2d96ef9175a92e8ee5f"
+    ],
+    "count": 1,
+    "create_time": 1778741834,
+    "update_time": 1778741834,
+    "_id": "Unified Social Credit Code 27fd25ff-f5a4-11ef-a337-0242ac120005"
+  },
+  "Customer Service Specialist Role": {
+    "chunk_ids": [
+      "chunk-c66d2e6f0f40a684b46324f39ed3be3a"
+    ],
+    "count": 1,
+    "create_time": 1778741895,
+    "update_time": 1778741895,
+    "_id": "Customer Service Specialist Role"
+  },
+  "Job ID 27fd25ff-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-c66d2e6f0f40a684b46324f39ed3be3a"
+    ],
+    "count": 1,
+    "create_time": 1778741895,
+    "update_time": 1778741895,
+    "_id": "Job ID 27fd25ff-f5a4-11ef-a337-0242ac120005"
+  },
+  "Tianfu Avenue North Section 869, Building 1, Unit 2, 20th Floor, No. 1, Chengdu High-tech Zone, China (Sichuan) Pilot Free Trade Zone, Chengdu, Sichuan Province": {
+    "chunk_ids": [
+      "chunk-c66d2e6f0f40a684b46324f39ed3be3a"
+    ],
+    "count": 1,
+    "create_time": 1778741895,
+    "update_time": 1778741895,
+    "_id": "Tianfu Avenue North Section 869, Building 1, Unit 2, 20th Floor, No. 1, Chengdu High-tech Zone, China (Sichuan) Pilot Free Trade Zone, Chengdu, Sichuan Province"
+  },
+  "Telephone Customer Service": {
+    "chunk_ids": [
+      "chunk-8b3faa5ec1e610ffc29ba00989e615d3"
+    ],
+    "count": 1,
+    "create_time": 1778741904,
+    "update_time": 1778741904,
+    "_id": "Telephone Customer Service"
+  },
+  "Job ID 27fd1f46-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-8b3faa5ec1e610ffc29ba00989e615d3"
+    ],
+    "count": 1,
+    "create_time": 1778741904,
+    "update_time": 1778741904,
+    "_id": "Job ID 27fd1f46-f5a4-11ef-a337-0242ac120005"
+  },
+  "岗位ID: 27fd35d9-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-69f4426b8ded11ea3bc5675a58cbbe22"
+    ],
+    "count": 1,
+    "create_time": 1778741940,
+    "update_time": 1778741940,
+    "_id": "岗位ID: 27fd35d9-f5a4-11ef-a337-0242ac120005"
+  },
+  "技术人员": {
+    "chunk_ids": [
+      "chunk-69f4426b8ded11ea3bc5675a58cbbe22"
+    ],
+    "count": 1,
+    "create_time": 1778741940,
+    "update_time": 1778741940,
+    "_id": "技术人员"
+  },
+  "水利专业": {
+    "chunk_ids": [
+      "chunk-69f4426b8ded11ea3bc5675a58cbbe22"
+    ],
+    "count": 1,
+    "create_time": 1778741940,
+    "update_time": 1778741940,
+    "_id": "水利专业"
+  },
+  "土木工程专业": {
+    "chunk_ids": [
+      "chunk-69f4426b8ded11ea3bc5675a58cbbe22"
+    ],
+    "count": 1,
+    "create_time": 1778741940,
+    "update_time": 1778741940,
+    "_id": "土木工程专业"
+  },
+  "甘肃省庆阳市": {
+    "chunk_ids": [
+      "chunk-69f4426b8ded11ea3bc5675a58cbbe22"
+    ],
+    "count": 1,
+    "create_time": 1778741940,
+    "update_time": 1778741940,
+    "_id": "甘肃省庆阳市"
+  },
+  "Landscape Worker": {
+    "chunk_ids": [
+      "chunk-ed494f29e7c71d904c4c3a6441e03847"
+    ],
+    "count": 1,
+    "create_time": 1778741961,
+    "update_time": 1778741961,
+    "_id": "Landscape Worker"
+  },
+  "Sichuan Zexin Property Service Co., Ltd.": {
+    "chunk_ids": [
+      "chunk-ed494f29e7c71d904c4c3a6441e03847"
+    ],
+    "count": 1,
+    "create_time": 1778741961,
+    "update_time": 1778741961,
+    "_id": "Sichuan Zexin Property Service Co., Ltd."
+  },
+  "Shuangliu District, Chengdu, Sichuan": {
+    "chunk_ids": [
+      "chunk-ed494f29e7c71d904c4c3a6441e03847"
+    ],
+    "count": 1,
+    "create_time": 1778741961,
+    "update_time": 1778741961,
+    "_id": "Shuangliu District, Chengdu, Sichuan"
+  },
+  "Landscape Design": {
+    "chunk_ids": [
+      "chunk-ed494f29e7c71d904c4c3a6441e03847"
+    ],
+    "count": 1,
+    "create_time": 1778741961,
+    "update_time": 1778741961,
+    "_id": "Landscape Design"
+  },
+  "Job ID 27fd3d23-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-ed494f29e7c71d904c4c3a6441e03847"
+    ],
+    "count": 1,
+    "create_time": 1778741961,
+    "update_time": 1778741961,
+    "_id": "Job ID 27fd3d23-f5a4-11ef-a337-0242ac120005"
+  },
+  "Art Design": {
+    "chunk_ids": [
+      "chunk-ed494f29e7c71d904c4c3a6441e03847"
+    ],
+    "count": 1,
+    "create_time": 1778741961,
+    "update_time": 1778741961,
+    "_id": "Art Design"
+  },
+  "Xiaonan Road 368, Building 1, 3rd Floor, Fengxian District, Pudong New Area, Shanghai": {
+    "chunk_ids": [
+      "chunk-dae9ce8c818e04cf3cde64b8c2fc6c0b"
+    ],
+    "count": 1,
+    "create_time": 1778741996,
+    "update_time": 1778741996,
+    "_id": "Xiaonan Road 368, Building 1, 3rd Floor, Fengxian District, Pudong New Area, Shanghai"
+  },
+  "Professional Services": {
+    "chunk_ids": [
+      "chunk-dae9ce8c818e04cf3cde64b8c2fc6c0b"
+    ],
+    "count": 1,
+    "create_time": 1778741996,
+    "update_time": 1778741996,
+    "_id": "Professional Services"
+  },
+  "Highway Toll Collector": {
+    "chunk_ids": [
+      "chunk-dae9ce8c818e04cf3cde64b8c2fc6c0b"
+    ],
+    "count": 1,
+    "create_time": 1778741996,
+    "update_time": 1778741996,
+    "_id": "Highway Toll Collector"
+  },
+  "Shanghai": {
+    "chunk_ids": [
+      "chunk-dae9ce8c818e04cf3cde64b8c2fc6c0b"
+    ],
+    "count": 1,
+    "create_time": 1778741996,
+    "update_time": 1778741996,
+    "_id": "Shanghai"
+  },
+  "Job ID 27fd4040-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-dae9ce8c818e04cf3cde64b8c2fc6c0b"
+    ],
+    "count": 1,
+    "create_time": 1778741996,
+    "update_time": 1778741996,
+    "_id": "Job ID 27fd4040-f5a4-11ef-a337-0242ac120005"
+  },
+  "Shanghai Hangpu Industrial Co., Ltd.": {
+    "chunk_ids": [
+      "chunk-dae9ce8c818e04cf3cde64b8c2fc6c0b"
+    ],
+    "count": 1,
+    "create_time": 1778741996,
+    "update_time": 1778741996,
+    "_id": "Shanghai Hangpu Industrial Co., Ltd."
+  },
+  "Publication Time": {
+    "chunk_ids": [
+      "chunk-dae9ce8c818e04cf3cde64b8c2fc6c0b"
+    ],
+    "count": 1,
+    "create_time": 1778741997,
+    "update_time": 1778741997,
+    "_id": "Publication Time"
+  },
+  "Sichuan Fuyuanrui Construction Engineering Co., Ltd.": {
+    "chunk_ids": [
+      "chunk-a459dc94da0fad63533c2fb1872be782"
+    ],
+    "count": 1,
+    "create_time": 1778742016,
+    "update_time": 1778742016,
+    "_id": "Sichuan Fuyuanrui Construction Engineering Co., Ltd."
+  },
+  "New Energy": {
+    "chunk_ids": [
+      "chunk-a459dc94da0fad63533c2fb1872be782"
+    ],
+    "count": 1,
+    "create_time": 1778742016,
+    "update_time": 1778742016,
+    "_id": "New Energy"
+  },
+  "Pidu District": {
+    "chunk_ids": [
+      "chunk-a459dc94da0fad63533c2fb1872be782"
+    ],
+    "count": 1,
+    "create_time": 1778742016,
+    "update_time": 1778742016,
+    "_id": "Pidu District"
+  },
+  "HVAC Designer": {
+    "chunk_ids": [
+      "chunk-a459dc94da0fad63533c2fb1872be782"
+    ],
+    "count": 1,
+    "create_time": 1778742016,
+    "update_time": 1778742016,
+    "_id": "HVAC Designer"
+  },
+  "Real Estate/Construction/Building Materials/Engineering": {
+    "chunk_ids": [
+      "chunk-a459dc94da0fad63533c2fb1872be782"
+    ],
+    "count": 1,
+    "create_time": 1778742016,
+    "update_time": 1778742016,
+    "_id": "Real Estate/Construction/Building Materials/Engineering"
+  },
+  "Environmental Protection": {
+    "chunk_ids": [
+      "chunk-a459dc94da0fad63533c2fb1872be782"
+    ],
+    "count": 1,
+    "create_time": 1778742016,
+    "update_time": 1778742016,
+    "_id": "Environmental Protection"
+  },
+  "Mechanical Manufacturing/Electromechanical/Heavy Industry": {
+    "chunk_ids": [
+      "chunk-a459dc94da0fad63533c2fb1872be782"
+    ],
+    "count": 1,
+    "create_time": 1778742016,
+    "update_time": 1778742016,
+    "_id": "Mechanical Manufacturing/Electromechanical/Heavy Industry"
+  },
+  "HVAC Professional": {
+    "chunk_ids": [
+      "chunk-a459dc94da0fad63533c2fb1872be782"
+    ],
+    "count": 1,
+    "create_time": 1778742016,
+    "update_time": 1778742016,
+    "_id": "HVAC Professional"
+  },
+  "Building Environment and Energy Application Engineering": {
+    "chunk_ids": [
+      "chunk-a459dc94da0fad63533c2fb1872be782"
+    ],
+    "count": 1,
+    "create_time": 1778742016,
+    "update_time": 1778742016,
+    "_id": "Building Environment and Energy Application Engineering"
+  },
+  "Wanda MINISOHO": {
+    "chunk_ids": [
+      "chunk-a459dc94da0fad63533c2fb1872be782"
+    ],
+    "count": 1,
+    "create_time": 1778742016,
+    "update_time": 1778742016,
+    "_id": "Wanda MINISOHO"
+  },
+  "Guangzhou Foreign Trade Merchandiser": {
+    "chunk_ids": [
+      "chunk-1d656cf17ecaaf64d11e4506c358ae70"
+    ],
+    "count": 1,
+    "create_time": 1778742167,
+    "update_time": 1778742167,
+    "_id": "Guangzhou Foreign Trade Merchandiser"
+  },
+  "Lianyungang Jinhua Shelving Co., Ltd.": {
+    "chunk_ids": [
+      "chunk-1d656cf17ecaaf64d11e4506c358ae70"
+    ],
+    "count": 1,
+    "create_time": 1778742167,
+    "update_time": 1778742167,
+    "_id": "Lianyungang Jinhua Shelving Co., Ltd."
+  },
+  "Lianyungang City": {
+    "chunk_ids": [
+      "chunk-1d656cf17ecaaf64d11e4506c358ae70"
+    ],
+    "count": 1,
+    "create_time": 1778742167,
+    "update_time": 1778742167,
+    "_id": "Lianyungang City"
+  },
+  "Haizhou District": {
+    "chunk_ids": [
+      "chunk-1d656cf17ecaaf64d11e4506c358ae70"
+    ],
+    "count": 1,
+    "create_time": 1778742167,
+    "update_time": 1778742167,
+    "_id": "Haizhou District"
+  },
+  "Jiangsu Province": {
+    "chunk_ids": [
+      "chunk-1d656cf17ecaaf64d11e4506c358ae70"
+    ],
+    "count": 1,
+    "create_time": 1778742167,
+    "update_time": 1778742167,
+    "_id": "Jiangsu Province"
+  },
+  "Shanshui Lijing Plaza": {
+    "chunk_ids": [
+      "chunk-1d656cf17ecaaf64d11e4506c358ae70"
+    ],
+    "count": 1,
+    "create_time": 1778742167,
+    "update_time": 1778742167,
+    "_id": "Shanshui Lijing Plaza"
+  },
+  "Cangwu Road": {
+    "chunk_ids": [
+      "chunk-1d656cf17ecaaf64d11e4506c358ae70"
+    ],
+    "count": 1,
+    "create_time": 1778742167,
+    "update_time": 1778742167,
+    "_id": "Cangwu Road"
+  },
+  "Job ID 27fd4a51-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-1d656cf17ecaaf64d11e4506c358ae70"
+    ],
+    "count": 1,
+    "create_time": 1778742167,
+    "update_time": 1778742167,
+    "_id": "Job ID 27fd4a51-f5a4-11ef-a337-0242ac120005"
+  },
+  "Haizhu District": {
+    "chunk_ids": [
+      "chunk-1d656cf17ecaaf64d11e4506c358ae70"
+    ],
+    "count": 1,
+    "create_time": 1778742168,
+    "update_time": 1778742168,
+    "_id": "Haizhu District"
+  },
+  "Nanhai District": {
+    "chunk_ids": [
+      "chunk-2cc2af00e258d4dbc6b087f3f8e1e991"
+    ],
+    "count": 1,
+    "create_time": 1778742183,
+    "update_time": 1778742183,
+    "_id": "Nanhai District"
+  },
+  "Foshan City": {
+    "chunk_ids": [
+      "chunk-2cc2af00e258d4dbc6b087f3f8e1e991"
+    ],
+    "count": 1,
+    "create_time": 1778742183,
+    "update_time": 1778742183,
+    "_id": "Foshan City"
+  },
+  "Millimeter Wave Radar Signal Processing Engineer (Point Cloud Algorithm)": {
+    "chunk_ids": [
+      "chunk-2cc2af00e258d4dbc6b087f3f8e1e991"
+    ],
+    "count": 1,
+    "create_time": 1778742183,
+    "update_time": 1778742183,
+    "_id": "Millimeter Wave Radar Signal Processing Engineer (Point Cloud Algorithm)"
+  },
+  "Foshan Qingsong Technology Co., Ltd.": {
+    "chunk_ids": [
+      "chunk-2cc2af00e258d4dbc6b087f3f8e1e991"
+    ],
+    "count": 1,
+    "create_time": 1778742183,
+    "update_time": 1778742183,
+    "_id": "Foshan Qingsong Technology Co., Ltd."
+  },
+  "Qingsong Technology Park": {
+    "chunk_ids": [
+      "chunk-2cc2af00e258d4dbc6b087f3f8e1e991"
+    ],
+    "count": 1,
+    "create_time": 1778742183,
+    "update_time": 1778742183,
+    "_id": "Qingsong Technology Park"
+  },
+  "Electronic Technology/Semiconductor/Integrated Circuit": {
+    "chunk_ids": [
+      "chunk-2cc2af00e258d4dbc6b087f3f8e1e991"
+    ],
+    "count": 1,
+    "create_time": 1778742184,
+    "update_time": 1778742184,
+    "_id": "Electronic Technology/Semiconductor/Integrated Circuit"
+  },
+  "Master's Degree and Above": {
+    "chunk_ids": [
+      "chunk-2f9aa5ffd1a72ffa1c9d3aa34b60c636"
+    ],
+    "count": 1,
+    "create_time": 1778742209,
+    "update_time": 1778742209,
+    "_id": "Master's Degree and Above"
+  },
+  "Job ID 27fd622d-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-2f9aa5ffd1a72ffa1c9d3aa34b60c636"
+    ],
+    "count": 1,
+    "create_time": 1778742209,
+    "update_time": 1778742209,
+    "_id": "Job ID 27fd622d-f5a4-11ef-a337-0242ac120005"
+  },
+  "R&D Engineer (Class of 2025)": {
+    "chunk_ids": [
+      "chunk-2f9aa5ffd1a72ffa1c9d3aa34b60c636"
+    ],
+    "count": 1,
+    "create_time": 1778742209,
+    "update_time": 1778742209,
+    "_id": "R&D Engineer (Class of 2025)"
+  },
+  "10k-15k": {
+    "chunk_ids": [
+      "chunk-2f9aa5ffd1a72ffa1c9d3aa34b60c636"
+    ],
+    "count": 1,
+    "create_time": 1778742210,
+    "update_time": 1778742210,
+    "_id": "10k-15k"
+  },
+  "Computer Software": {
+    "chunk_ids": [
+      "chunk-9236a88bfb0b54eeec0a59e03ba7a1a2"
+    ],
+    "count": 1,
+    "create_time": 1778742226,
+    "update_time": 1778742226,
+    "_id": "Computer Software"
+  },
+  "New Media Operations": {
+    "chunk_ids": [
+      "chunk-9236a88bfb0b54eeec0a59e03ba7a1a2"
+    ],
+    "count": 1,
+    "create_time": 1778742226,
+    "update_time": 1778742226,
+    "_id": "New Media Operations"
+  },
+  "Internet/E-commerce": {
+    "chunk_ids": [
+      "chunk-9236a88bfb0b54eeec0a59e03ba7a1a2"
+    ],
+    "count": 1,
+    "create_time": 1778742226,
+    "update_time": 1778742226,
+    "_id": "Internet/E-commerce"
+  },
+  "Job ID 27fd6495-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-9236a88bfb0b54eeec0a59e03ba7a1a2"
+    ],
+    "count": 1,
+    "create_time": 1778742226,
+    "update_time": 1778742226,
+    "_id": "Job ID 27fd6495-f5a4-11ef-a337-0242ac120005"
+  },
+  "Tianjin Nankai District Nankai Third Road No. 37, 3A30": {
+    "chunk_ids": [
+      "chunk-9236a88bfb0b54eeec0a59e03ba7a1a2"
+    ],
+    "count": 1,
+    "create_time": 1778742226,
+    "update_time": 1778742226,
+    "_id": "Tianjin Nankai District Nankai Third Road No. 37, 3A30"
+  },
+  "Market Operations": {
+    "chunk_ids": [
+      "chunk-9236a88bfb0b54eeec0a59e03ba7a1a2"
+    ],
+    "count": 1,
+    "create_time": 1778742226,
+    "update_time": 1778742226,
+    "_id": "Market Operations"
+  },
+  "5k-7k": {
+    "chunk_ids": [
+      "chunk-9236a88bfb0b54eeec0a59e03ba7a1a2"
+    ],
+    "count": 1,
+    "create_time": 1778742226,
+    "update_time": 1778742226,
+    "_id": "5k-7k"
+  },
+  "Tianjin Digital Jump Technology Co., Ltd.": {
+    "chunk_ids": [
+      "chunk-9236a88bfb0b54eeec0a59e03ba7a1a2"
+    ],
+    "count": 1,
+    "create_time": 1778742227,
+    "update_time": 1778742227,
+    "_id": "Tianjin Digital Jump Technology Co., Ltd."
+  },
+  "Private Enterprise": {
+    "chunk_ids": [
+      "chunk-9236a88bfb0b54eeec0a59e03ba7a1a2"
+    ],
+    "count": 1,
+    "create_time": 1778742227,
+    "update_time": 1778742227,
+    "_id": "Private Enterprise"
+  },
+  "Nankai District": {
+    "chunk_ids": [
+      "chunk-9236a88bfb0b54eeec0a59e03ba7a1a2"
+    ],
+    "count": 1,
+    "create_time": 1778742227,
+    "update_time": 1778742227,
+    "_id": "Nankai District"
+  },
+  "Tianjin": {
+    "chunk_ids": [
+      "chunk-9236a88bfb0b54eeec0a59e03ba7a1a2"
+    ],
+    "count": 1,
+    "create_time": 1778742227,
+    "update_time": 1778742227,
+    "_id": "Tianjin"
+  },
+  "Dongcheng Zhouwu Industrial Zone": {
+    "chunk_ids": [
+      "chunk-631e91752a24f0d82c022df48b63ef58",
+      "chunk-425c1a3d10a2d4ab75fae4dd58df7b43",
+      "chunk-38c1ccb736ad9cec0bc7e83bdc613f82"
+    ],
+    "count": 3,
+    "update_time": 1778742390,
+    "_id": "Dongcheng Zhouwu Industrial Zone"
+  },
+  "Job ID 27fd6c1f-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-631e91752a24f0d82c022df48b63ef58"
+    ],
+    "count": 1,
+    "create_time": 1778742261,
+    "update_time": 1778742261,
+    "_id": "Job ID 27fd6c1f-f5a4-11ef-a337-0242ac120005"
+  },
+  "Workshop Technician/Technician": {
+    "chunk_ids": [
+      "chunk-631e91752a24f0d82c022df48b63ef58"
+    ],
+    "count": 1,
+    "create_time": 1778742261,
+    "update_time": 1778742261,
+    "_id": "Workshop Technician/Technician"
+  },
+  "Dongguan Xuji Food Co., Ltd.": {
+    "chunk_ids": [
+      "chunk-631e91752a24f0d82c022df48b63ef58",
+      "chunk-38c1ccb736ad9cec0bc7e83bdc613f82"
+    ],
+    "count": 2,
+    "update_time": 1778742390,
+    "_id": "Dongguan Xuji Food Co., Ltd."
+  },
+  "Fast-Moving Consumer Goods": {
+    "chunk_ids": [
+      "chunk-631e91752a24f0d82c022df48b63ef58",
+      "chunk-425c1a3d10a2d4ab75fae4dd58df7b43",
+      "chunk-38c1ccb736ad9cec0bc7e83bdc613f82"
+    ],
+    "count": 3,
+    "update_time": 1778742390,
+    "_id": "Fast-Moving Consumer Goods"
+  },
+  "东莞徐记食品有限公司": {
+    "chunk_ids": [
+      "chunk-425c1a3d10a2d4ab75fae4dd58df7b43",
+      "chunk-68fdf5a0e9bc8b6e140c9a61f8c590dc"
+    ],
+    "count": 2,
+    "update_time": 1778742379,
+    "_id": "东莞徐记食品有限公司"
+  },
+  "Technician": {
+    "chunk_ids": [
+      "chunk-425c1a3d10a2d4ab75fae4dd58df7b43"
+    ],
+    "count": 1,
+    "create_time": 1778742262,
+    "update_time": 1778742262,
+    "_id": "Technician"
+  },
+  "Job ID 27fd676c-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-425c1a3d10a2d4ab75fae4dd58df7b43"
+    ],
+    "count": 1,
+    "create_time": 1778742262,
+    "update_time": 1778742262,
+    "_id": "Job ID 27fd676c-f5a4-11ef-a337-0242ac120005"
+  },
+  "Salary Range 5k-6k": {
+    "chunk_ids": [
+      "chunk-425c1a3d10a2d4ab75fae4dd58df7b43"
+    ],
+    "count": 1,
+    "create_time": 1778742262,
+    "update_time": 1778742262,
+    "_id": "Salary Range 5k-6k"
+  },
+  "Associate Degree and Above": {
+    "chunk_ids": [
+      "chunk-425c1a3d10a2d4ab75fae4dd58df7b43"
+    ],
+    "count": 1,
+    "create_time": 1778742262,
+    "update_time": 1778742262,
+    "_id": "Associate Degree and Above"
+  },
+  "Technical Majors": {
+    "chunk_ids": [
+      "chunk-425c1a3d10a2d4ab75fae4dd58df7b43"
+    ],
+    "count": 1,
+    "create_time": 1778742262,
+    "update_time": 1778742262,
+    "_id": "Technical Majors"
+  },
+  "30 People": {
+    "chunk_ids": [
+      "chunk-425c1a3d10a2d4ab75fae4dd58df7b43"
+    ],
+    "count": 1,
+    "create_time": 1778742263,
+    "update_time": 1778742263,
+    "_id": "30 People"
+  },
+  "February 24": {
+    "chunk_ids": [
+      "chunk-425c1a3d10a2d4ab75fae4dd58df7b43"
+    ],
+    "count": 1,
+    "create_time": 1778742263,
+    "update_time": 1778742263,
+    "_id": "February 24"
+  },
+  "February 26, 2025": {
+    "chunk_ids": [
+      "chunk-425c1a3d10a2d4ab75fae4dd58df7b43"
+    ],
+    "count": 1,
+    "create_time": 1778742263,
+    "update_time": 1778742263,
+    "_id": "February 26, 2025"
+  },
+  "27fd6e56-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-68fdf5a0e9bc8b6e140c9a61f8c590dc"
+    ],
+    "count": 1,
+    "create_time": 1778742379,
+    "update_time": 1778742379,
+    "_id": "27fd6e56-f5a4-11ef-a337-0242ac120005"
+  },
+  "广东省东莞市东城周屋工业区": {
+    "chunk_ids": [
+      "chunk-68fdf5a0e9bc8b6e140c9a61f8c590dc"
+    ],
+    "count": 1,
+    "create_time": 1778742379,
+    "update_time": 1778742379,
+    "_id": "广东省东莞市东城周屋工业区"
+  },
+  "27fd706e-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-68fdf5a0e9bc8b6e140c9a61f8c590dc"
+    ],
+    "count": 1,
+    "create_time": 1778742379,
+    "update_time": 1778742379,
+    "_id": "27fd706e-f5a4-11ef-a337-0242ac120005"
+  },
+  "生产技术员": {
+    "chunk_ids": [
+      "chunk-68fdf5a0e9bc8b6e140c9a61f8c590dc"
+    ],
+    "count": 1,
+    "create_time": 1778742379,
+    "update_time": 1778742379,
+    "_id": "生产技术员"
+  },
+  "机械": {
+    "chunk_ids": [
+      "chunk-68fdf5a0e9bc8b6e140c9a61f8c590dc"
+    ],
+    "count": 1,
+    "create_time": 1778742379,
+    "update_time": 1778742379,
+    "_id": "机械"
+  },
+  "快速消费品": {
+    "chunk_ids": [
+      "chunk-68fdf5a0e9bc8b6e140c9a61f8c590dc"
+    ],
+    "count": 1,
+    "create_time": 1778742379,
+    "update_time": 1778742379,
+    "_id": "快速消费品"
+  },
+  "食品": {
+    "chunk_ids": [
+      "chunk-68fdf5a0e9bc8b6e140c9a61f8c590dc"
+    ],
+    "count": 1,
+    "create_time": 1778742379,
+    "update_time": 1778742379,
+    "_id": "食品"
+  },
+  "Reserve Supervisor": {
+    "chunk_ids": [
+      "chunk-38c1ccb736ad9cec0bc7e83bdc613f82"
+    ],
+    "count": 1,
+    "create_time": 1778742390,
+    "update_time": 1778742390,
+    "_id": "Reserve Supervisor"
+  },
+  "Job ID 27fd706e-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-38c1ccb736ad9cec0bc7e83bdc613f82"
+    ],
+    "count": 1,
+    "create_time": 1778742390,
+    "update_time": 1778742390,
+    "_id": "Job ID 27fd706e-f5a4-11ef-a337-0242ac120005"
+  },
+  "Food, Biology, Mechanical, and Science/Engineering": {
+    "chunk_ids": [
+      "chunk-38c1ccb736ad9cec0bc7e83bdc613f82"
+    ],
+    "count": 1,
+    "create_time": 1778742391,
+    "update_time": 1778742391,
+    "_id": "Food, Biology, Mechanical, and Science/Engineering"
+  },
+  "5.5k-6.8k Salary Range": {
+    "chunk_ids": [
+      "chunk-38c1ccb736ad9cec0bc7e83bdc613f82"
+    ],
+    "count": 1,
+    "create_time": 1778742391,
+    "update_time": 1778742391,
+    "_id": "5.5k-6.8k Salary Range"
+  },
+  "15 Recruitment Headcount": {
+    "chunk_ids": [
+      "chunk-38c1ccb736ad9cec0bc7e83bdc613f82"
+    ],
+    "count": 1,
+    "create_time": 1778742391,
+    "update_time": 1778742391,
+    "_id": "15 Recruitment Headcount"
+  },
+  "High School Chinese Teacher": {
+    "chunk_ids": [
+      "chunk-4801fdf03a4cd965fc9eb9c29b104828"
+    ],
+    "count": 1,
+    "create_time": 1778742442,
+    "update_time": 1778742442,
+    "_id": "High School Chinese Teacher"
+  },
+  "Chinese Language and Literature": {
+    "chunk_ids": [
+      "chunk-4801fdf03a4cd965fc9eb9c29b104828"
+    ],
+    "count": 1,
+    "create_time": 1778742442,
+    "update_time": 1778742442,
+    "_id": "Chinese Language and Literature"
+  },
+  "Luanping County": {
+    "chunk_ids": [
+      "chunk-4801fdf03a4cd965fc9eb9c29b104828"
+    ],
+    "count": 1,
+    "create_time": 1778742442,
+    "update_time": 1778742442,
+    "_id": "Luanping County"
+  },
+  "Educational/Training/Institutional Industry": {
+    "chunk_ids": [
+      "chunk-4801fdf03a4cd965fc9eb9c29b104828"
+    ],
+    "count": 1,
+    "create_time": 1778742442,
+    "update_time": 1778742442,
+    "_id": "Educational/Training/Institutional Industry"
+  },
+  "Chinese Language and Literature Education": {
+    "chunk_ids": [
+      "chunk-4801fdf03a4cd965fc9eb9c29b104828"
+    ],
+    "count": 1,
+    "create_time": 1778742442,
+    "update_time": 1778742442,
+    "_id": "Chinese Language and Literature Education"
+  },
+  "Chengde Wenmao Senior High School Co., Ltd.": {
+    "chunk_ids": [
+      "chunk-4801fdf03a4cd965fc9eb9c29b104828"
+    ],
+    "count": 1,
+    "create_time": 1778742442,
+    "update_time": 1778742442,
+    "_id": "Chengde Wenmao Senior High School Co., Ltd."
+  },
+  "27fd76b1-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-4801fdf03a4cd965fc9eb9c29b104828"
+    ],
+    "count": 1,
+    "create_time": 1778742442,
+    "update_time": 1778742442,
+    "_id": "27fd76b1-f5a4-11ef-a337-0242ac120005"
+  },
+  "Chengde City": {
+    "chunk_ids": [
+      "chunk-4801fdf03a4cd965fc9eb9c29b104828"
+    ],
+    "count": 1,
+    "create_time": 1778742442,
+    "update_time": 1778742442,
+    "_id": "Chengde City"
+  },
+  "Hebei Province": {
+    "chunk_ids": [
+      "chunk-4801fdf03a4cd965fc9eb9c29b104828"
+    ],
+    "count": 1,
+    "create_time": 1778742442,
+    "update_time": 1778742442,
+    "_id": "Hebei Province"
+  },
+  "Zhongxing East Road": {
+    "chunk_ids": [
+      "chunk-4801fdf03a4cd965fc9eb9c29b104828"
+    ],
+    "count": 1,
+    "create_time": 1778742442,
+    "update_time": 1778742442,
+    "_id": "Zhongxing East Road"
+  },
+  "5k-10k": {
+    "chunk_ids": [
+      "chunk-4801fdf03a4cd965fc9eb9c29b104828"
+    ],
+    "count": 1,
+    "create_time": 1778742442,
+    "update_time": 1778742442,
+    "_id": "5k-10k"
+  },
+  "286f6778-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-4801fdf03a4cd965fc9eb9c29b104828"
+    ],
+    "count": 1,
+    "create_time": 1778742442,
+    "update_time": 1778742442,
+    "_id": "286f6778-f5a4-11ef-a337-0242ac120005"
+  },
+  "Recycling Technician": {
+    "chunk_ids": [
+      "chunk-0a4c74db72e5625d1418ad0c51ecc31b"
+    ],
+    "count": 1,
+    "create_time": 1778742639,
+    "update_time": 1778742639,
+    "_id": "Recycling Technician"
+  },
+  "Hangzhou Carlo Industrial Co., Ltd.": {
+    "chunk_ids": [
+      "chunk-0a4c74db72e5625d1418ad0c51ecc31b"
+    ],
+    "count": 1,
+    "create_time": 1778742639,
+    "update_time": 1778742639,
+    "_id": "Hangzhou Carlo Industrial Co., Ltd."
+  },
+  "DMF Recycling System": {
+    "chunk_ids": [
+      "chunk-0a4c74db72e5625d1418ad0c51ecc31b"
+    ],
+    "count": 1,
+    "create_time": 1778742639,
+    "update_time": 1778742639,
+    "_id": "DMF Recycling System"
+  },
+  "Jian de City": {
+    "chunk_ids": [
+      "chunk-0a4c74db72e5625d1418ad0c51ecc31b"
+    ],
+    "count": 1,
+    "create_time": 1778742639,
+    "update_time": 1778742639,
+    "_id": "Jian de City"
+  },
+  "DMF Recycling Process": {
+    "chunk_ids": [
+      "chunk-0a4c74db72e5625d1418ad0c51ecc31b"
+    ],
+    "count": 1,
+    "create_time": 1778742639,
+    "update_time": 1778742639,
+    "_id": "DMF Recycling Process"
+  },
+  "Chemical Engineering and Materials": {
+    "chunk_ids": [
+      "chunk-0a4c74db72e5625d1418ad0c51ecc31b"
+    ],
+    "count": 1,
+    "create_time": 1778742639,
+    "update_time": 1778742639,
+    "_id": "Chemical Engineering and Materials"
+  },
+  "Hangzhou": {
+    "chunk_ids": [
+      "chunk-0a4c74db72e5625d1418ad0c51ecc31b"
+    ],
+    "count": 1,
+    "create_time": 1778742639,
+    "update_time": 1778742639,
+    "_id": "Hangzhou"
+  },
+  "Zhejiang Province": {
+    "chunk_ids": [
+      "chunk-0a4c74db72e5625d1418ad0c51ecc31b"
+    ],
+    "count": 1,
+    "create_time": 1778742639,
+    "update_time": 1778742639,
+    "_id": "Zhejiang Province"
+  },
+  "Datong Town": {
+    "chunk_ids": [
+      "chunk-0a4c74db72e5625d1418ad0c51ecc31b"
+    ],
+    "count": 1,
+    "create_time": 1778742639,
+    "update_time": 1778742639,
+    "_id": "Datong Town"
+  },
+  "Yaoguang Road": {
+    "chunk_ids": [
+      "chunk-0a4c74db72e5625d1418ad0c51ecc31b"
+    ],
+    "count": 1,
+    "create_time": 1778742639,
+    "update_time": 1778742639,
+    "_id": "Yaoguang Road"
+  },
+  "Job Title: Primary/Junior/Senior High School Morality and Rule of Law or Politics Teacher": {
+    "chunk_ids": [
+      "chunk-4ec51a39dcb81d45e6881af69633a1e9"
+    ],
+    "count": 1,
+    "create_time": 1778742676,
+    "update_time": 1778742676,
+    "_id": "Job Title: Primary/Junior/Senior High School Morality and Rule of Law or Politics Teacher"
+  },
+  "Job ID: 27fd8c6c-f5a4-11ef-a337-0242ac120005": {
+    "chunk_ids": [
+      "chunk-4ec51a39dcb81d45e6881af69633a1e9"
+    ],
+    "count": 1,
+    "create_time": 1778742676,
+    "update_time": 1778742676,
+    "_id": "Job ID: 27fd8c6c-f5a4-11ef-a337-0242ac120005"
+  },
+  "Guangdong Province, Shenzhen, Longhua District, Qinghu Community, Banli Building, Room 706": {
+    "chunk_ids": [
+      "chunk-4ec51a39dcb81d45e6881af69633a1e9"
+    ],
+    "count": 1,
+    "create_time": 1778742676,
+    "update_time": 1778742676,
+    "_id": "Guangdong Province, Shenzhen, Longhua District, Qinghu Community, Banli Building, Room 706"
+  },
+  "Shenzhen Datang Mingsheng Enterprise Management Consulting Co., Ltd.": {
+    "chunk_ids": [
+      "chunk-4ec51a39dcb81d45e6881af69633a1e9"
+    ],
+    "count": 1,
+    "create_time": 1778742676,
+    "update_time": 1778742676,
+    "_id": "Shenzhen Datang Mingsheng Enterprise Management Consulting Co., Ltd."
+  },
+  "Salary Range 5k-18k": {
+    "chunk_ids": [
+      "chunk-4ec51a39dcb81d45e6881af69633a1e9"
+    ],
+    "count": 1,
+    "create_time": 1778742676,
+    "update_time": 1778742676,
+    "_id": "Salary Range 5k-18k"
+  },
+  "Internship Requirements": {
+    "chunk_ids": [
+      "chunk-4ec51a39dcb81d45e6881af69633a1e9"
+    ],
+    "count": 1,
+    "create_time": 1778742676,
+    "update_time": 1778742676,
+    "_id": "Internship Requirements"
+  },
+  "Ideological and Political Education": {
+    "chunk_ids": [
+      "chunk-4ec51a39dcb81d45e6881af69633a1e9"
+    ],
+    "count": 1,
+    "create_time": 1778742676,
+    "update_time": 1778742676,
+    "_id": "Ideological and Political Education"
+  },
+  "Teacher's Certificate": {
+    "chunk_ids": [
+      "chunk-4ec51a39dcb81d45e6881af69633a1e9"
+    ],
+    "count": 1,
+    "create_time": 1778742677,
+    "update_time": 1778742677,
+    "_id": "Teacher's Certificate"
+  },
+  "Internship Salary Structure": {
+    "chunk_ids": [
+      "chunk-4ec51a39dcb81d45e6881af69633a1e9"
+    ],
+    "count": 1,
+    "create_time": 1778742677,
+    "update_time": 1778742677,
+    "_id": "Internship Salary Structure"
+  }
+}

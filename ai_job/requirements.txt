@@ -1,0 +1,22 @@
+langchain-ollama
+langchain-core
+langchain-openai
+langgraph
+langchain
+# LangChain>=1.0 不再从 langchain.agents 导出 AgentExecutor；须兼容安装
+langchain-classic>=1.0.0
+lightrag-hku
+fastapi
+uvicorn
+requests
+scrapy>=2.11.0
+beautifulsoup4
+readability-lxml
+# 须 >=4：旧版 2.x 为 Python2 语法，在 Python3 上会 SyntaxError
+redis>=5.0.0,<6
+paddleocr
+# PaddleOCR 3.x 经 PaddleX 走静态图引擎，需 paddlepaddle；macOS arm64 等环境在默认 PyPI 上常无对应 wheel
+--extra-index-url https://www.paddlepaddle.org.cn/packages/stable/cpu/
+paddlepaddle>=3.3.0,<4
+python-multipart
+python-docx>=1.1.0

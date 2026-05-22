@@ -1,0 +1,3 @@
+python scripts/purge_lightrag_non_processed.py
+
+python scripts/purge_lightrag_non_processed.py --execute
