@@ -37,6 +37,7 @@ from app.portal.schemas import (
     VoiceSpokenSummaryTextRequest,
 )
 from app.rag import greprag_router, lightrag_router
+from app.session.role.role005.api.routes import router as interview_internal_router
 from app.skills.job_info_query import run_job_info_query_async
 from app.student_redis import format_student_profile_prompt_extra, get_student_profile
 import copy
@@ -97,6 +98,7 @@ app.add_middleware(
 app.add_middleware(ChineseAccessLogMiddleware)
 app.include_router(lightrag_router)
 app.include_router(greprag_router)
+app.include_router(interview_internal_router)
 logger = logging.getLogger(__name__)
 
 
@@ -327,6 +329,7 @@ def chat_in_session(session_id: str, payload: ChatMessageRequest):
 
 def _chat_stream_event_gen(
     session_id: str,
+    student_id: str,
     *,
     display: str,
     hidden: str,
@@ -362,6 +365,7 @@ def _chat_stream_event_gen(
     yield from chat_stream_service.iter_chat_sse_events(
         session_id,
         usercode,
+        student_id,
         user_model,
         text,
         history_turns,
@@ -450,6 +454,7 @@ def internal_chat_stream(payload: InternalChatPayload):
         raise _pe(e) from e
     logger.info("进行会话聊天")
     sid = payload.session_id.strip()
+    stuid = payload.student_id.strip()
     if not sid:
         raise HTTPException(status_code=400, detail="session_id 不能为空")
     from app.session.user_turn_context import build_llm_user_text
@@ -469,6 +474,7 @@ def internal_chat_stream(payload: InternalChatPayload):
         yield from chat_stream_service.iter_chat_sse_events(
             sid,
             usercode,
+            stuid,
             user_model,
             text,
             history_turns,

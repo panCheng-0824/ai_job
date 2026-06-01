@@ -1,0 +1,627 @@
+# ROLE005 模拟面试官 — 生产级开发步骤
+
+> 在「思考规划」与流程图基础上，按**可上生产**标准重写。  
+> 原则：**架构一次设计对，MVP 只减功能不减底座**（存储、状态机、幂等、安全、观测从第一天就按生产建，语义缓存/Reflection 等可分期上线）。
+
+---
+
+## 文档定位
+
+| 维度 | MVP 版（旧） | 生产版（本文） |
+|------|-------------|---------------|
+| 持久化 | JSON 文件 | PostgreSQL + Redis |
+| 超时 | 前端倒计时为主 | **服务端权威计时** + 前端展示 |
+| 断线续答 | 未定义 | LangGraph Checkpoint + 幂等 API |
+| 评分 | LLM 直接打分 | Rubric 版本化 + evidence + 可复核 |
+| 安全 | hint 不给答案 | + 注入防护 + 答案隔离 + 租户隔离 |
+| 运维 | 无 | Trace / Metrics / 成本熔断 / 告警 |
+
+**当前代码缺口**：`role_005.py` 仍为默认直连流；6 个 interview 工具未实现；`stream_handler: json_direct` 未接入 pipeline。
+
+---
+
+## 一、生产架构总览
+
+### 1.1 三层 Session 模型（必须严格区分）
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  chat_session_id     聊天 UI 会话（chat_sessions.json）      │
+│       │  1:N 引用                                            │
+│       ▼                                                      │
+│  interview_session_id  面试业务会话（PostgreSQL 主表）          │
+│       │  1:1 绑定                                            │
+│       ▼                                                      │
+│  graph_checkpoint_id LangGraph 状态快照（PG / Redis）         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+| ID | 职责 | Source of Truth |
+|----|------|-----------------|
+| `chat_session_id` | 对话历史、SSE 连接、UI 展示 | 现有 `session_store`（后续可迁 PG） |
+| `interview_session_id` | 进度、评分、报告、快照 | **`interview_sessions` 表** |
+| `turn_id` | 单次用户动作幂等键 | **`interview_turns` 表** |
+
+**规则**：面试进度、超时、评分**只读写 `interview_session_id`**；聊天层仅持有引用，不推导业务状态。
+
+### 1.2 技术栈选型（对齐现有 ai_job 基础设施）
+
+| 组件 | 选型 | 说明 |
+|------|------|------|
+| 业务主库 | **PostgreSQL** | Plan / Session / Report / Turn / Audit |
+| 热状态 & 计时 | **Redis** | 倒计时 TTL、幂等键、分布式锁、任务队列 |
+| 语义缓存 | **Milvus**（已有） | 大纲向量检索，复用 LightRAG 连接配置 |
+| 状态机 | **LangGraph + Checkpoint** | 可恢复、可回放 |
+| 异步任务 | **Redis Queue**（或 Celery+Redis） | Reflection、报告生成、画像更新 |
+| 可观测 | **structured logging + OpenTelemetry 可选** | 每节点 trace_id 贯通 |
+
+### 1.3 包结构
+
+```
+app/session/role/role005/
+├── __init__.py
+├── api/                    # REST 路由（与 SSE 解耦）
+│   ├── routes.py           # /interview/*
+│   └── schemas.py          # 请求/响应 DTO
+├── domain/                 # 纯业务，无 IO
+│   ├── models.py           # Pydantic 领域模型
+│   ├── state.py            # LangGraph State
+│   ├── intents.py          # ANSWER / CLARIFICATION / HINT_REQUEST
+│   └── rubric.py           # 评分量表版本
+├── graph/
+│   ├── planner_graph.py    # 阶段：规划
+│   ├── interview_graph.py  # 阶段：答题主循环
+│   ├── question_subgraph.py# 单题子状态机
+│   └── nodes/              # 各节点实现
+├── agents/                 # Prompt + 调用封装
+│   ├── interviewer.py
+│   ├── evaluator.py
+│   ├── scorer.py
+│   └── clarifier.py
+├── repository/             # 存储抽象（生产关键）
+│   ├── plan_repo.py
+│   ├── session_repo.py
+│   ├── turn_repo.py
+│   └── profile_repo.py
+├── infra/
+│   ├── db.py               # SQLAlchemy / asyncpg
+│   ├── redis_timer.py      # 服务端倒计时
+│   ├── idempotency.py
+│   ├── security.py         # 注入过滤、租户校验
+│   └── metrics.py
+├── jobs/                   # 异步 Worker
+│   ├── reflection_worker.py
+│   └── report_worker.py
+├── materials.py            # 简历/岗位卡片解析
+├── config.py
+├── stream.py               # SSE 薄层：只推送，不持状态
+└── storage/                # 弃用 JSON；仅保留 migration 脚本
+
+app/skills/interview/       # Agent 工具注册
+schemas/interview_*.json    # JSON Schema 产物契约
+```
+
+`role_005.py` 仅 re-export（同 `role_004.py`）。
+
+---
+
+## 二、阶段〇：生产底座（阻塞一切，约 1～2 周）
+
+### 0.1 产物契约（Pydantic + JSON Schema）
+
+所有 LLM 输出**必须先过 Schema 校验**，失败则重试或降级，禁止脏数据入库。
+
+#### InterviewPlan
+
+```python
+plan_id: str
+version: int
+target_role: str
+source_material_hash: str
+rubric_version: str          # 绑定量表版本
+planner_model: str           # 溯源
+questions: list[QuestionItem]
+
+# QuestionItem
+id, text, dimensions[], weight, thinking_hint, timeout_seconds, preset_followups[]
+reference_answer: str        # ⚠️ 仅 Evaluator/Scorer 可读，禁止注入 Interviewer
+eval_criteria: dict          # 各 dimension 的判定要点
+```
+
+#### InterviewSession
+
+```python
+interview_session_id: str
+student_id: str              # 租户隔离键
+chat_session_id: str | None  # UI 关联
+plan_id, plan_version: str, int
+status: planning|ready|in_progress|completed|abandoned
+phase: self_intro|question|summary
+current_question_index: int
+lock_version: int            # 乐观锁
+snapshots: JobSnapshot, CompanySnapshot, ResumeSnapshot  # JSONB
+answers: list[AnswerRecord]
+report_id: str | None
+token_budget_used: int       # 成本计量
+scorer_version: str
+created_at, updated_at, completed_at
+```
+
+#### InterviewTurn（幂等核心）
+
+```python
+turn_id: str                 # 客户端生成 UUID
+interview_session_id: str
+action: answer|clarify|hint|timeout|abandon
+payload: dict
+idempotency_key: str         # UNIQUE(student_id, key)
+result_snapshot: dict        # 处理后的状态摘要
+processed_at
+```
+
+#### InterviewReport
+
+```python
+report_id, interview_session_id
+per_question_scores[], total_score
+strengths[], weaknesses[]
+evidence_quotes[]            # 可解释性：引用学生原话
+interviewer_advice
+rubric_version, scorer_model
+generated_at
+```
+
+#### ReflectionReport（异步）
+
+```python
+followup_patterns[], cohort_insights[], profile_updates[]
+confidence, reflection_model
+```
+
+**验收**：`tests/role005/test_schemas.py` 覆盖合法/非法样例；CI 必跑。
+
+### 0.2 数据库设计（PostgreSQL）
+
+```sql
+-- 大纲（版本化，不可变）
+interview_plans (plan_id, version, payload JSONB, material_hash, created_at)
+  PK (plan_id, version)
+
+-- 面试会话（可变，乐观锁）
+interview_sessions (
+  interview_session_id PK,
+  student_id NOT NULL,
+  chat_session_id,
+  plan_id, plan_version,
+  status, phase, current_question_index,
+  lock_version DEFAULT 0,
+  snapshots JSONB,
+  answers JSONB DEFAULT '[]',
+  report_id,
+  token_budget_used DEFAULT 0,
+  meta JSONB,
+  created_at, updated_at
+)
+  INDEX (student_id, status)
+  INDEX (chat_session_id)
+
+-- 幂等回合
+interview_turns (
+  turn_id PK,
+  interview_session_id,
+  idempotency_key UNIQUE,
+  action, payload JSONB, result JSONB,
+  processed_at
+)
+
+-- 报告（不可变）
+interview_reports (report_id PK, session_id, payload JSONB, ...)
+
+-- 审计日志（生产必备）
+interview_audit_logs (
+  id, interview_session_id, event_type, actor, detail JSONB, created_at
+)
+```
+
+**Repository 接口**（业务层只依赖接口）：
+
+```python
+class SessionRepository(Protocol):
+    async def get(session_id, student_id) -> InterviewSession
+    async def save(session, expected_lock_version) -> InterviewSession  # 冲突抛 OptimisticLockError
+    async def append_answer(session_id, answer, lock_version) -> ...
+```
+
+**验收**：Docker Compose 起 PG + 迁移脚本；并发写测试通过。
+
+### 0.3 Redis 用途规范
+
+| Key 模式 | 用途 | TTL |
+|----------|------|-----|
+| `interview:timer:{session_id}:{q_index}` | 服务端倒计时权威 | = timeout_seconds |
+| `interview:lock:{session_id}` | 分布式锁（防双提交） | 30s |
+| `interview:idempotency:{student_id}:{key}` | 幂等结果缓存 | 24h |
+| `interview:queue:reflection` | 异步任务队列 | — |
+| `interview:session:heartbeat:{session_id}` | 连接存活 | 60s 滑动 |
+
+**验收**：计时器到期自动触发 `timeout` 节点，不依赖前端。
+
+### 0.4 LangGraph Checkpoint
+
+- 使用 `PostgresSaver` 或 `RedisSaver` 持久化图状态
+- 每次 `interview_turn` 处理完成后 checkpoint
+- SSE 断线重连：客户端带 `interview_session_id` 调 `GET /interview/{id}/state` 恢复 UI
+
+**验收**：模拟 SSE 中断 → 重连 → 进度与当前题目一致。
+
+### 0.5 安全基线（阶段〇即实现）
+
+| 项 | 实现 |
+|----|------|
+| 租户隔离 | 所有 repo 查询带 `student_id`；API 从登录态取，禁止客户端传 |
+| 答案隔离 | `reference_answer` / `eval_criteria` 只在 Evaluator/Scorer prompt 组装 |
+| 注入防护 | 用户输入过 `sanitize_user_input()`：剥离 system 指令模式、长度上限 |
+| Hint 边界 | `HINT_REQUEST` 只返回 `thinking_hint` 字段，代码层校验不含 reference 关键词 |
+| 权限 | 学生只能读写自己的 session；管理端只读 audit |
+
+### 0.6 可观测基线
+
+每次 LLM 调用记录：
+
+```json
+{
+  "trace_id": "...",
+  "interview_session_id": "...",
+  "node": "evaluator",
+  "model": "gpt-4.x",
+  "input_tokens": 1200,
+  "output_tokens": 300,
+  "latency_ms": 2100,
+  "schema_valid": true
+}
+```
+
+指标（Prometheus 或日志聚合）：
+
+- `interview_session_started_total`
+- `interview_turn_latency_seconds`（P50/P99）
+- `interview_schema_validation_failures_total`
+- `interview_token_cost_total`
+- `interview_timeout_total` / `abandon_total`
+
+告警：Schema 失败率 > 5% / 5min；单 session token 超预算。
+
+### 0.7 成本熔断
+
+`stream_options` 配置：
+
+```json
+{
+  "interview_token_budget_per_session": 80000,
+  "interview_max_followup_rounds": 4,
+  "interview_planner_model_level": "high",
+  "interview_interviewer_model_level": "high",
+  "interview_evaluator_model_level": "mid",
+  "interview_scorer_model_level": "mid"
+}
+```
+
+超预算 → 当前题强制 `complete` + 标记 `budget_exceeded` + 继续总结（不中断用户体验）。
+
+---
+
+## 三、阶段一：面试规划（生产版）
+
+对应流程图「准备与规划」。
+
+### 1.1 素材提取 `extract_interview_materials`
+
+- 输入：岗位/企业/简历卡片 + OCR 文本
+- 输出：结构化素材 + `source_material_hash`（SHA256）
+- PII 脱敏日志：日志中简历只保留 hash + 前 50 字摘要
+
+### 1.2 语义缓存 `search_interview_plan_cache`
+
+- Milvus 存 `(material_hash_embedding, plan_id, version, summary, created_at)`
+- 命中阈值可配置（默认 0.85）；返回**摘要 + 相似度 + 生成时间**
+- **必须人工确认**，不接受自动采用
+- 缓存条目带 `cache_hit_id` 写入 audit log
+
+### 1.3 大纲规划器 `plan_interview_outline`
+
+- 高级模型 + `with_structured_output(InterviewPlanSchema)`
+- 失败重试 2 次 → 仍失败返回明确错误码 `PLANNER_SCHEMA_FAILED`
+- 输出写入 `interview_plans`，immutable
+
+### 1.4 确认与创建 Session
+
+```
+POST /interview/plan/preview    → 返回候选大纲（缓存 or 新生成）
+POST /interview/plan/confirm    → 创建 interview_session, status=ready
+```
+
+- 快照写入 `snapshots` JSONB（岗位/企业/简历全文）
+- 返回 `interview_session_id`（非 chat_session_id）
+
+### 1.5 Planner 子图
+
+```
+extract → cache_lookup → [present | plan_new] → await_confirm → persist → create_session
+```
+
+`await_confirm` 在 MVP 可同步阻塞；生产改为**异步等待**（session.status=planning，用户确认 API 推进）。
+
+### 1.6 SSE 事件
+
+| 事件 | 载荷 |
+|------|------|
+| `interview_plan_preview` | plan 摘要 + cache_meta |
+| `interview_session_created` | interview_session_id + 首题预览 |
+
+---
+
+## 四、阶段二：上下文加载与工具层
+
+### 2.1 加载顺序（每次 turn 固定）
+
+1. `SessionRepository.get(session_id, student_id)` + 乐观锁
+2. `PlanRepository.get(plan_id, version)` — 只读 immutable
+3. `ProfileRepository.get(student_id)` — Redis 学生画像 + 本地 interview 画像合并
+4. 组装 `knowledge_anchor` 注入 Evaluator/Scorer（**不注入 Interviewer** 的 eval 细节）
+
+### 2.2 工具注册（`app/skills/interview/tools.py`）
+
+| 工具 | 调用方 | 生产要求 |
+|------|--------|----------|
+| `load_interview_plan` | 图节点 | 走 Repository，带 student_id 校验 |
+| `record_answer` | 图节点 | 事务 + lock_version |
+| `evaluate_answer` | Evaluator 节点 | Schema 校验 + trace |
+| `generate_followup` | 图节点 | 禁止含 reference_answer |
+| `check_timeout` | **Redis 回调 / Cron**，非 LLM | 权威计时 |
+| `end_interview` | API / 图节点 | 幂等，重复调用不重复出报告 |
+
+---
+
+## 五、阶段三：动态面试 — 服务端状态机（核心）
+
+### 5.1 API 设计（与 SSE 解耦，生产必须）
+
+```
+POST /interview/{id}/start              # ready → in_progress
+POST /interview/{id}/turn               # 主入口，body 含 turn_id + action + payload
+GET  /interview/{id}/state              # 断线恢复
+POST /interview/{id}/heartbeat          # 续期 Redis 计时 / 连接
+POST /interview/{id}/abandon            # 主动放弃
+GET  /interview/{id}/report             # 读报告
+POST /interview/{id}/retry              # 重新面试（新 session，复用快照）
+```
+
+**`POST /turn` 处理流程**：
+
+```
+1. 校验 student_id 归属
+2. 幂等：idempotency_key 已存在 → 直接返回缓存 result
+3. Redis 分布式锁 session_id
+4. 加载 session + checkpoint
+5. 跑 question_subgraph 或主图
+6. 事务：save session + insert turn + checkpoint
+7. 释放锁；SSE 推送 delta
+```
+
+### 5.2 主状态机
+
+```
+load_context → self_intro → question_loop → generate_report → END
+```
+
+### 5.3 单题子状态机
+
+```
+present_question → wait_turn → route_intent
+  ANSWER        → evaluate → [complete→score | incomplete→followup→present]
+  CLARIFICATION → clarifier → present
+  HINT_REQUEST  → hint_guard → present
+  TIMEOUT       → timeout_handler → [extend_timer | abandon_question]
+→ persist_question → advance_index
+```
+
+**编码化约束（生产红线）**：
+
+- 跳题、结束、放弃、延长计时 — **仅 Python + Redis**
+- LLM 只生成：question_text / followup_text / hint_text / clarify_text
+- 单题 followup 轮次硬上限 `max_followup_rounds`
+
+### 5.4 服务端超时（替代「前端为主」）
+
+```
+开始展示题目时：
+  Redis SETEX interview:timer:{sid}:{q_idx} timeout_seconds
+
+Worker / Keyspace Notification 到期：
+  若 session 仍 waiting → 自动注入 TIMEOUT turn（无需前端）
+
+第一次 TIMEOUT → 发 hint + 延长 TTL（记录 timeout_count=1）
+第二次 TIMEOUT → final_status=abandoned，advance
+```
+
+前端倒计时**仅作 UX 展示**，以 `GET /state` 返回的 `deadline_at` 为准。
+
+### 5.5 子 Agent 与评分治理
+
+| Agent | 输入 | 输出 | 模型 |
+|-------|------|------|------|
+| Interviewer | 题目 + 简历/岗位摘要（无 reference） | question/followup/clarify/hint 文本 | high |
+| Evaluator | 题目 + reference + eval_criteria + 学生回答 | status, suggested_action | mid |
+| Scorer | 同上 + Evaluator 结果 | score_breakdown + evidence_quotes | mid |
+| Clarifier | 题目 + 学生疑问（无 reference） | 澄清文本 | mid |
+
+**评分治理**：
+
+- `rubric_version` 随 Plan 固化，Report 引用同版本
+- Scorer 必须输出 `evidence_quotes`（引用学生原话片段）
+- 管理后台：按 `rubric_version` 抽检 5% 报告人工复核（表 `interview_review_queue`）
+- 申诉：学生标记「评分异议」→ 进入复核队列，不自动改分
+
+### 5.6 断线 / 关闭窗口
+
+- `beforeunload` → `POST /abandon`（best effort）
+- 无 heartbeat 超过 5min → 后台 job 标记 `abandoned` + 部分报告
+- 用户返回 → `GET /state` 若 `in_progress` 可继续（未 abandoned 前）
+
+### 5.7 流式层 `stream.py`（薄层）
+
+SSE **只负责推送** `/turn` 的处理结果，不在 SSE 回调里跑图：
+
+```python
+# 伪代码
+def stream_chat_service_tokens(ctx):
+    # 解析 interview_session_id from cards
+  yield thinking...
+  result = await interview_service.process_turn(...)  # 同步或 await
+  yield interview_progress / answer / report events
+```
+
+`chat_stream_pipeline.py` 增加：
+
+- `HANDLER_INTERVIEW = "interview"` 或在 ROLE005 分支硬编码
+- 转发 `interview_*` 事件；修正注释为「模拟面试官」
+
+---
+
+## 六、阶段四：异步 Reflection（生产队列）
+
+### 6.1 触发
+
+`session.status ∈ {completed, abandoned}` 且 `report_id` 非空 → `LPUSH interview:queue:reflection`
+
+### 6.2 Worker
+
+- 独立进程 / Celery worker，非线程池
+- 失败指数退避重试 3 次 → 死信队列 + 告警
+- 输出写入 `interview_profiles` + Milvus 追问模式库
+- **不阻塞**用户读报告
+
+### 6.3 反馈 Planner
+
+- 人群洞察带 `confidence` 阈值，低于 0.7 不注入 Planner prompt
+- 全链路 audit
+
+---
+
+## 七、阶段五：前端（web_job）
+
+### 7.1 页面
+
+| 页面 | 要点 |
+|------|------|
+| 准备页 | 卡片选材 → 大纲预览 → confirm API |
+| 答题页 | 调 `/turn` 非纯聊天；展示 `deadline_at`；三种 intent 按钮 |
+| 报告页 | 结构化报告 + evidence + 异议入口 |
+| 历史页 | 按 student_id 列 session |
+
+### 7.2 断线恢复
+
+进入答题页先 `GET /interview/{id}/state`，再决定渲染当前题或跳转报告。
+
+### 7.3 幂等
+
+每次提交生成 `turn_id` + `idempotency_key`（`{session_id}:{q_index}:{seq}`），防双击。
+
+---
+
+## 八、阶段六：测试与发布
+
+### 8.1 测试金字塔
+
+| 层级 | 覆盖 |
+|------|------|
+| 单元 | Schema、sanitize、rubric、Repository mock |
+| 集成 | PG testcontainer + Redis；子状态机全分支 |
+| 契约 | API OpenAPI snapshot |
+| E2E | 规划→答2题→报告；断线恢复；幂等重放 |
+| 负载 | 50 并发 turn，无 lost update |
+| 混沌 | Planner Schema 失败、LLM 超时、Redis 不可用降级 |
+
+### 8.2 发布检查清单（Go-Live Checklist）
+
+- [ ] PG 迁移已在 staging 执行
+- [ ] Redis 计时 Worker 已部署
+- [ ] Reflection Worker 已部署
+- [ ] `interview_token_budget` 已配置
+- [ ] 告警规则已接入
+- [ ] audit_log 保留策略 ≥ 90 天
+- [ ] 简历 PII 保留策略 documented
+- [ ] 回滚方案：feature flag `ROLE005_INTERVIEW_ENABLED`
+
+### 8.3 分期交付（功能可减，底座不减）
+
+| 期次 | 范围 | 生产底座要求 |
+|------|------|-------------|
+| **P0** | PG/Redis/Repository/API/幂等/服务端计时 + 规划 + 单题 + 报告 | **全部 P0 底座必须上线** |
+| **P1** | Milvus 语义缓存 + 多轮 ReAct + heartbeat 断线恢复 | 同左 |
+| **P2** | Reflection Worker + 人工复核队列 + 异议流程 | 同左 |
+| **P3** | 成本看板 + OTel 全链路 + 多实例水平扩展压测 | 同左 |
+
+---
+
+## 九、推荐实施顺序（生产版）
+
+| 序 | 任务 | 依赖 | 验收 |
+|----|------|------|------|
+| 1 | 0.1 Schema + 0.2 PG 表 + Repository | — | 迁移 + 单测 |
+| 2 | 0.3 Redis 计时 + 0.4 Checkpoint | 1 | 超时自动触发 |
+| 3 | 0.5 安全 + 0.6 观测 + 0.7 熔断 | 1 | 注入用例通过 |
+| 4 | 0.x 包骨架 + role_005 重导出 | 1 | import 不破坏 pipeline |
+| 5 | 1.x Planner 子图 + confirm API | 1 | 合法 Plan 入库 |
+| 6 | 5.1 Turn API + 幂等 + 乐观锁 | 2,3 | 并发 turn 无脏写 |
+| 7 | 5.2～5.5 主图 + 子图 + Agent | 6 | 同步跑通 1 题 |
+| 8 | 5.6 断线 + 5.7 SSE 薄层 | 7 | 断线恢复 E2E |
+| 9 | 报告生成 + GET /report | 7 | evidence 字段齐全 |
+| 10 | 7.x 前端三页 | 8 | 完整用户路径 |
+| 11 | 1.2 Milvus 缓存 | 5 | 命中 + 人工确认 |
+| 12 | 6.x Reflection Worker | 9 | 异步画像更新 |
+| 13 | 8.2 Go-Live 清单 | 全部 | staging 压测通过 |
+
+---
+
+## 十、与现有代码对照
+
+| 现有 | 生产版用法 |
+|------|-----------|
+| `app/student_redis.py` | 学生画像 + knowledge_anchor 一部分 |
+| `app/skills/job_info/semantic_cache.py` | 仿照实现 interview plan 语义缓存 |
+| Milvus / LightRAG 配置 | 大纲向量检索 |
+| `role004/materials.py` | 素材解析复用 |
+| `role001/graph.py` | LangGraph 多节点参考 |
+| `chat_stream_pipeline.py` | 新增 interview 事件；ROLE005 走专用 handler |
+| `session_store.py` | 仅 chat；interview 走 PG |
+
+---
+
+## 十一、生产红线（违反即不可合并）
+
+1. **LLM 不控流程**：超时、跳题、结束、预算熔断 — 代码 + Redis 决定。
+2. **Interviewer 不见 reference_answer**：代码审查 + 单测 assert prompt 不含 reference。
+3. **幂等**：所有 `/turn` 必须带 `idempotency_key`。
+4. **乐观锁**：session 更新必须校验 `lock_version`。
+5. **租户隔离**：Repository 层强制 `student_id`，不允许仅在 API 层校验。
+6. **Schema 门禁**：LLM 结构化输出校验失败不得 silent pass。
+7. **审计**：状态变更写 `interview_audit_logs`。
+8. **SSE 不持状态**：图在 `/turn` 或 Worker 跑，SSE 只推送。
+
+---
+
+## 十二、风险登记
+
+| 风险 | 缓解 |
+|------|------|
+| LLM 评分漂移 | rubric 版本化 + 人工抽检 + evidence 引用 |
+| 成本失控 | token_budget + followup 上限 + 模型分档 |
+| 并发丢更新 | 乐观锁 + Redis 分布式锁 |
+| 简历 PII 泄露 | 日志脱敏 + 保留策略 + 租户隔离 |
+| Milvus 不可用 | 降级为 always plan_new，跳过缓存 |
+| PG 迁移失败 | staging 先行 + 回滚脚本 |
+
+---
+
+*本文档替代旧版 MVP 开发步骤；旧版 JSON 文件方案仅可用于本地原型，不得进入 staging/production。*

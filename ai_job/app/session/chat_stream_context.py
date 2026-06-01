@@ -9,6 +9,7 @@ from typing import Any, Callable, Dict, List, Optional
 @dataclass
 class ChatStreamRunContext:
     session_id: str
+    student_id: str
     usercode: str
     user_model: Dict[str, Any]
     text: str

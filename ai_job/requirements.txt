@@ -20,3 +20,6 @@ paddleocr
 paddlepaddle>=3.3.0,<4
 python-multipart
 python-docx>=1.1.0
+# RocketMQ（macOS/本地推荐 5.x Proxy 客户端；未安装时 MQ 降级）
+rocketmq-python-client>=5.1.0
+# Linux 可选：rocketmq-client-python>=2.0.0（须系统存在 librocketmq.so）

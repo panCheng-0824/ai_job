@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 
 from app.portal import data_catalog, session_store
 from app.portal.errors import PortalError
+from app.session.role.role005.greeting import seed_role005_session_greeting
 
 
 def get_session_or_raise(session_id: str) -> Dict[str, Any]:
@@ -57,6 +58,8 @@ def init_session(
     sessions = session_store.load_sessions()
     _, existing = session_store.find_session(sessions, sid)
     if existing:
+        if seed_role005_session_greeting(existing):
+            session_store.save_sessions(sessions)
         return {
             "created": False,
             "session": existing,
@@ -65,6 +68,7 @@ def init_session(
 
     created_at = datetime.utcnow().isoformat() + "Z"
     new_session = data_catalog.build_new_chat_session(sid, stu, uc, created_at)
+    seed_role005_session_greeting(new_session)
     sessions.append(new_session)
     session_store.save_sessions(sessions)
     return {

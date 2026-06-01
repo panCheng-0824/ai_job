@@ -9,6 +9,7 @@ from app.portal import stream_registry
 def iter_chat_sse_events(
     session_id: str,
     usercode: str,
+    student_id: str,
     user_model: Dict[str, Any],
     text: str,
     history_turns: List[Dict[str, Any]],
@@ -25,6 +26,7 @@ def iter_chat_sse_events(
 ):
     ctx = build_chat_stream_run_context(
         session_id=session_id,
+        student_id=student_id,
         usercode=usercode,
         text=text,
         history_turns=history_turns,

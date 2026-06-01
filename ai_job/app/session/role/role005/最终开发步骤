@@ -1,0 +1,593 @@
+# ROLE005 模拟面试官 — 最终开发步骤（职责分离 + RocketMQ 版）
+
+> 在「思考规划」「开发步骤」基础上，按**职责分离**原则重写最终落地路径。  
+> **核心原则**：`ai_job` 只做 AI 计算；**所有业务数据**（大纲、会话、回合、报告、画像资产）由 `server_job` 维护；跨服务异步协作统一走 **RocketMQ**。
+
+---
+
+## 文档定位
+
+| 维度 | 旧版（开发步骤） | 最终版（本文） |
+|------|-----------------|---------------|
+| 业务主库 | ai_job 内 PostgreSQL | **server_job MySQL**（唯一 Source of Truth） |
+| AI 服务 | ai_job 内嵌 Repository | **ai_job 无业务库**，只读上下文、只产出 AI 结果 |
+| 异步任务 | Redis Queue / Celery | **RocketMQ**（ai_job_a → ai_job_b → server_job） |
+| 进程模型 | 单 ai_job + Worker | **ai_job_a（API）+ ai_job_b（Worker）+ server_job（业务+消费）** |
+| 前端入口 | 直连 ai_job 或混合 | **仅 server_job**（网关转发 SSE / 同步 AI） |
+
+**本文替代「开发步骤」中的存储归属与异步方案；Harness 思想、状态机、产物契约、生产红线保持不变。**
+
+---
+
+## 一、三服务职责矩阵（必须严格遵守）
+
+### 1.1 职责一览
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  web_job（前端）                                                              │
+│    只调 server_job REST / SSE，不直连 ai_job                                   │
+└───────────────────────────────────┬─────────────────────────────────────────┘
+                                    │ HTTP / SSE
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  server_job（业务中枢 + 资产入库）                                              │
+│  ✓ MySQL：plan / session / turn / report / audit / profile / insight         │
+│  ✓ Redis：服务端计时、幂等键、分布式锁、学生画像缓存                              │
+│  ✓ Milvus 元数据索引（可选，向量检索仍可由 ai_job 执行）                         │
+│  ✓ 对外 Interview API；网关转发同步 AI 请求到 ai_job_a                          │
+│  ✓ RocketMQ Consumer：消费 ai_job_b 产出的 AI 结果，事务入库                     │
+│  ✓ RocketMQ Producer：触发异步 AI 任务（也可由 ai_job_a 生产，见 1.3）           │
+└───────────────┬───────────────────────────────┬─────────────────────────────┘
+                │ 同步 HTTP（/internal/*）        │ Topic: interview.ai.task
+                ▼                                ▼
+┌───────────────────────────────┐   ┌─────────────────────────────────────────┐
+│  ai_job_a（AI API / SSE 进程）  │   │  ai_job_b（AI Worker 进程）               │
+│  ✓ LangGraph 实时图（/turn）   │   │  ✓ 消费 interview.ai.task               │
+│  ✓ LLM 推理 + Schema 校验     │   │  ✓ Reflection / 重报告 / 大纲向量写入     │
+│  ✓ LangGraph Checkpoint(Redis)│   │  ✓ 完成后生产 interview.ai.result         │
+│  ✗ 不写 MySQL 业务表           │   │  ✗ 不写 MySQL 业务表                      │
+│  ✓ 异步任务 → RocketMQ        │──▶│  ✓ 可水平扩展多实例                        │
+└───────────────────────────────┘   └──────────────────┬──────────────────────┘
+                                                         │ Topic: interview.ai.result
+                                                         ▼
+                                              server_job Consumer 资产入库
+```
+
+### 1.2 各服务「能做 / 不能做」
+
+| 能力 | server_job | ai_job_a | ai_job_b |
+|------|:----------:|:--------:|:--------:|
+| 面试 CRUD（plan/session/turn/report） | ✅ | ❌ | ❌ |
+| 租户隔离、权限、审计日志 | ✅ | ❌ | ❌ |
+| 服务端超时计时（Redis TTL） | ✅ | 只读 deadline | ❌ |
+| 实时 LangGraph /turn 推理 | 编排 | ✅ | ❌ |
+| SSE token 流 | 中继 | ✅ | ❌ |
+| Reflection / 批量 AI 后处理 | 触发 | 可投递 | ✅ |
+| Milvus 向量写入（大纲/追问模式） | 存 metadata | 可执行 | ✅ |
+| 学生画像 / 人群洞察 **持久化** | ✅ | ❌ | ❌ |
+| 直接读 MySQL 业务表 | ✅ | ❌ | ❌ |
+
+### 1.3 三层 Session 模型（归属不变，存储迁移）
+
+| ID | 职责 | Source of Truth |
+|----|------|-----------------|
+| `chat_session_id` | 对话 UI、SSE 连接 | server_job `chat_sessions`（现有） |
+| `interview_session_id` | 进度、评分、报告、快照 | **server_job `interview_sessions`** |
+| `graph_checkpoint_id` | LangGraph 运行态 | **ai_job Redis**（ ephemeral，非业务真相） |
+| `turn_id` | 幂等键 | **server_job `interview_turns`** |
+
+**规则**：面试进度、超时、评分**只读写 server_job**；ai_job 每次 `/turn` 从 server_job 拉上下文，算完后通过 **同步响应 + 可选 MQ 补充** 回传，不在 ai_job 本地推导业务状态。
+
+---
+
+## 二、RocketMQ 拓扑设计
+
+### 2.1 Topic / Consumer Group
+
+| Topic | 生产者 | 消费者 | 用途 |
+|-------|--------|--------|------|
+| `interview_ai_task` | server_job / ai_job_a | **ai_job_b** | 异步 AI 任务（Reflection、报告重算、大纲 embedding） |
+| `interview_ai_result` | **ai_job_b** / ai_job_a | **server_job** | AI 结构化结果，驱动资产入库 |
+| `interview_timer_event` | server_job（Redis 回调/Cron） | server_job / ai_job_a | 超时事件（可选独立 Topic，P0 可用 Redis + HTTP 回调） |
+| `interview_dlq` | 各 Topic 重试耗尽 | 运维告警 | 死信 |
+
+**Consumer Group 命名**（与 `application.yml` 对齐扩展）：
+
+```yaml
+# server_job application.yml 扩展
+rocketmq:
+  name-server: ${ROCKETMQ_NAMESERVER:localhost:9876}
+  producer:
+    group: server_job_producer
+  consumer:
+    groups:
+      interview-result: server_job_interview_result_consumer
+      interview-timer: server_job_interview_timer_consumer   # 可选
+```
+
+```yaml
+# ai_job 环境变量
+ROCKETMQ_NAMESERVER=localhost:9876
+ROCKETMQ_PRODUCER_GROUP=ai_job_a_producer          # API 进程
+ROCKETMQ_CONSUMER_GROUP=ai_job_b_worker            # Worker 进程
+```
+
+### 2.2 消息信封（统一 Envelope）
+
+所有 MQ 消息必须使用同一信封，便于幂等与追踪：
+
+```json
+{
+  "message_id": "uuid-v4",
+  "trace_id": "uuid-v4",
+  "event_type": "interview.reflection.request | interview.reflection.result | ...",
+  "producer": "server_job | ai_job_a | ai_job_b",
+  "occurred_at": "2026-05-25T10:00:00+08:00",
+  "idempotency_key": "student_id:interview_session_id:event:seq",
+  "payload": { }
+}
+```
+
+**RocketMQ Keys**：`message_id`；**Tag**：`event_type` 短名（如 `reflection.result`）。
+
+### 2.3 核心 event_type 清单
+
+| event_type | 方向 | 说明 |
+|------------|------|------|
+| `interview.plan.generate` | server_job → ai_job_b | 异步生成大纲（用户不接受缓存时） |
+| `interview.plan.result` | ai_job_b → server_job | 结构化 InterviewPlan 入库 |
+| `interview.turn.ai_delta` | ai_job_a → server_job | 同步 turn 的补充异步写入（大 payload 时） |
+| `interview.report.generate` | server_job → ai_job_b | 异步生成完整报告（可选，P0 可同步） |
+| `interview.report.result` | ai_job_b → server_job | InterviewReport 入库 |
+| `interview.reflection.request` | server_job / ai_job_a → ai_job_b | 触发 Reflection |
+| `interview.reflection.result` | ai_job_b → server_job | 画像 / 追问模式 / 人群洞察入库 |
+| `interview.plan.embed` | ai_job_b → server_job | 大纲向量 metadata 回写（Milvus ID + plan_id） |
+
+---
+
+## 三、产物契约（跨服务 JSON Schema）
+
+> 契约定义在**共享位置**（推荐 `server_job/src/main/resources/schema/interview/` + ai_job 镜像拷贝），CI 校验两端一致。
+
+### 3.1 InterviewPlan（server_job 持久化）
+
+```python
+plan_id: str
+version: int
+target_role: str
+source_material_hash: str
+rubric_version: str
+planner_model: str
+questions: list[QuestionItem]   # id, text, dimensions[], weight, thinking_hint,
+                                # timeout_seconds, preset_followups[]
+reference_answer: str           # ⚠️ 仅 Evaluator/Scorer 可读
+eval_criteria: dict
+```
+
+### 3.2 InterviewSession（server_job 持久化）
+
+```python
+interview_session_id: str
+student_id: str
+chat_session_id: str | None
+plan_id, plan_version: str, int
+status: planning|ready|in_progress|completed|abandoned
+phase: self_intro|question|summary
+current_question_index: int
+lock_version: int
+snapshots: JobSnapshot, CompanySnapshot, ResumeSnapshot  # JSON
+answers: list[AnswerRecord]
+report_id: str | None
+token_budget_used: int
+```
+
+### 3.3 InterviewTurn（幂等核心，server_job）
+
+```python
+turn_id: str
+interview_session_id: str
+action: answer|clarify|hint|timeout|abandon
+payload: dict
+idempotency_key: str    # UNIQUE(student_id, key)
+result_snapshot: dict
+processed_at
+```
+
+### 3.4 InterviewReport / ReflectionReport
+
+与「开发步骤」0.1 节一致；**入库动作只在 server_job**。
+
+### 3.5 AI 任务请求 payload 示例（interview_ai_task）
+
+```json
+{
+  "task_type": "reflection",
+  "interview_session_id": "...",
+  "student_id": "...",
+  "plan_id": "...",
+  "plan_version": 1,
+  "context_ref": {
+    "session_api": "/internal/interview/sessions/{id}/context-bundle",
+    "auth": "service_token"
+  },
+  "options": {
+    "reflection_model_level": "mid",
+    "max_tokens": 8000
+  }
+}
+```
+
+ai_job_b 通过 `context_ref` **回调 server_job 内部 API** 拉全量上下文，不在消息体携带 PII 全文。
+
+---
+
+## 四、核心流程（同步 + 异步）
+
+### 4.1 面试规划（规划阶段）
+
+```mermaid
+sequenceDiagram
+    participant W as web_job
+    participant S as server_job
+    participant A as ai_job_a
+    participant B as ai_job_b
+    participant MQ as RocketMQ
+
+    W->>S: POST /interview/plan/preview（简历+岗位卡片）
+    S->>S: 解析卡片快照，写 material_hash
+    S->>A: POST /internal/interview/plan/preview（同步）
+    A->>A: Milvus 语义检索 + 可选 LLM 生成
+    A-->>S: 候选大纲 + cache_meta
+    S-->>W: 展示摘要/相似度/时间
+
+    alt 用户确认缓存大纲
+        W->>S: POST /interview/plan/confirm（选用 cache）
+        S->>S: 写 interview_plans + 创建 interview_session
+    else 用户要求重新规划（可异步）
+        W->>S: POST /interview/plan/confirm（regenerate=true）
+        S->>S: session.status=planning
+        S->>MQ: interview.plan.generate
+        MQ->>B: consume
+        B->>S: GET context-bundle
+        B->>B: Planner LLM + Schema 校验
+        B->>MQ: interview.plan.result
+        MQ->>S: consume → 事务写 plan + 更新 session=ready
+        S-->>W: SSE / 轮询通知大纲就绪
+    end
+```
+
+**要点**：
+- 预览可 **同步**（低延迟）；确认后若需高级模型长推理，改 **异步**。
+- `interview_plans` **只在 server_job 落库**。
+
+### 4.2 动态面试 /turn（实时同步为主）
+
+```mermaid
+sequenceDiagram
+    participant W as web_job
+    participant S as server_job
+    participant A as ai_job_a
+    participant R as Redis
+
+    W->>S: POST /interview/{id}/turn（turn_id, action, payload）
+    S->>S: 幂等检查 + 乐观锁 + 分布式锁
+    S->>S: 加载 session + plan（MySQL）
+    S->>R: 校验/续期 timer
+    S->>A: POST /internal/interview/turn（context_bundle + checkpoint_hint）
+    A->>A: LangGraph 单题子图 + LLM
+    A-->>S: TurnResult（结构化 delta + checkpoint_id + token_usage）
+    S->>S: 事务：save session + insert turn + audit
+    S->>R: 更新 timer / 幂等缓存
+    S-->>W: JSON 响应 + SSE 推送 interview_* 事件
+```
+
+**要点**：
+- **每一轮 turn 的 business write 在 server_job 事务内完成**。
+- ai_job_a 返回的 `TurnResult` 必须过 Schema；失败则 server_job 不提交并返回错误码。
+- LangGraph Checkpoint 存 **ai_job Redis**；断线时 server_job 的 `/state` 是 UI 真相，checkpoint 仅加速恢复。
+
+### 4.3 服务端超时
+
+```
+server_job 展示题目时：
+  Redis SETEX interview:timer:{session_id}:{q_index} = timeout_seconds
+
+Key 过期 / 定时扫描：
+  server_job 注入 TIMEOUT turn（调自身 /turn 内部逻辑，或发 interview_timer_event）
+  第一次 TIMEOUT → hint + 延长 TTL
+  第二次 TIMEOUT → abandoned + advance
+```
+
+**红线**：超时 **不由 LLM 决定**；ai_job 仅在收到 `action=timeout` 时生成 hint 文案。
+
+### 4.4 Reflection 与资产入库（纯异步）
+
+```mermaid
+sequenceDiagram
+    participant S as server_job
+    participant MQ as RocketMQ
+    participant B as ai_job_b
+
+    Note over S: session completed/abandoned 且 report_id 已存在
+    S->>MQ: interview.reflection.request
+    MQ->>B: consume
+    B->>S: GET context-bundle（answers + report + plan）
+    B->>B: Reflection Agent + Schema 校验
+    B->>MQ: interview.reflection.result
+    MQ->>S: consume（幂等 idempotency_key）
+    S->>S: 事务写入：
+    Note over S: student_interview_profile<br/>followup_pattern_assets<br/>cohort_insights<br/>milvus_index_meta<br/>interview_audit_logs
+```
+
+**资产入库表（server_job MySQL）**：
+
+| 表 | 内容 |
+|----|------|
+| `interview_plans` | 版本化大纲 |
+| `interview_sessions` | 会话状态 |
+| `interview_turns` | 幂等回合 |
+| `interview_reports` | 报告 |
+| `student_interview_profiles` | 用户面试画像 |
+| `interview_followup_patterns` | 追问模式资产 |
+| `interview_cohort_insights` | 人群洞察 |
+| `interview_audit_logs` | 审计 |
+| `interview_review_queue` | 人工复核（P2） |
+
+Milvus 向量本体由 **ai_job_b 写入**；server_job 只存 `milvus_collection + vector_id + plan_id` 关联。
+
+---
+
+## 五、API 边界
+
+### 5.1 server_job 对外 API（web_job 只调这些）
+
+```
+POST   /api/interview/plan/preview
+POST   /api/interview/plan/confirm
+POST   /api/interview/{id}/start
+POST   /api/interview/{id}/turn
+GET    /api/interview/{id}/state
+POST   /api/interview/{id}/heartbeat
+POST   /api/interview/{id}/abandon
+GET    /api/interview/{id}/report
+POST   /api/interview/{id}/retry
+GET    /api/interview/sessions          # 历史列表
+```
+
+现有聊天 SSE 仍走 `ChatController` → 网关转发 ai_job_a；面试 UI 以 **Interview REST** 为主，SSE 只推送展示增量。
+
+### 5.2 server_job 内部 API（仅 ai_job 服务间调用）
+
+```
+GET    /internal/interview/sessions/{id}/context-bundle
+POST   /internal/interview/sessions/{id}/apply-turn-result   # 大 payload 异步回填时用
+POST   /internal/interview/plans                             # MQ consumer 入库逻辑的内部复用
+```
+
+鉴权：服务间 `X-Service-Token` 或 mTLS（P0 可用共享 secret）。
+
+### 5.3 ai_job_a 内部 API（server_job 网关调用）
+
+```
+POST   /internal/interview/plan/preview
+POST   /internal/interview/turn
+POST   /internal/interview/report/generate    # 可选同步
+GET    /internal/interview/checkpoint/{id}    # 断线恢复辅助
+```
+
+### 5.4 ai_job 包结构（无 repository 层）
+
+```
+app/session/role/role005/
+├── domain/           # Pydantic 模型（与 server_job Schema 同构）
+├── graph/            # LangGraph 图
+├── agents/           # Prompt + LLM 封装
+├── mq/
+│   ├── producer.py   # ai_job_a 投递 interview_ai_task
+│   └── consumer.py   # ai_job_b 消费（独立入口 python -m ...）
+├── infra/
+│   ├── checkpoint.py # Redis Checkpoint
+│   ├── schema_gate.py
+│   └── metrics.py
+├── stream.py         # SSE 薄层
+└── worker_main.py    # ai_job_b 启动入口
+
+# 刻意不放 repository/、db.py — 业务 IO 不在 ai_job
+```
+
+---
+
+## 六、分阶段执行步骤
+
+### 阶段〇：基础设施与契约（阻塞一切，约 1～2 周）
+
+| 序 | 任务 | 负责 | 验收 |
+|----|------|------|------|
+| 0.1 | 定义 Interview 全套 JSON Schema + OpenAPI | server_job 主导，ai_job 同步 | CI schema diff 通过 |
+| 0.2 | MySQL 建表 + Flyway/Liquibase 迁移脚本 | server_job | staging 迁移成功 |
+| 0.3 | RocketMQ Topic 创建 + spring-boot-starter RocketMQ 接入 | server_job | Demo 收发成功 |
+| 0.4 | ai_job RocketMQ producer/consumer SDK 封装 | ai_job | 单元测试 mock broker |
+| 0.5 | 服务间内部 API + Service Token | server_job | ai_job 可调 context-bundle |
+| 0.6 | Redis Key 规范（timer/lock/idempotency） | server_job | 与 ai_job 共用实例 |
+| 0.7 | 可观测：trace_id 贯通 HTTP + MQ | 双方 | 日志可串联一条 turn |
+
+**server_job 表结构（MySQL）** — 与旧版 PG 设计同构，类型改为 JSON + BIGINT：
+
+```sql
+-- 见 server_job/sql/interview_schema_mysql8.sql（实施时创建）
+interview_plans (plan_id, version, payload JSON, material_hash, ...)
+interview_sessions (interview_session_id PK, student_id, chat_session_id, ...)
+interview_turns (turn_id PK, idempotency_key UNIQUE, ...)
+interview_reports (...)
+interview_audit_logs (...)
+student_interview_profiles (...)
+interview_followup_patterns (...)
+interview_cohort_insights (...)
+```
+
+### 阶段一：规划链路（P0）
+
+| 序 | 任务 | 负责 | 依赖 | 验收 |
+|----|------|------|------|------|
+| 1.1 | 素材提取 `extract_interview_materials` | ai_job_a | 0.x | 结构化 hash 正确 |
+| 1.2 | Milvus 语义缓存检索 | ai_job_a | 0.x | 返回相似度+摘要 |
+| 1.3 | `POST /interview/plan/preview` 全链路 | server_job + ai_job_a | 1.1,1.2 | web 可预览 |
+| 1.4 | 同步 confirm（选用缓存） | server_job | 0.2 | session=ready |
+| 1.5 | 异步 `interview.plan.generate` → ai_job_b → result 入库 | 三方 | 0.3,1.3 | 重新规划可异步完成 |
+| 1.6 | Planner Schema 门禁 + 失败重试 | ai_job | 1.5 | 脏数据不入库 |
+
+### 阶段二：Turn 主循环（P0 核心）
+
+| 序 | 任务 | 负责 | 依赖 | 验收 |
+|----|------|------|------|------|
+| 2.1 | server_job `/turn`：幂等+乐观锁+分布式锁 | server_job | 0.2,0.6 | 并发测试无脏写 |
+| 2.2 | ai_job_a LangGraph 主图+单题子图骨架 | ai_job | 0.1 | 单测跑通 |
+| 2.3 | Interviewer / Evaluator / Scorer / Clarifier Agent | ai_job | 2.2 | reference 隔离单测 |
+| 2.4 | `/turn` 同步联调 | 双方 | 2.1,2.3 | 答 1 题 E2E |
+| 2.5 | Redis 服务端超时 | server_job | 0.6 | 无前端也能 timeout |
+| 2.6 | `/state` 断线恢复 | server_job | 2.4 | 刷新页面进度一致 |
+| 2.7 | SSE 薄层 + chat_stream_pipeline ROLE005 分支 | ai_job_a + server_job 中继 | 2.4 | interview_* 事件可见 |
+| 2.8 | token_budget 熔断 | ai_job_a 计量，server_job 持久化 | 2.4 | 超预算标记 |
+
+### 阶段三：报告与结束（P0）
+
+| 序 | 任务 | 负责 | 依赖 | 验收 |
+|----|------|------|------|------|
+| 3.1 | 报告生成（同步或 ai_job_a 内完成） | ai_job_a | 2.x | evidence_quotes 齐全 |
+| 3.2 | `GET /report` + session.status=completed | server_job | 3.1 | 报告可读 |
+| 3.3 | abandon / beforeunload / heartbeat 5min | server_job | 2.5 | 放弃路径 E2E |
+| 3.4 | retry 新 session + 快照复用 | server_job | 1.4 | 岗位变更不影响旧面试 |
+
+### 阶段四：Reflection 异步闭环（P1）
+
+| 序 | 任务 | 负责 | 依赖 | 验收 |
+|----|------|------|------|------|
+| 4.1 | 完成面试 → 发 `interview.reflection.request` | server_job | 3.2,0.3 | MQ 可见消息 |
+| 4.2 | ai_job_b Reflection Worker | ai_job | 4.1 | 消费成功 |
+| 4.3 | `interview.reflection.result` → 资产入库 | server_job | 4.2 | 画像+洞察可查 |
+| 4.4 | 追问模式写 Milvus + metadata 回 server_job | ai_job_b + server_job | 4.3 | Planner 可检索 |
+| 4.5 | 死信 + 指数退避 + 告警 | 双方 | 4.2 | 失败进 DLQ |
+
+### 阶段五：前端（web_job）
+
+| 序 | 任务 | 验收 |
+|----|------|------|
+| 5.1 | 准备页：preview → confirm | 大纲可选缓存 |
+| 5.2 | 答题页：调 server_job `/turn`，展示 deadline_at | 三意图按钮 |
+| 5.3 | 报告页 + 异议入口（P2） | 结构化展示 |
+| 5.4 | 历史页 | 按 student_id 列表 |
+| 5.5 | turn_id + idempotency_key 客户端生成 | 防双击 |
+
+### 阶段六：测试与上线
+
+| 层级 | 覆盖 |
+|------|------|
+| 单元 | Schema、sanitize、Agent prompt 边界、MQ envelope |
+| 集成 | server_job Testcontainers(MySQL+Redis) + ai_job mock LLM |
+| 契约 | OpenAPI snapshot + JSON Schema 双向校验 |
+| E2E | 规划→答 2 题→报告→Reflection 入库 |
+| 混沌 | LLM 超时、MQ 堆积、ai_job_b 扩容、MySQL 乐观锁冲突 |
+
+**Go-Live 清单**：
+- [ ] MySQL 迁移已在 staging 执行
+- [ ] RocketMQ Topic / Consumer Group 已创建
+- [ ] ai_job_a / ai_job_b 分进程部署
+- [ ] server_job Interview Consumer 已部署
+- [ ] Redis 计时扫描已部署
+- [ ] 告警：Schema 失败率、DLQ 深度、turn P99
+- [ ] Feature flag `ROLE005_INTERVIEW_ENABLED`
+
+---
+
+## 七、部署模型
+
+### 7.1 进程与启动命令
+
+```bash
+# server_job（已有）
+java -jar server_job.jar
+# 内含：Interview REST + MQ Consumer + Redis Timer Job
+
+# ai_job_a — API / SSE（现有 main.py / uvicorn，不开 consumer）
+ROLE=ai_job_a uvicorn web_app:app --host 0.0.0.0 --port 8001
+
+# ai_job_b — Worker（独立进程，无 HTTP 或仅 health）
+ROLE=ai_job_b python -m app.session.role.role005.worker_main
+```
+
+### 7.2 配置要点
+
+| 配置项 | ai_job_a | ai_job_b | server_job |
+|--------|----------|----------|------------|
+| `ROCKETMQ_NAMESERVER` | ✓ | ✓ | ✓ |
+| Producer Group | ai_job_a_producer | ai_job_b_producer | server_job_producer |
+| Consumer | — | ai_job_b_worker | server_job_interview_result_consumer |
+| MySQL | ✗ | ✗ | ✓ |
+| Redis | Checkpoint | 可选 | Timer/Lock/Profile |
+| Milvus | 读+写向量 | 读+写向量 | 仅存 metadata |
+
+### 7.3 水平扩展
+
+- **ai_job_a**：无状态，多实例 + 负载均衡；Checkpoint 用共享 Redis。
+- **ai_job_b**：同 Consumer Group 竞争消费，**禁止**广播模式。
+- **server_job Consumer**：同 Group 竞争；入库逻辑必须 **幂等**（`idempotency_key` 唯一约束）。
+
+---
+
+## 八、与「开发步骤」差异对照
+
+| 开发步骤原方案 | 最终方案 |
+|---------------|----------|
+| ai_job 内 PostgreSQL + Repository | **server_job MySQL + MyBatis** |
+| Redis Queue / Celery Reflection | **RocketMQ：ai_job_b → server_job** |
+| interview API 在 ai_job | **Interview API 在 server_job** |
+| ai_job 写 audit / session | **server_job 事务写**；ai_job 只返结果 |
+| PG Checkpoint 可选 | **Redis Checkpoint 仅在 ai_job** |
+
+**不变项**：Harness 四支柱、单题子状态机、Rubric+Evidence、Interviewer 不见 reference、幂等/乐观锁/租户隔离、SSE 不持业务状态。
+
+---
+
+## 九、生产红线（违反不可合并）
+
+1. **ai_job 禁止写 MySQL 业务表**（含 ORM、JdbcTemplate、Flyway）。
+2. **LLM 不控流程**：超时、跳题、结束、预算熔断 — server_job 代码 + Redis。
+3. **Interviewer 不见 reference_answer**：代码审查 + 单测 assert。
+4. **所有 `/turn` 必须带 `idempotency_key`**，server_job 唯一约束兜底。
+5. **MQ 消费必须幂等**：`idempotency_key` 或 `message_id` 去重表。
+6. **Schema 门禁**：LLM 输出校验失败不得 silent pass，不得入库。
+7. **PII 不进 MQ 大 payload**：用 `context_ref` 回调拉取。
+8. **审计在 server_job**：状态变更写 `interview_audit_logs`。
+9. **SSE 不持业务状态**：图在 `/turn` 路径，SSE 只推送。
+
+---
+
+## 十、推荐实施顺序（一张表）
+
+| 周次 | 里程碑 | 关键产出 |
+|------|--------|----------|
+| W1 | 阶段〇 | Schema + MySQL 表 + RocketMQ 通 + 内部 API |
+| W2 | 阶段一 | 规划 preview/confirm（含异步 generate） |
+| W3～W4 | 阶段二 | `/turn` 全链路 + 超时 + 断线恢复 |
+| W5 | 阶段三 | 报告 + abandon + retry |
+| W6 | 阶段五 | web_job 三页联调 |
+| W7 | 阶段四 | Reflection + 资产入库 |
+| W8 | 阶段六 | 压测 + Go-Live |
+
+---
+
+## 十一、风险登记
+
+| 风险 | 缓解 |
+|------|------|
+| ai_job 与 server_job Schema 漂移 | 共享 JSON Schema + CI diff |
+| MQ 重复消费导致重复入库 | idempotency_key + 消费去重表 |
+| 同步 /turn 超时 | server_job 调 ai_job 设合理 read timeout；超大报告改异步 |
+| ai_job_b 堆积 | 监控 lag + 自动扩容 Worker |
+| Milvus 不可用 | 降级 skip 缓存，always plan_new |
+| 跨服务调试困难 | trace_id 强制贯穿 HTTP Header + MQ Keys |
+
+---
+
+*本文档为 ROLE005 最终落地版本：职责分离 + RocketMQ 异步 + server_job 业务真相。实施时以本文为准，「开发步骤」中与之冲突的存储与队列章节以本文覆盖。*

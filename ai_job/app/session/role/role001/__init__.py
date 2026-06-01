@@ -10,7 +10,8 @@ ROLE001 — 岗位规划师（Plan-and-Execute + 可选结构化汇总）。
 - ``nodes``：planner / executor / structured_return / plain_finalize
 - ``intent``：入口意图分类（推荐快车道 / 咨询慢车道）
 - ``graph``：图编译（含 intent_router）与同步执行入口
-- ``stream``：SSE 流式对外入口 ``stream_chat_service_tokens``
+- ``stream_handlers`` / ``stream``：SSE 流式对外入口 ``stream_chat_service_tokens``
+- ``bindings_factory``：``build_graph_bindings``
 
 兼容：``app.session.role.role_001`` 仍可直接 ``import stream_chat_service_tokens``。
 """
