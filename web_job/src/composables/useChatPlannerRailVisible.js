@@ -3,10 +3,12 @@ import { ref } from "vue";
 /** 各角色会话右侧「我的资料」栏 localStorage 键（与 usercode 对齐） */
 export const CHAT_PLANNER_RAIL_LS_KEY = "chat_planner_rail_visible";
 export const CHAT_RESUME_OPTIMIZER_RAIL_LS_KEY = "chat_resume_optimizer_rail_visible";
+export const CHAT_MOCK_INTERVIEWER_RAIL_LS_KEY = "chat_mock_interviewer_rail_visible";
 
 const RAIL_LS_BY_USERCODE = {
   ROLE001: CHAT_PLANNER_RAIL_LS_KEY,
-  ROLE004: CHAT_RESUME_OPTIMIZER_RAIL_LS_KEY
+  ROLE004: CHAT_RESUME_OPTIMIZER_RAIL_LS_KEY,
+  ROLE005: CHAT_MOCK_INTERVIEWER_RAIL_LS_KEY
 };
 
 function readLs(key) {
@@ -38,10 +40,13 @@ export const chatPlannerRailVisibleRef = railRefForUsercode("ROLE001");
 /** 简历优化师（ROLE004） */
 export const chatResumeOptimizerRailVisibleRef = railRefForUsercode("ROLE004");
 
+/** 模拟面试官（ROLE005） */
+export const chatMockInterviewerRailVisibleRef = railRefForUsercode("ROLE005");
+
 /** 当前角色是否支持「我的资料」侧栏 */
 export function supportsContextRail(usercode) {
   const code = (usercode || "").trim();
-  return code === "ROLE001" || code === "ROLE004";
+  return code === "ROLE001" || code === "ROLE004" || code === "ROLE005";
 }
 
 export function contextRailVisibleRef(usercode) {

@@ -15,7 +15,7 @@ async function request(path, options = {}) {
     data = { detail: text || "响应解析失败" };
   }
   if (!resp.ok) {
-    throw new Error(data.detail || "请求失败");
+    throw new Error(data.detail || data.message || "请求失败");
   }
   return data;
 }

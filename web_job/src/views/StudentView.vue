@@ -338,7 +338,7 @@ onMounted(() => {
 <template>
   <div>
     <section class="hero">
-      <span class="badge">Student Center</span>
+
       <h1>学生信息与岗位洞察中心</h1>
       <p>当前登录账号：<code>{{ studentInfo?.["学号"] || "-" }}</code></p>
     </section>
@@ -467,7 +467,7 @@ onMounted(() => {
         </section>
 
         <section class="panel">
-          <h2 class="section-title">岗位推荐联动查询</h2>
+          <h2 class="section-title">岗位推荐</h2>
           
           <div class="line">
             <input v-model="query" placeholder="例如：想找杭州前端、双休、成长空间好的岗位" @keydown.enter.prevent="runRecommend" />

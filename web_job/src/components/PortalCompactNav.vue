@@ -40,7 +40,7 @@ function onChange() {
 <template>
   <header v-show="!hideForChatFocus" class="portal-top-nav">
     <div class="nav-container">
-      <div class="logo">Digital Garden · Job Portal</div>
+      <div class="logo">智能 · AI 就业</div>
       <select v-model="model" class="nav-select" aria-label="主导航" @change="onChange">
         <option value="" disabled>页面跳转…</option>
         <option v-for="o in options" :key="o.value" :value="o.value">{{ o.label }}</option>

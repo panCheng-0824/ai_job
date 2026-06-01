@@ -1,7 +1,7 @@
 <script setup>
 /**
  * 对话助手右侧「我的资料」：简历 / 收藏岗位 / 关注企业。
- * 岗位规划师（ROLE001）、简历优化师（ROLE004）共用；卡片可拖入输入框附加上下文。
+ * 岗位规划师（ROLE001）、简历优化师（ROLE004）、模拟面试官（ROLE005）共用；卡片可拖入输入框附加上下文。
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import FloatingFramePanel from "./FloatingFramePanel.vue";
@@ -227,7 +227,7 @@ defineExpose({ reload: loadAll });
     </div>
 
     <p v-if="guest" class="planner-rail-guest">
-      请先在左侧填写学号并登录，以加载简历、收藏与关注。
+      请先在登录页填写学号，以加载简历、收藏与关注。
     </p>
     <p v-else-if="loadError" class="planner-rail-error">{{ loadError }}</p>
     <p v-else-if="loading" class="planner-rail-muted">加载中…</p>

@@ -61,11 +61,23 @@ function mergeAssistantExtras(turn, localHit, doneExtras) {
   if (!merged.job_recommend && fromLocal.job_recommend) {
     merged = { ...merged, job_recommend: fromLocal.job_recommend };
   }
+  if (!merged.interview_plan_preview && fromLocal.interview_plan_preview) {
+    merged = { ...merged, interview_plan_preview: fromLocal.interview_plan_preview };
+  }
+  if (fromLocal.interview_session_started) {
+    merged = { ...merged, interview_session_started: fromLocal.interview_session_started };
+  }
+  if (!merged.interview_start_result && fromLocal.interview_start_result) {
+    merged = { ...merged, interview_start_result: fromLocal.interview_start_result };
+  }
   if (doneExtras?.resume_render && !merged.resume_render) {
     merged = { ...merged, resume_render: doneExtras.resume_render };
   }
   if (doneExtras?.job_recommend && !merged.job_recommend) {
     merged = { ...merged, job_recommend: doneExtras.job_recommend };
+  }
+  if (doneExtras?.interview_plan_preview && !merged.interview_plan_preview) {
+    merged = { ...merged, interview_plan_preview: doneExtras.interview_plan_preview };
   }
   return merged;
 }

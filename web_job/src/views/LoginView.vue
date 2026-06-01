@@ -41,7 +41,6 @@ async function login() {
       </div>
       <p class="tips">测试账号：220692209 / 220692216。</p>
       <p class="status" :class="isError ? 'error' : 'ok'">{{ msg }}</p>
-      <p class="footer">Student Portal</p>
     </section>
   </main>
 </template>

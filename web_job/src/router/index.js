@@ -9,6 +9,10 @@ import CompanyDetailView from "../views/CompanyDetailView.vue";
 import ResumeCreateView from "../views/ResumeCreateView.vue";
 import ToolsView from "../views/ToolsView.vue";
 import MeView from "../views/MeView.vue";
+import InterviewPlanListView from "../views/InterviewPlanListView.vue";
+import InterviewPlanDetailView from "../views/InterviewPlanDetailView.vue";
+import InterviewIndustryManageView from "../views/InterviewIndustryManageView.vue";
+import InterviewRecordDetailView from "../views/InterviewRecordDetailView.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -23,6 +27,10 @@ const router = createRouter({
     { path: "/companies", component: CompaniesView },
     { path: "/companies/:credit_code", component: CompanyDetailView },
     { path: "/me", component: MeView },
+    { path: "/me/interviews/:recordId", component: InterviewRecordDetailView },
+    { path: "/interview/plans", component: InterviewPlanListView },
+    { path: "/interview/plans/:planId", component: InterviewPlanDetailView },
+    { path: "/interview/industry", component: InterviewIndustryManageView },
     { path: "/student-chat", component: ChatView },
     { path: "/tools", component: ToolsView },
     {

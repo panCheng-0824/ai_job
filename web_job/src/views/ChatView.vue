@@ -1,13 +1,18 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { apiGet, apiPost, apiPostSse, fetchTtsPostStream, playTtsStreamFromResponse } from "../api/client";
+import { apiGet, apiPost, apiPostSse, apiDelete, fetchTtsPostStream, playTtsStreamFromResponse, getStudentId } from "../api/client";
 import {
   hydrateSessionResumeRenderCache,
   mergePersistedHistory,
   saveSessionResumeRenderCache,
   hasResumeRenderPayload
 } from "../utils/mergeHistoryContextCards";
+import { hydrateInterviewPlanStartHistory } from "../modules/interview/interviewStartCache";
+import {
+  hydrateSessionInterviewPlanPreviewCache,
+  saveSessionInterviewPlanPreviewCache
+} from "../modules/interview/interviewPlanPreviewCache";
 import { DEFAULT_TTS_VOICE, TTS_VOICES, loadTtsVoice, saveTtsVoice } from "../config/ttsVoices";
 import { useVoiceRecorder } from "../composables/useVoiceRecorder";
 import { chatSidebarVisibleRef as chatSidebarVisible, toggleChatSidebarVisible } from "../composables/useChatSidebarVisible";
@@ -16,20 +21,44 @@ import {
   toggleContextRailVisible
 } from "../composables/useChatPlannerRailVisible";
 import JobRecommendPanel from "../components/JobRecommendPanel.vue";
+import ChatInterviewPlanStartBar from "../components/interview/ChatInterviewPlanStartBar.vue";
+import ChatInterviewOverlay from "../components/interview/ChatInterviewOverlay.vue";
 import ChatPlannerContextRail from "../components/ChatPlannerContextRail.vue";
 import ContextRefCard from "../components/ContextRefCard.vue";
 import { fetchContextDetail } from "../api/contextDetail";
 import { CONTEXT_DRAG_MIME } from "../constants/contextDrag";
 import { RESUME_OPTIMIZER_USERCODE } from "../constants/resumeOptimizer";
+import { MOCK_INTERVIEWER_USERCODE } from "../constants/mockInterviewer";
 import { dispatchResumeRender } from "../composables/useResumeRenderBridge";
+import { useStreamWaitTimer } from "../composables/useStreamWaitTimer";
 import { renderChatMarkdown } from "../utils/markdown";
+import {
+  resolvePlanIdFromMessage,
+  resolvePlanVersionFromMessage,
+  shouldShowInterviewPlanActionBar
+} from "../modules/interview/planStart";
+import {
+  buildCtxKey,
+  buildInterviewAnswerContext,
+  buildInterviewStartContext,
+  mergeProgressIntoSession
+} from "../modules/interview/interviewModeContext";
+import {
+  buildReviewTurnsFromAnswerItem,
+  findQuestionBySeq,
+  hasInterviewProgress,
+  pickFirstIncompleteQuestion,
+  reconcileQuestionStatuses
+} from "../modules/interview/interviewOverlayHelpers";
+import { fetchInterviewRecordAnswers } from "../modules/interview/api";
 
 const JOB_PLANNER_USERCODE = "ROLE001";
 
 const route = useRoute();
 const router = useRouter();
 
-const studentId = ref(localStorage.getItem("student_id") || "");
+/** 登录学号（只读，来自 localStorage，与登录页一致） */
+const loggedInStudentId = computed(() => getStudentId());
 const usercode = ref(localStorage.getItem("usercode") || "");
 const currentSessionId = ref(localStorage.getItem("session_id") || "");
 const models = ref([]);
@@ -41,6 +70,17 @@ const composerHiddenContext = ref("");
 /** 输入区引用卡片 { card, message_context } */
 const composerAttachments = ref([]);
 const composerDropActive = ref(false);
+/** 遮层正式面试模式 */
+const interviewModeActive = ref(false);
+const interviewModeSession = ref(null);
+/** 遮层题目列表（含题干、状态） */
+const interviewOverlayQuestions = ref([]);
+/** 本题多轮对话（遮层内展示，与会话框全量历史分离） */
+const interviewOverlayTurns = ref([]);
+/** 遮层视图：live=答题中 review=回看已答 */
+const interviewOverlayViewMode = ref("live");
+const interviewOverlaySelectedSeq = ref(null);
+const interviewOverlayReviewTurns = ref([]);
 const error = ref("");
 const thinkingText = ref("");
 /** 当前轮是否收到过 reasoning/thinking 流（用于先展示思考、再解锁回答气泡） */
@@ -48,6 +88,9 @@ const streamingHasThinking = ref(false);
 /** 当前轮是否已开始输出正文 delta（thinking 结束后） */
 const streamingHasAnswer = ref(false);
 const isStreaming = ref(false);
+const streamWait = useStreamWaitTimer();
+const { elapsedLabel: streamWaitLabel, isRunning: streamWaitRunning, start: startStreamWait, stop: stopStreamWait } =
+  streamWait;
 const useRolePipeline = ref(localStorage.getItem("use_role_pipeline") !== "0");
 const useAdversarialHarness = ref(localStorage.getItem("use_adversarial_harness") === "1");
 const useVoiceInput = ref(localStorage.getItem("chat_voice_input") === "1");
@@ -76,6 +119,11 @@ let playingAudio = null;
 const ttsAbortRef = ref(null);
 /** 语音播报开启时：最后一条助手气泡显示「播报」动效（占位 / 同步出字 / 合成中） */
 const voiceAssistantAnimating = ref(false);
+
+/** 首条 thinking/delta 到达后停止等待计时 */
+watch([streamingHasThinking, streamingHasAnswer], ([hasThink, hasAnswer]) => {
+  if (hasThink || hasAnswer) stopStreamWait();
+});
 
 /** 语音播报模式下 SSE 阶段占位，避免用户先读完再听 */
 const VOICE_SSE_PLACEHOLDER = "「语音播报」回答生成中…";
@@ -170,14 +218,20 @@ async function interruptAssistantOutput() {
   }
   voiceAssistantAnimating.value = false;
   if (!isStreaming.value || !currentSessionId.value) return;
+  const student = loggedInStudentId.value;
+  if (!student) return;
   try {
-    await apiPost(`/api/chat-sessions/${encodeURIComponent(currentSessionId.value)}/messages/stop`, {});
+    await apiPost(
+      `/api/chat-sessions/${encodeURIComponent(currentSessionId.value)}/messages/stop?student_id=${encodeURIComponent(student)}`,
+      {}
+    );
   } catch (_) {}
   eventSource?.close();
   eventSource = null;
   streamAbortController?.abort();
   streamAbortController = null;
   isStreaming.value = false;
+  stopStreamWait();
 }
 
 const currentModel = computed(() => models.value.find((m) => m.usercode === usercode.value));
@@ -188,7 +242,7 @@ function openResumeEditorWithRender(payload, event) {
     dispatchResumeRender(payload);
   }
   if (route.path === "/resume/create") return;
-  const q = studentId.value.trim() ? { student_id: studentId.value.trim() } : {};
+  const q = loggedInStudentId.value ? { student_id: loggedInStudentId.value } : {};
   if (event?.preventDefault) event.preventDefault();
   router.push({
     path: "/resume/create",
@@ -209,9 +263,56 @@ const isResumeOptimizerRole = computed(() => {
   return /简历优化|resume.?optim/i.test(name);
 });
 
-/** 岗位规划师、简历优化师均展示右侧「我的资料」 */
+const isMockInterviewerRole = computed(() => {
+  if (usercode.value === MOCK_INTERVIEWER_USERCODE) return true;
+  const name = currentModel.value?.role_name || "";
+  return /模拟面试|mock.?interview/i.test(name);
+});
+
+/** 遮层内流式展示的助手正文（与会话框最后一气泡同步） */
+const interviewStreamingAnswer = computed(() => {
+  if (!interviewModeActive.value || !isStreaming.value) return "";
+  let streamText = "";
+  for (let i = history.value.length - 1; i >= 0; i--) {
+    if (history.value[i].role === "assistant") {
+      streamText = String(history.value[i].content || "").trim();
+      break;
+    }
+  }
+  if (!streamText) return "";
+  // interview_turn 若已写入 turns，不再重复展示流式气泡
+  const last = interviewOverlayTurns.value[interviewOverlayTurns.value.length - 1];
+  if (last?.role === "interviewer" && last.text === streamText) return "";
+  return streamText;
+});
+
+/** 遮层展示用对话流（回看已答 / 当前题） */
+const interviewOverlayDisplayTurns = computed(() => {
+  if (interviewOverlayViewMode.value === "review") {
+    return interviewOverlayReviewTurns.value;
+  }
+  return interviewOverlayTurns.value;
+});
+
+function resetInterviewOverlayView() {
+  interviewOverlayViewMode.value = "live";
+  interviewOverlaySelectedSeq.value = null;
+  interviewOverlayReviewTurns.value = [];
+}
+
+/** 单条消息是否为规划预览（刷新后 usercode 未同步时仍可展示操作条） */
+function isInterviewPlanPreviewMessage(item) {
+  return shouldShowInterviewPlanActionBar(item) && Boolean(resolvePlanIdFromMessage(item));
+}
+
+function shouldShowPlanStartBar(item) {
+  return (isMockInterviewerRole.value || isInterviewPlanPreviewMessage(item)) && currentSessionId.value;
+}
+
+/** 岗位规划师、简历优化师、模拟面试官均展示右侧「我的资料」 */
 const hasContextRailRole = computed(
-  () => isJobPlannerRole.value || isResumeOptimizerRole.value
+  () =>
+    isJobPlannerRole.value || isResumeOptimizerRole.value || isMockInterviewerRole.value
 );
 
 const contextRailVisible = computed(() => contextRailVisibleRef(usercode.value).value);
@@ -231,8 +332,8 @@ const { recording, busy: voiceBusy, hint: voiceHint, toggleRecord, micLabel } = 
   }
 );
 const selectedStudentMeta = computed(() => {
-  const sid = studentId.value.trim();
-  if (!sid) return "未输入 student_id";
+  const sid = loggedInStudentId.value;
+  if (!sid) return "未登录：请先在登录页填写学号";
   if (!studentName.value) return `student_id：${sid}（未匹配学生）`;
   return `学号：${sid}\n姓名：${studentName.value}`;
 });
@@ -247,12 +348,14 @@ async function loadModels() {
 }
 
 async function loadSessions() {
-  if (!studentId.value.trim()) return (sessions.value = []);
-  sessions.value = await apiGet(`/api/chat-sessions?student_id=${encodeURIComponent(studentId.value.trim())}`);
+  if (!loggedInStudentId.value) return (sessions.value = []);
+  sessions.value = await apiGet(
+    `/api/chat-sessions?student_id=${encodeURIComponent(loggedInStudentId.value)}`
+  );
 }
 
 async function loadStudentMeta() {
-  const sid = studentId.value.trim();
+  const sid = loggedInStudentId.value;
   if (!sid) {
     studentName.value = "";
     return;
@@ -265,30 +368,48 @@ async function loadStudentMeta() {
   }
 }
 
+function requireLoggedInStudentId() {
+  const sid = loggedInStudentId.value;
+  if (!sid) {
+    throw new Error("请先在登录页登录学号");
+  }
+  return sid;
+}
+
 async function openSession(sid) {
+  const student = requireLoggedInStudentId();
   currentSessionId.value = sid;
   localStorage.setItem("session_id", sid);
-  const data = await apiGet(`/api/chat-sessions/${encodeURIComponent(sid)}/history`);
+  const matched = (sessions.value || []).find((s) => s.session_id === sid);
+  if (matched?.usercode) {
+    usercode.value = matched.usercode;
+    localStorage.setItem("usercode", matched.usercode);
+  }
+  const data = await apiGet(
+    `/api/chat-sessions/${encodeURIComponent(sid)}/history?student_id=${encodeURIComponent(student)}`
+  );
   history.value = hydrateSessionResumeRenderCache(sid, data.history || []);
+  history.value = hydrateSessionInterviewPlanPreviewCache(sid, history.value);
+  history.value = await hydrateInterviewPlanStartHistory(sid, student, history.value);
   thinkingText.value = "";
   rawContent.value = JSON.stringify(data, null, 2);
 }
 
 function generateSessionId() {
-  return `${studentId.value.trim()}-${Date.now()}`;
+  return `${loggedInStudentId.value}-${Date.now()}`;
 }
 
 async function createSession() {
-  if (!studentId.value.trim() || !usercode.value.trim()) {
-    error.value = "请先输入学号并选择角色";
+  const sid = loggedInStudentId.value;
+  if (!sid || !usercode.value.trim()) {
+    error.value = sid ? "请选择对话角色" : "请先在登录页登录学号";
     return;
   }
   const payload = await apiPost("/api/chat-sessions/init", {
     session_id: generateSessionId(),
-    student_id: studentId.value.trim(),
+    student_id: sid,
     usercode: usercode.value.trim()
   });
-  localStorage.setItem("student_id", studentId.value.trim());
   localStorage.setItem("usercode", usercode.value.trim());
   await openSession(payload.session.session_id);
   await loadSessions();
@@ -307,7 +428,10 @@ async function resetSession() {
 }
 
 async function removeSession(sid) {
-  await fetch(`/api/chat-sessions/${encodeURIComponent(sid)}`, { method: "DELETE" });
+  const student = requireLoggedInStudentId();
+  await apiDelete(
+    `/api/chat-sessions/${encodeURIComponent(sid)}?student_id=${encodeURIComponent(student)}`
+  );
   if (sid === currentSessionId.value) await resetSession();
   await loadSessions();
 }
@@ -359,7 +483,7 @@ async function addComposerAttachmentFromRef(ref) {
   error.value = "";
 
   try {
-    const { card, message_context } = await fetchContextDetail(ref, studentId.value.trim());
+    const { card, message_context } = await fetchContextDetail(ref, loggedInStudentId.value);
     if (slotIndex >= composerAttachments.value.length) return;
     const current = composerAttachments.value[slotIndex];
     if (current?.card?.type !== ref.type || current?.card?.ref_id !== ref.ref_id) return;
@@ -401,12 +525,13 @@ async function onComposerDrop(ev) {
   }
 }
 
-async function sendMessage() {
+async function sendMessage(override = {}) {
   if (isStreaming.value) {
     await stopStreaming();
     return;
   }
-  const userText = message.value.trim();
+  const userText = String(override.message ?? message.value).trim();
+  const interviewHidden = String(override.interviewHiddenContext ?? "").trim();
   const readyAttachments = composerAttachments.value.filter((a) => !a.loading);
   const hasLoadingCards = composerAttachments.value.some((a) => a.loading);
   const hasCards = readyAttachments.length > 0;
@@ -414,18 +539,30 @@ async function sendMessage() {
     error.value = "请等待资料卡片加载完成后再发送";
     return;
   }
-  if (!currentSessionId.value || (!userText && !hasCards)) {
+  if (!currentSessionId.value || (!userText && !hasCards && !interviewHidden)) {
     error.value = "请先进入会话并输入消息，或拖入资料卡片";
     return;
   }
+  const student = loggedInStudentId.value;
+  if (!student) {
+    error.value = "请先在登录页登录学号";
+    return;
+  }
   const contextCards = readyAttachments.map((a) => a.card);
-  const hiddenContext = readyAttachments
+  let hiddenContext = readyAttachments
     .map((a) => a.message_context)
     .filter(Boolean)
     .join("\n\n---\n\n");
-  message.value = "";
-  composerAttachments.value = [];
-  composerHiddenContext.value = "";
+  if (interviewHidden) {
+    hiddenContext = hiddenContext
+      ? `${hiddenContext}\n\n---\n\n${interviewHidden}`
+      : interviewHidden;
+  }
+  if (!override.keepComposer) {
+    message.value = "";
+    composerAttachments.value = [];
+    composerHiddenContext.value = "";
+  }
   error.value = "";
   thinkingText.value = "";
   streamingHasThinking.value = false;
@@ -435,6 +572,7 @@ async function sendMessage() {
   advHistory.value = [];
   voiceAssistantAnimating.value = false;
   isStreaming.value = true;
+  startStreamWait();
   history.value.push({
     role: "user",
     content: userText,
@@ -516,6 +654,7 @@ async function sendMessage() {
       dispatchResumeRender(data.resume_render);
     }
     saveSessionResumeRenderCache(currentSessionId.value, history.value);
+    saveSessionInterviewPlanPreviewCache(currentSessionId.value, history.value);
     const finalThink = String(data.thinking != null ? data.thinking : thinkingText.value || "").trim();
     streamingHasThinking.value = false;
     streamingHasAnswer.value = false;
@@ -533,6 +672,7 @@ async function sendMessage() {
     advHistory.value = Array.isArray(data.adversarial_history) ? data.adversarial_history : [];
     rawContent.value = JSON.stringify(data, null, 2);
     isStreaming.value = false;
+    stopStreamWait();
     closeStreamTransport();
     await loadSessions();
     await nextTick();
@@ -548,6 +688,10 @@ async function sendMessage() {
     let fullAnswer = String(data.answer || "").trim();
     if (!fullAnswer && aiIdx >= 0) {
       fullAnswer = String(history.value[aiIdx]?.content || "").trim();
+    }
+
+    if (interviewModeActive.value && fullAnswer) {
+      pushInterviewOverlayTurn("interviewer", fullAnswer);
     }
 
     if (useVoiceOutput.value && aiIdx >= 0) {
@@ -573,6 +717,27 @@ async function sendMessage() {
       attachResumeRenderToAssistant(data);
       dispatchResumeRender(data);
       streamingHasAnswer.value = true;
+      if (chatListEl.value) {
+        chatListEl.value.scrollTop = chatListEl.value.scrollHeight;
+      }
+      return;
+    }
+    if (eventName === "interview_plan_preview") {
+      attachInterviewPlanPreviewToAssistant(data);
+      if (chatListEl.value) {
+        chatListEl.value.scrollTop = chatListEl.value.scrollHeight;
+      }
+      return;
+    }
+    if (eventName === "interview_progress") {
+      applyInterviewProgress(data);
+      if (chatListEl.value) {
+        chatListEl.value.scrollTop = chatListEl.value.scrollHeight;
+      }
+      return;
+    }
+    if (eventName === "interview_turn") {
+      applyInterviewTurn(data);
       if (chatListEl.value) {
         chatListEl.value.scrollTop = chatListEl.value.scrollHeight;
       }
@@ -621,6 +786,7 @@ async function sendMessage() {
         streamingHasThinking.value = false;
         streamingHasAnswer.value = false;
         error.value = data.detail || "流式发送失败";
+        stopStreamWait();
       }
       closeStreamTransport();
     }
@@ -635,6 +801,7 @@ async function sendMessage() {
     streamingHasThinking.value = false;
     streamingHasAnswer.value = false;
     error.value = "流式发送失败";
+    stopStreamWait();
     closeStreamTransport();
   };
 
@@ -644,6 +811,7 @@ async function sendMessage() {
       message: userText,
       message_context: hiddenContext,
       context_cards: contextCards,
+      student_id: student,
       use_role_pipeline: useRolePipeline.value,
       use_adversarial_harness: useAdversarialHarness.value,
       adversarial_desc: adversarialDescText
@@ -671,6 +839,7 @@ async function sendMessage() {
 
   const streamParams = new URLSearchParams({
     message: userText,
+    student_id: student,
     use_role_pipeline: useRolePipeline.value ? "true" : "false",
     use_adversarial_harness: useAdversarialHarness.value ? "true" : "false",
     adversarial_desc: adversarialDescText
@@ -691,6 +860,13 @@ async function sendMessage() {
       /* ignore */
     }
   });
+  eventSource.addEventListener("interview_plan_preview", (evt) => {
+    try {
+      void onStreamEvent("interview_plan_preview", JSON.parse(evt.data || "{}"));
+    } catch (_) {
+      /* ignore */
+    }
+  });
   eventSource.addEventListener("thinking", (evt) => {
     void onStreamEvent("thinking", JSON.parse(evt.data || "{}"));
   });
@@ -702,6 +878,7 @@ async function sendMessage() {
       void onStreamEvent("done", JSON.parse(evt.data || "{}"));
     } catch (_) {
       isStreaming.value = false;
+      stopStreamWait();
       voiceAssistantAnimating.value = false;
       error.value = "流式结果解析失败";
       closeStreamTransport();
@@ -767,8 +944,11 @@ function assistantThinkingDisplay(idx, item) {
 /** 流式阶段：有思考且尚无正文时，回答气泡显示占位 */
 function assistantBubblePlaceholder(idx, item) {
   if (item.role !== "assistant" || idx !== history.value.length - 1 || !isStreaming.value) return "";
-  if (!streamingHasThinking.value || streamingHasAnswer.value) return "";
-  return useVoiceOutput.value ? "「语音播报」深度思考中…" : "深度思考中…";
+  if (streamingHasThinking.value || streamingHasAnswer.value) {
+    return useVoiceOutput.value ? "「语音播报」深度思考中…" : "深度思考中…";
+  }
+  const wait = streamWaitRunning.value ? streamWaitLabel.value : "";
+  return wait ? `等待回复中… ${wait}` : "等待回复中…";
 }
 
 /** 助手正文：Markdown → 安全 HTML（用户消息仍用纯文本） */
@@ -812,6 +992,219 @@ function attachResumeRenderToAssistant(payload) {
     resume_render: payload
   };
   saveSessionResumeRenderCache(currentSessionId.value, history.value);
+}
+
+/** 规划预览结构化载荷（含 plan_id），供「开始」按钮创建面试记录 */
+function attachInterviewPlanPreviewToAssistant(payload) {
+  if (!payload || typeof payload !== "object") return;
+  const idx = history.value.length - 1;
+  if (idx < 0 || history.value[idx].role !== "assistant") return;
+  history.value[idx] = {
+    ...history.value[idx],
+    interview_plan_preview: payload
+  };
+  saveSessionInterviewPlanPreviewCache(currentSessionId.value, history.value);
+}
+
+function onInterviewPlanStarted(itemIdx, data) {
+  if (itemIdx < 0 || !history.value[itemIdx]) return;
+  history.value[itemIdx] = {
+    ...history.value[itemIdx],
+    interview_session_started: true,
+    interview_start_result: data
+  };
+}
+
+function pushInterviewOverlayTurn(role, text) {
+  const t = String(text || "").trim();
+  if (!t || t === "开始正式面试") return;
+  const last = interviewOverlayTurns.value[interviewOverlayTurns.value.length - 1];
+  if (last && last.role === role && last.text === t) return;
+  interviewOverlayTurns.value.push({ role, text: t });
+}
+
+async function loadInterviewOverlayQuestions(studentId, recordId) {
+  try {
+    const resp = await fetchInterviewRecordAnswers(studentId, recordId);
+    return Array.isArray(resp?.items) ? resp.items : [];
+  } catch {
+    return [];
+  }
+}
+
+function syncCurrentQuestionFromList() {
+  const session = interviewModeSession.value;
+  if (!session) return;
+  const items = interviewOverlayQuestions.value;
+  if (!items.length) return;
+  const seq = session.seqNo;
+  const hit =
+    (seq != null ? findQuestionBySeq(items, seq) : null) ||
+    (session.questionId ? items.find((q) => q.question_id === session.questionId) : null) ||
+    pickFirstIncompleteQuestion(items) ||
+    items[0];
+  if (hit) {
+    interviewModeSession.value = {
+      ...session,
+      seqNo: hit.seq_no ?? session.seqNo,
+      questionId: hit.question_id || session.questionId,
+      currentQuestionIndex: hit.seq_no ?? session.currentQuestionIndex,
+      currentQuestionText: hit.question_text || session.currentQuestionText,
+      questionTotal: items.length
+    };
+  }
+}
+
+function onInterviewProgressDotSelect({ seqNo, kind }) {
+  if (kind === "pending") return;
+  const item = findQuestionBySeq(interviewOverlayQuestions.value, seqNo);
+  if (!item) return;
+  if (kind === "done") {
+    interviewOverlayViewMode.value = "review";
+    interviewOverlaySelectedSeq.value = Number(seqNo);
+    interviewOverlayReviewTurns.value = buildReviewTurnsFromAnswerItem(item);
+    return;
+  }
+  resetInterviewOverlayView();
+  syncCurrentQuestionFromList();
+}
+
+function onInterviewBackToLive() {
+  resetInterviewOverlayView();
+}
+
+/** 规划预览气泡点击「进入」：打开遮层并发送 start 指令 */
+async function onInterviewPlanEnter(payload) {
+  const studentId = loggedInStudentId.value;
+  const recordId = String(payload?.record_id || "").trim();
+  const interviewSessionId = String(payload?.interview_session_id || "").trim();
+  const planId = String(payload?.plan_id || "").trim();
+  const chatSessionId = String(payload?.chat_session_id || currentSessionId.value || "").trim();
+  if (!studentId || !recordId) {
+    error.value = "缺少面试记录信息，无法进入";
+    return;
+  }
+  const ctxKey = String(payload?.ctx_key || buildCtxKey(studentId, recordId));
+  const questions = await loadInterviewOverlayQuestions(studentId, recordId);
+  interviewOverlayQuestions.value = questions;
+  interviewOverlayTurns.value = [];
+  resetInterviewOverlayView();
+  const active = pickFirstIncompleteQuestion(questions) || questions[0];
+  const resuming = hasInterviewProgress(questions);
+  interviewModeSession.value = {
+    studentId,
+    recordId,
+    interviewSessionId,
+    planId,
+    chatSessionId,
+    ctxKey,
+    questionTotal: questions.length || null,
+    questionAnswered: questions.filter((q) =>
+      ["completed", "answered", "summarized"].includes(String(q.answer_status || "").toLowerCase())
+    ).length,
+    currentQuestionIndex: active?.seq_no ?? 0,
+    seqNo: active?.seq_no ?? 0,
+    questionId: active?.question_id || "",
+    currentQuestionText: active?.question_text || "",
+    phase: resuming ? "question" : "ready"
+  };
+  interviewOverlayQuestions.value = reconcileQuestionStatuses(
+    interviewOverlayQuestions.value,
+    interviewModeSession.value
+  );
+  interviewModeActive.value = true;
+  const hidden = buildInterviewStartContext({
+    studentId,
+    recordId,
+    interviewSessionId,
+    chatSessionId,
+    planId,
+    ctxKey
+  });
+  await sendMessage({
+    message: resuming ? "继续正式面试" : "开始正式面试",
+    interviewHiddenContext: hidden,
+    keepComposer: true
+  });
+}
+
+/** 遮层内发送单题回答 */
+async function onInterviewOverlaySend(answerText) {
+  if (!interviewModeSession.value) return;
+  pushInterviewOverlayTurn("user", answerText);
+  const hidden = buildInterviewAnswerContext(interviewModeSession.value, answerText);
+  await sendMessage({
+    message: answerText,
+    interviewHiddenContext: hidden,
+    keepComposer: true
+  });
+}
+
+function onInterviewOverlayExit() {
+  interviewModeActive.value = false;
+  interviewModeSession.value = null;
+  interviewOverlayQuestions.value = [];
+  interviewOverlayTurns.value = [];
+  resetInterviewOverlayView();
+}
+
+function applyInterviewTurn(data) {
+  if (!interviewModeActive.value || !data || data.mode !== "interview") return;
+  // 遮层本题对话在 stream done 时统一写入 turns；此处仅同步题干，避免与 delta 流式气泡重复
+  const qText = String(data.interviewer?.question_text || "").trim();
+  if (qText && interviewModeSession.value) {
+    interviewModeSession.value = {
+      ...interviewModeSession.value,
+      currentQuestionText: qText
+    };
+  }
+}
+
+function applyInterviewProgress(progress) {
+  if (!progress || progress.mode !== "interview") return;
+  const prevSeq = interviewModeSession.value?.seqNo;
+  interviewModeSession.value = mergeProgressIntoSession(interviewModeSession.value, progress);
+  if (progress.current_question_text) {
+    interviewModeSession.value = {
+      ...interviewModeSession.value,
+      currentQuestionText: progress.current_question_text
+    };
+  }
+  interviewOverlayQuestions.value = reconcileQuestionStatuses(
+    interviewOverlayQuestions.value,
+    interviewModeSession.value
+  );
+  syncCurrentQuestionFromList();
+
+  const nextSeq = interviewModeSession.value?.seqNo;
+  const seqChanged =
+    progress.question_advanced === true ||
+    (prevSeq != null && nextSeq != null && Number(prevSeq) !== Number(nextSeq));
+  if (seqChanged) {
+    interviewOverlayTurns.value = [];
+    resetInterviewOverlayView();
+  }
+  if (progress.evaluator_status === "complete" || progress.question_advanced) {
+    void refreshInterviewOverlayQuestions().then(() => {
+      interviewOverlayQuestions.value = reconcileQuestionStatuses(
+        interviewOverlayQuestions.value,
+        interviewModeSession.value
+      );
+      syncCurrentQuestionFromList();
+    });
+  }
+  if (progress.phase === "completed" && progress.evaluator_status === "complete") {
+    interviewModeActive.value = false;
+  }
+}
+
+async function refreshInterviewOverlayQuestions() {
+  const session = interviewModeSession.value;
+  if (!session?.studentId || !session?.recordId) return;
+  interviewOverlayQuestions.value = await loadInterviewOverlayQuestions(
+    session.studentId,
+    session.recordId
+  );
 }
 
 function persistVoiceFlags() {
@@ -908,7 +1301,9 @@ onMounted(async () => {
     await loadModels();
     await loadStudentMeta();
     await loadSessions();
-    if (currentSessionId.value) await openSession(currentSessionId.value);
+    if (currentSessionId.value && loggedInStudentId.value) {
+      await openSession(currentSessionId.value);
+    }
   } catch (err) {
     error.value = err.message || "加载失败";
   }
@@ -947,8 +1342,16 @@ onBeforeUnmount(() => {
       <div class="section-title">会话配置</div>
       <div class="row">
         <label>学号</label>
-        <input v-model="studentId" placeholder="如 220692209" @change="loadStudentMeta" />
+        <input
+          class="readonly-field"
+          :value="loggedInStudentId"
+          readonly
+          placeholder="请先在登录页登录"
+        />
       </div>
+      <p v-if="!loggedInStudentId" class="session-meta">
+        未登录，请前往 <router-link to="/login">登录页</router-link> 填写学号。
+      </p>
       <div class="selected-model-meta" style="white-space: pre-line;">{{ selectedStudentMeta }}</div>
       <div class="row">
         <label>对话内置角色</label>
@@ -1033,7 +1436,10 @@ onBeforeUnmount(() => {
       <div class="main-header">
         <div>
           <div class="brand">{{ currentModel?.role_name || "请选择角色" }}</div>
-          <div class="header-meta">角色：{{ currentModel?.role_name || "未进入" }} | 会话：{{ currentSessionId || "未进入" }} | 模型：{{ currentModel?.username || "未进入" }}</div>
+          <div class="header-meta">
+            角色：{{ currentModel?.role_name || "未进入" }} | 会话：{{ currentSessionId || "未进入" }} | 模型：{{ currentModel?.username || "未进入" }}
+            <span v-if="isStreaming && streamWaitRunning" class="stream-wait-pill">等待 {{ streamWaitLabel }}</span>
+          </div>
         </div>
         <div class="main-header-actions">
           <button
@@ -1147,6 +1553,20 @@ onBeforeUnmount(() => {
                 class="msg-body"
                 :class="assistantMessageMdClass(item.content)"
                 v-html="assistantMessageHtml(item.content)"
+              />
+              <ChatInterviewPlanStartBar
+                v-if="
+                  shouldShowPlanStartBar(item) &&
+                  shouldShowInterviewPlanActionBar(item) &&
+                  resolvePlanIdFromMessage(item)
+                "
+                :plan-id="resolvePlanIdFromMessage(item)"
+                :plan-version="resolvePlanVersionFromMessage(item)"
+                :student-id="loggedInStudentId"
+                :chat-session-id="currentSessionId"
+                :disabled="isStreaming && idx === history.length - 1"
+                @started="onInterviewPlanStarted(idx, $event)"
+                @enter="onInterviewPlanEnter"
               />
             </div>
           </div>
@@ -1265,7 +1685,9 @@ onBeforeUnmount(() => {
                 <span class="stop-btn-main">
                   生成中<span class="stop-btn-dots" aria-hidden="true"><i /><i /><i /></span>
                 </span>
-                <span class="stop-btn-sub">点击停止</span>
+                <span class="stop-btn-sub">
+                  <span v-if="streamWaitRunning">已等待 {{ streamWaitLabel }} · </span>点击停止
+                </span>
               </span>
             </span>
             <span v-else>发送</span>
@@ -1276,7 +1698,7 @@ onBeforeUnmount(() => {
 
     <ChatPlannerContextRail
       v-if="showContextRail"
-      :student-id="studentId.trim()"
+      :student-id="loggedInStudentId"
       :usercode="usercode"
       class="planner-context-rail"
     />
@@ -1284,6 +1706,22 @@ onBeforeUnmount(() => {
     <div v-if="menuVisible" class="bubble-context-menu" :style="{ left: `${menuX}px`, top: `${menuY}px` }">
       <button type="button" @click.stop="copyMenuText">复制</button>
     </div>
+
+    <ChatInterviewOverlay
+      :active="interviewModeActive"
+      :session="interviewModeSession"
+      :questions="interviewOverlayQuestions"
+      :turns="interviewOverlayDisplayTurns"
+      :view-mode="interviewOverlayViewMode"
+      :selected-seq-no="interviewOverlaySelectedSeq"
+      :streaming="isStreaming"
+      :streaming-thinking="thinkingText"
+      :streaming-answer="interviewStreamingAnswer"
+      @send="onInterviewOverlaySend"
+      @exit="onInterviewOverlayExit"
+      @select-question="onInterviewProgressDotSelect"
+      @back-to-live="onInterviewBackToLive"
+    />
   </div>
 </template>
 
@@ -1388,6 +1826,11 @@ onBeforeUnmount(() => {
 }
 .sidebar-toolbar-label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
 .sidebar-hide-btn { flex-shrink: 0; font-size: 11px; padding: 5px 10px; white-space: nowrap; }
+.readonly-field {
+  background: #f3f4f6;
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
 .main-header-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1439,6 +1882,16 @@ onBeforeUnmount(() => {
 .main-header { padding: 14px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 10px; background: rgba(255, 255, 255, 0.86); }
 .brand { font-weight: 700; background: linear-gradient(to right, var(--primary-color), var(--secondary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .header-meta { margin-top: 4px; color: var(--text-muted); font-size: 12px; }
+.stream-wait-pill {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #b45309;
+  font-weight: 600;
+  font-size: 11px;
+}
 .section-title { margin: 8px 0 8px; color: var(--text-muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 .row { margin: 11px 0; }
 label { display: block; margin-bottom: 6px; color: var(--text-muted); font-weight: 600; font-size: 12px; }

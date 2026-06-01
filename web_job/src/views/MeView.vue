@@ -2,6 +2,8 @@
 import { onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { apiGet, getStudentId } from "../api/client";
+import InterviewRecordCard from "../components/interview/InterviewRecordCard.vue";
+import { fetchInterviewRecords } from "../modules/interview/api";
 
 const route = useRoute();
 
@@ -15,9 +17,12 @@ const follows = ref({ companies: [] });
 const jobReviews = ref({ items: [] });
 const companyReviews = ref({ items: [] });
 const tagMaps = ref({ job: {}, company: {} });
+/** 我的面试记录（V2 student_interview_records） */
+const interviewRecords = ref({ items: [] });
 
 const tabs = [
   { id: "overview", label: "概览" },
+  { id: "interviews", label: "面试记录" },
   { id: "fav", label: "我的收藏" },
   { id: "fol", label: "我的关注" },
   { id: "revj", label: "岗位评价" },
@@ -35,6 +40,13 @@ function formatTagLine(ids, map) {
   return `标签：${labels.join("、")}`;
 }
 
+async function onInterviewRecordDeleted(recordId) {
+  interviewRecords.value = {
+    ...interviewRecords.value,
+    items: (interviewRecords.value.items || []).filter((r) => r.record_id !== recordId)
+  };
+}
+
 async function loadAll() {
   const sid = getStudentId();
   sidLabel.value = sid || "未登录";
@@ -46,23 +58,26 @@ async function loadAll() {
     follows.value = { companies: [] };
     jobReviews.value = { items: [] };
     companyReviews.value = { items: [] };
+    interviewRecords.value = { items: [] };
     return;
   }
   const q = new URLSearchParams({ student_id: sid });
   try {
-    const [sum, fav, fol, rj, rc, tagsResp] = await Promise.all([
+    const [sum, fav, fol, rj, rc, tagsResp, irec] = await Promise.all([
       apiGet(`/api/me/summary?${q}`),
       apiGet(`/api/me/favorites?${q}`),
       apiGet(`/api/me/follows?${q}`),
       apiGet(`/api/me/reviews/jobs?${q}`),
       apiGet(`/api/me/reviews/companies?${q}`),
-      apiGet("/api/review-tags")
+      apiGet("/api/review-tags"),
+      fetchInterviewRecords(sid)
     ]);
     summary.value = sum;
     favorites.value = fav;
     follows.value = fol;
     jobReviews.value = rj;
     companyReviews.value = rc;
+    interviewRecords.value = irec;
     const job = {};
     const company = {};
     (tagsResp.job_review_tags || []).forEach((t) => {
@@ -126,6 +141,21 @@ watch(() => route.query.tab, applyTabFromRoute);
         </div>
         <p v-else-if="!guest && !loadError" class="muted">加载中…</p>
         <p class="muted hint">在岗位列表、岗位详情可收藏岗位；在企业列表、企业详情可关注企业并提交评价。</p>
+      </div>
+      <div v-show="activeTab === 'interviews'" class="panel">
+        <p class="muted hint">模拟面试确认大纲后，记录会出现在此处。也可从<router-link to="/interview/plans">面试大纲</router-link>查看题库。</p>
+        <ul class="cards">
+          <li v-if="guest" class="empty">请先登录</li>
+          <li v-else-if="!(interviewRecords.items || []).length" class="empty">暂无面试记录</li>
+          <InterviewRecordCard
+            v-for="r in interviewRecords.items || []"
+            v-else
+            :key="r.record_id"
+            :item="r"
+            :student-id="getStudentId()"
+            @deleted="onInterviewRecordDeleted"
+          />
+        </ul>
       </div>
       <div v-show="activeTab === 'fav'" class="panel">
         <ul class="cards">

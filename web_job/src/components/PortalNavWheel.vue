@@ -1,12 +1,17 @@
 <script setup>
+/**
+ * 左下角浮动导航：圆形扇形花瓣展开 + 可拖动中心触发钮。
+ * 悬停/点击中心按钮后，入口沿左上方弧线弹出；点击入口在 iframe 浮层中打开。
+ */
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import FloatingFramePanel from "./FloatingFramePanel.vue";
 
 const route = useRoute();
 
-const HOST_W = 232;
-const HOST_H = 232;
+/** 扇形宿主尺寸（入口 ≥8 时略放大，避免花瓣重叠） */
+const HOST_W = 256;
+const HOST_H = 256;
 const PAD = 8;
 const LS_LEFT = "portal_nav_wheel_left";
 const LS_BOTTOM = "portal_nav_wheel_bottom";
@@ -28,39 +33,65 @@ const isDraggingWheel = ref(false);
 /** @type {{ pointerId: number; startX: number; startY: number; origL: number; origB: number; dragging: boolean } | null} */
 let dragState = null;
 
+/** 快捷入口列表；顺序决定扇形上的排列位置 */
 const items = [
   { path: "/student", label: "学生主页" },
   { path: "/resume/create", label: "我的简历" },
   { path: "/jobs", label: "岗位列表" },
   { path: "/companies", label: "企业列表" },
+  { path: "/student-chat", label: "对话助手" },
+  { path: "/interview/plans", label: "面试大纲" },
+  { path: "/interview/industry", label: "行业分类" },
   { path: "/me", label: "我的" },
-  { path: "/tools", label: "工具" },
-  { path: "/student-chat", label: "对话助手" }
+  { path: "/tools", label: "工具" }
 ];
 
+/** 入口多时拉宽弧线并增大半径，减少花瓣挤在一起 */
+const wheelMetrics = computed(() => {
+  const n = items.length;
+  if (n <= 7) {
+    return { arcStart: 30, arcEnd: 150, petalR: 60, dialSize: 158, centerX: 116, centerY: 102 };
+  }
+  return { arcStart: 20, arcEnd: 168, petalR: 70, dialSize: 174, centerX: 128, centerY: 112 };
+});
+
+/** 花瓣沿左上方弧线均匀分布 */
 const petalAngles = computed(() => {
   const n = items.length;
-  const start = 30;
-  const end = 150;
+  const { arcStart, arcEnd } = wheelMetrics.value;
   if (n <= 1) return [90];
-  return items.map((_, i) => start + ((end - start) * i) / (n - 1));
+  return items.map((_, i) => arcStart + ((arcEnd - arcStart) * i) / (n - 1));
 });
 
 const isEmbed = computed(() => route.query._embed === "1");
 
-const wheelHostStyle = computed(() => ({
-  left: `${Math.round(posLeft.value)}px`,
-  bottom: `${Math.round(posBottom.value)}px`
-}));
+const wheelHostStyle = computed(() => {
+  const m = wheelMetrics.value;
+  return {
+    left: `${Math.round(posLeft.value)}px`,
+    bottom: `${Math.round(posBottom.value)}px`,
+    width: `${HOST_W}px`,
+    height: `${HOST_H}px`,
+    "--portal-wheel-center-x": `${m.centerX}px`,
+    "--portal-wheel-center-y": `${m.centerY}px`,
+    "--portal-wheel-petal-r": `${m.petalR}px`,
+    "--portal-wheel-dial-size": `${m.dialSize}px`
+  };
+});
 
+const isDense = computed(() => items.length > 7);
+
+/** 路由 → 导航项 key，用于高亮当前页 */
 function pathKey(pathname) {
   const p = pathname || "";
   if (p.startsWith("/student-chat")) return "/student-chat";
   if (p === "/student") return "/student";
   if (p.startsWith("/resume")) return "/resume/create";
+  if (p.startsWith("/interview/plans")) return "/interview/plans";
+  if (p.startsWith("/interview/industry")) return "/interview/industry";
   if (p.startsWith("/jobs")) return "/jobs";
   if (p.startsWith("/companies")) return "/companies";
-  if (p === "/me") return "/me";
+  if (p.startsWith("/me")) return "/me";
   if (p === "/tools" || p === "/data-search" || p === "/ocr") return "/tools";
   return "";
 }
@@ -113,6 +144,7 @@ function readNumberLs(key, fallback) {
   }
 }
 
+/** 保证扇形区域不超出视口 */
 function clampWheel() {
   const maxL = Math.max(PAD, window.innerWidth - HOST_W - PAD);
   const maxB = Math.max(PAD, window.innerHeight - HOST_H - PAD);
@@ -289,7 +321,7 @@ onUnmounted(() => {
     <div
       v-show="!triggerHidden"
       class="portal-wheel-host"
-      :class="{ 'portal-wheel-open': hostOpen, 'portal-wheel-dragging': isDraggingWheel }"
+      :class="{ 'portal-wheel-open': hostOpen, 'portal-wheel-dragging': isDraggingWheel, 'portal-wheel-dense': isDense }"
       :style="wheelHostStyle"
       @mouseleave="onHostMouseLeave"
     >
@@ -334,16 +366,16 @@ onUnmounted(() => {
 
 <style scoped>
 .portal-wheel-host {
-  --portal-wheel-center-x: 116px;
-  --portal-wheel-center-y: 102px;
-  --portal-wheel-petal-r: 70px;
-  --portal-wheel-dial-size: 158px;
+  --portal-wheel-center-x: 128px;
+  --portal-wheel-center-y: 112px;
+  --portal-wheel-petal-r: 84px;
+  --portal-wheel-dial-size: 174px;
   --portal-wheel-accent: #6366f1;
   --portal-wheel-accent2: #a855f7;
   position: fixed;
   z-index: 12000;
-  width: 232px;
-  height: 232px;
+  width: 256px;
+  height: 256px;
   pointer-events: none;
 }
 .portal-wheel-host * {
@@ -500,6 +532,17 @@ onUnmounted(() => {
   border-color: #6366f1;
 }
 
+/* 入口 ≥8 时略缩小花瓣字号，配合更宽的 148° 弧线 */
+.portal-wheel-host.portal-wheel-dense .portal-wheel-petal {
+  min-width: 68px;
+  max-width: 86px;
+  padding: 6px 7px;
+  font-size: 10px;
+}
+.portal-wheel-host.portal-wheel-dense .portal-wheel-item {
+  transition-delay: calc(var(--i, 0) * 0.03s);
+}
+
 .portal-nav-hot-zone {
   position: fixed;
   left: 0;
@@ -532,5 +575,4 @@ onUnmounted(() => {
 .portal-nav-show-btn:hover {
   background: #eef2ff;
 }
-
 </style>
