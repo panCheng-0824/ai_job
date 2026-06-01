@@ -12,6 +12,7 @@ import org.example.server_job.chat.entity.ChatMessage;
 import org.example.server_job.chat.entity.ChatSession;
 import org.example.server_job.chat.mapper.ChatMessageMapper;
 import org.example.server_job.chat.mapper.ChatSessionMapper;
+import org.example.server_job.chat.support.Role005SessionGreeting;
 import org.example.server_job.client.redis.RedisStringClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -115,12 +116,10 @@ public class ChatSessionApplicationService {
         return doc;
     }
 
-    public Map<String, Object> getHistoryDocument(String sessionId) throws IOException {
+    public Map<String, Object> getHistoryDocument(String sessionId, String studentId) throws IOException {
         String sid = normalizeSessionId(sessionId);
-        ChatSession row = sessionMapper.selectById(sid);
-        if (row == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "会话不存在");
-        }
+        ChatSession row = requireSessionOwnedByStudent(sid, studentId);
+        seedRole005GreetingIfNeeded(row);
         List<Map<String, Object>> history = loadHistoryMaps(sid);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("session_id", sid);
@@ -150,6 +149,7 @@ public class ChatSessionApplicationService {
 
         ChatSession existing = sessionMapper.selectById(sessionId);
         if (existing != null) {
+            seedRole005GreetingIfNeeded(existing);
             Map<String, Object> doc = getSessionDocument(sessionId);
             if (doc == null) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "会话不存在");
@@ -173,7 +173,11 @@ public class ChatSessionApplicationService {
         row.setUpdatedAt(now);
         sessionMapper.insert(row);
 
-        Map<String, Object> doc = toSessionDocument(row, List.of());
+        List<Map<String, Object>> history = List.of();
+        if (Role005SessionGreeting.shouldSeed(usercode, history)) {
+            history = List.of(insertRole005GreetingMessage(row, now));
+        }
+        Map<String, Object> doc = toSessionDocument(row, history);
         redis.set(sessionCacheKeyPrefix + sessionId, objectMapper.writeValueAsString(doc),
                 Duration.ofHours(Math.max(1, cacheTtlHours)));
 
@@ -185,12 +189,9 @@ public class ChatSessionApplicationService {
     }
 
     @Transactional
-    public void deleteSession(String sessionId) {
+    public void deleteSession(String sessionId, String studentId) {
         String sid = normalizeSessionId(sessionId);
-        ChatSession row = sessionMapper.selectById(sid);
-        if (row == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "会话不存在");
-        }
+        requireSessionOwnedByStudent(sid, studentId);
         messageMapper.delete(new LambdaQueryWrapper<ChatMessage>().eq(ChatMessage::getSessionId, sid));
         sessionMapper.deleteById(sid);
         redis.delete(sessionCacheKeyPrefix + sid);
@@ -203,15 +204,35 @@ public class ChatSessionApplicationService {
         return Map.of("session_id", sid + "-" + n);
     }
 
-    public ChatInferenceSnapshot requireInferenceSnapshot(String sessionId) throws IOException {
+    /**
+     * 加载推理快照；校验请求学号与会话归属一致，防止仅凭 session_id 越权对话。
+     */
+    public ChatInferenceSnapshot requireInferenceSnapshot(String sessionId, String studentId) throws IOException {
         String sid = normalizeSessionId(sessionId);
-        ChatSession row = sessionMapper.selectById(sid);
-        if (row == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "会话不存在，请先初始化会话");
-        }
+        ChatSession row = requireSessionOwnedByStudent(sid, studentId);
         List<Map<String, Object>> history = loadHistoryMaps(sid);
         String stud = row.getStudentId() == null ? "" : row.getStudentId().trim();
         return new ChatInferenceSnapshot(stud, row.getUsercode(), history);
+    }
+
+    /**
+     * 校验会话存在且属于指定学号。
+     */
+    public ChatSession requireSessionOwnedByStudent(String sessionId, String studentId) {
+        String sid = normalizeSessionId(sessionId);
+        String stud = studentId == null ? "" : studentId.trim();
+        if (stud.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "student_id 不能为空");
+        }
+        ChatSession row = sessionMapper.selectById(sid);
+        if (row == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "会话不存在");
+        }
+        String owner = row.getStudentId() == null ? "" : row.getStudentId().trim();
+        if (!stud.equals(owner)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "会话与学号不匹配");
+        }
+        return row;
     }
 
     /**
@@ -311,6 +332,37 @@ public class ChatSessionApplicationService {
         row.setUpdatedAt(Instant.now());
         sessionMapper.updateById(row);
         redis.delete(sessionCacheKeyPrefix + sid);
+    }
+
+    /**
+     * 已存在会话：若 ROLE005 且尚无消息，补写开场 assistant 并刷新缓存。
+     */
+    private void seedRole005GreetingIfNeeded(ChatSession row) {
+        if (row == null || !Role005SessionGreeting.isRole005(row.getUsercode())) {
+            return;
+        }
+        String sid = row.getSessionId();
+        List<Map<String, Object>> history = loadHistoryMaps(sid);
+        if (!history.isEmpty()) {
+            return;
+        }
+        insertRole005GreetingMessage(row, Instant.now());
+        redis.delete(sessionCacheKeyPrefix + sid);
+    }
+
+    /** 向 DB 插入开场白消息，并返回与 history API 一致的 turn Map。 */
+    private Map<String, Object> insertRole005GreetingMessage(ChatSession row, Instant now) {
+        Map<String, Object> turn = Role005SessionGreeting.buildTurn(now);
+        ChatMessage m = new ChatMessage();
+        m.setSessionId(row.getSessionId());
+        m.setRole("assistant");
+        m.setContent(Role005SessionGreeting.greetingContent());
+        m.setMsgTs(String.valueOf(turn.get("ts")));
+        m.setSeqNo(0);
+        messageMapper.insert(m);
+        row.setUpdatedAt(now);
+        sessionMapper.updateById(row);
+        return turn;
     }
 
     private List<Map<String, Object>> loadHistoryMaps(String sessionId) {

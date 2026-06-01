@@ -8,20 +8,21 @@ public interface ChatApiService {
 
     ResponseEntity<byte[]> getSession(String sessionId);
 
-    ResponseEntity<byte[]> getSessionHistory(String sessionId);
+    ResponseEntity<byte[]> getSessionHistory(String sessionId, String studentId);
 
     ResponseEntity<byte[]> initSession(String body);
 
-    ResponseEntity<byte[]> deleteSession(String sessionId);
+    ResponseEntity<byte[]> deleteSession(String sessionId, String studentId);
 
     ResponseEntity<byte[]> generateSessionId(String studentId);
 
     ResponseEntity<byte[]> sendMessage(String sessionId, String body);
 
-    ResponseEntity<byte[]> stopStream(String sessionId);
+    ResponseEntity<byte[]> stopStream(String sessionId, String studentId);
 
     ResponseEntity<StreamingResponseBody> streamMessage(
             String sessionId,
+            String studentId,
             String message,
             Boolean useRolePipeline,
             Boolean useAdversarialHarness,

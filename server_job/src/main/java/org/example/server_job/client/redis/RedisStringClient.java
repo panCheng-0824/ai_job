@@ -14,4 +14,11 @@ public interface RedisStringClient {
     void set(String key, String value, Duration ttl);
 
     boolean delete(String key);
+
+    /**
+     * 按 glob 模式批量删除 key（如 {@code interview:qsess:*:student:record:*}）。
+     *
+     * @return 实际删除的 key 数量
+     */
+    long deleteByPattern(String pattern);
 }

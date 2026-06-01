@@ -28,7 +28,36 @@
     </scm>
     <properties>
         <java.version>17</java.version>
+        <!-- 与 Spring Boot 4 / OTel 带入的 okhttp-jvm 5.x 对齐，避免 okio 3.6 与 okhttp 5 混用 -->
+        <okhttp.version>5.2.1</okhttp.version>
+        <okio.version>3.15.0</okio.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.squareup.okio</groupId>
+                <artifactId>okio</artifactId>
+                <version>${okio.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okio</groupId>
+                <artifactId>okio-jvm</artifactId>
+                <version>${okio.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp</artifactId>
+                <version>${okhttp.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp-jvm</artifactId>
+                <version>${okhttp.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -79,13 +108,19 @@
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- RocketMQ 5.x gRPC 客户端（与 ai_job rocketmq-python-client 同走 Proxy 18081） -->
+        <dependency>
+            <groupId>org.apache.rocketmq</groupId>
+            <artifactId>rocketmq-v5-client-spring-boot-starter</artifactId>
+            <version>2.3.5</version>
+        </dependency>
 
 
 
+        <!-- ai_job 网关等直连调用；版本与 okio 由 dependencyManagement 统一 -->
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
-            <artifactId>okhttp</artifactId>
-            <version>4.12.0</version>
+            <artifactId>okhttp-jvm</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>

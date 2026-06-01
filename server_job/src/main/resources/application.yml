@@ -43,12 +43,17 @@ student:
   redis-key-prefix: ${STUDENT_PROFILE_REDIS_PREFIX:student:profile:}
   cache-ttl-hours: ${STUDENT_PROFILE_CACHE_TTL_HOURS:168}
 
+# RocketMQ 5 Proxy gRPC（与 ai_job ROCKETMQ_PROXY_GRPC_ENDPOINT 一致，宿主机 18081→容器 8081）
 rocketmq:
-  name-server: ${ROCKETMQ_NAMESERVER:localhost:9876}
   producer:
-    group: ${ROCKETMQ_PRODUCER_GROUP:server_job_producer}
-  consumer:
-    group: ${ROCKETMQ_CONSUMER_GROUP:server_job_consumer}
+    endpoints: ${ROCKETMQ_PROXY_GRPC_ENDPOINT:127.0.0.1:18081}
+    # topic 在代码中指定；勿在此写逗号分隔多 topic（v5 SDK 预取校验会失败）
+    ssl-enabled: ${ROCKETMQ_SSL_ENABLED:false}
+    request-timeout: ${ROCKETMQ_REQUEST_TIMEOUT:10}
+    max-attempts: 3
+  push-consumer:
+    endpoints: ${ROCKETMQ_PROXY_GRPC_ENDPOINT:127.0.0.1:18081}
+    tag: "*"
 
 milvus:
   host: ${MILVUS_HOST:localhost}
@@ -63,6 +68,26 @@ mybatis-plus:
   global-config:
     db-config:
       id-type: auto
+
+# ROLE005 模拟面试官：业务在 server_job，AI 计算转发 ai_job
+interview:
+  enabled: ${ROLE005_INTERVIEW_ENABLED:true}
+  service-token: ${SERVER_JOB_SERVICE_TOKEN:}
+  mq:
+    enabled: ${INTERVIEW_MQ_ENABLED:true}
+    consumer-enabled: ${INTERVIEW_MQ_CONSUMER_ENABLED:true}
+    proxy-endpoint: ${ROCKETMQ_PROXY_ENDPOINT:127.0.0.1:18080}
+    proxy-grpc-endpoint: ${ROCKETMQ_PROXY_GRPC_ENDPOINT:127.0.0.1:18081}
+    ssl-enabled: ${ROCKETMQ_SSL_ENABLED:false}
+    topics:
+      ai-task: ${INTERVIEW_MQ_TOPIC_AI_TASK:interview_ai_task}
+      ai-result: ${INTERVIEW_MQ_TOPIC_AI_RESULT:interview_ai_result}
+      timer-event: ${INTERVIEW_MQ_TOPIC_TIMER:interview_timer_event}
+      dlq: ${INTERVIEW_MQ_TOPIC_DLQ:interview_dlq}
+    producer-group: ${ROCKETMQ_PRODUCER_GROUP:server_job_producer}
+    consumer-groups:
+      ai-result: ${INTERVIEW_MQ_CONSUMER_AI_RESULT:server_job_interview_result_consumer}
+      ai-task: ${INTERVIEW_MQ_CONSUMER_AI_TASK:server_job_interview_task_consumer}
 
 ai-job:
   base-url: ${AI_JOB_BASE_URL:http://127.0.0.1:8001}

@@ -89,10 +89,10 @@ public class ChatApiServiceImpl implements ChatApiService {
     }
 
     @Override
-    public ResponseEntity<byte[]> getSessionHistory(String sessionId) {
-        log.info("查询会话历史开始, sessionId={}", sessionId);
+    public ResponseEntity<byte[]> getSessionHistory(String sessionId, String studentId) {
+        log.info("查询会话历史开始, sessionId={}, studentId={}", sessionId, studentId);
         try {
-            Map<String, Object> doc = chatSessionService.getHistoryDocument(sessionId);
+            Map<String, Object> doc = chatSessionService.getHistoryDocument(sessionId, studentId);
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(objectMapper.writeValueAsBytes(doc));
@@ -123,10 +123,10 @@ public class ChatApiServiceImpl implements ChatApiService {
     }
 
     @Override
-    public ResponseEntity<byte[]> deleteSession(String sessionId) {
-        log.info("删除会话请求开始, sessionId={}", sessionId);
+    public ResponseEntity<byte[]> deleteSession(String sessionId, String studentId) {
+        log.info("删除会话请求开始, sessionId={}, studentId={}", sessionId, studentId);
         try {
-            chatSessionService.deleteSession(sessionId);
+            chatSessionService.deleteSession(sessionId, studentId);
             Map<String, Object> payload = Map.of("deleted", true, "session_id", sessionId.trim());
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_JSON)
@@ -161,8 +161,11 @@ public class ChatApiServiceImpl implements ChatApiService {
     public ResponseEntity<byte[]> sendMessage(String sessionId, String body) {
         log.info("发送会话消息请求开始, sessionId={}, bodyLength={}", sessionId, body == null ? 0 : body.length());
         try {
-            ChatSessionApplicationService.ChatInferenceSnapshot snap = chatSessionService.requireInferenceSnapshot(sessionId);
             JsonNode root = objectMapper.readTree(body == null ? "{}" : body);
+            ChatSessionApplicationService.ChatInferenceSnapshot snap = chatSessionService.requireInferenceSnapshot(
+                    sessionId,
+                    root.path("student_id").asText("")
+            );
             String message = root.path("message").asText("").trim();
             if (message.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorJsonBytes("message 不能为空"));
@@ -204,9 +207,10 @@ public class ChatApiServiceImpl implements ChatApiService {
     }
 
     @Override
-    public ResponseEntity<byte[]> stopStream(String sessionId) {
-        log.info("停止流式会话请求开始, sessionId={}", sessionId);
+    public ResponseEntity<byte[]> stopStream(String sessionId, String studentId) {
+        log.info("停止流式会话请求开始, sessionId={}, studentId={}", sessionId, studentId);
         try {
+            chatSessionService.requireSessionOwnedByStudent(sessionId, studentId);
             return responseMapper.toResponseEntity(
                     gatewayService.postJson("/chat-sessions/" + sessionId + "/messages/stop", "{}"));
         } catch (Exception ex) {
@@ -232,7 +236,7 @@ public class ChatApiServiceImpl implements ChatApiService {
             boolean uah = root.path("use_adversarial_harness").asBoolean(false);
             String ad = root.path("adversarial_desc").asText("");
             ChatSessionApplicationService.ChatInferenceSnapshot snap =
-                    chatSessionService.requireInferenceSnapshot(sessionId);
+                    chatSessionService.requireInferenceSnapshot(sessionId, root.path("student_id").asText(""));
             String upstreamBody = buildInternalChatPayload(
                     sessionId,
                     snap.studentId(),
@@ -257,13 +261,15 @@ public class ChatApiServiceImpl implements ChatApiService {
     @Override
     public ResponseEntity<StreamingResponseBody> streamMessage(
             String sessionId,
+            String studentId,
             String message,
             Boolean useRolePipeline,
             Boolean useAdversarialHarness,
             String adversarialDesc
     ) {
-        log.info("启动流式会话请求开始, sessionId={}, messageLength={}, useRolePipeline={}, useAdversarialHarness={}",
+        log.info("启动流式会话请求开始, sessionId={}, studentId={}, messageLength={}, useRolePipeline={}, useAdversarialHarness={}",
                 sessionId,
+                studentId,
                 message == null ? 0 : message.length(),
                 useRolePipeline,
                 useAdversarialHarness);
@@ -273,7 +279,8 @@ public class ChatApiServiceImpl implements ChatApiService {
         }
 
         try {
-            ChatSessionApplicationService.ChatInferenceSnapshot snap = chatSessionService.requireInferenceSnapshot(sessionId);
+            ChatSessionApplicationService.ChatInferenceSnapshot snap =
+                    chatSessionService.requireInferenceSnapshot(sessionId, studentId);
             boolean urp = useRolePipeline == null || useRolePipeline;
             boolean uah = useAdversarialHarness != null && useAdversarialHarness;
             String ad = adversarialDesc == null ? "" : adversarialDesc;

@@ -42,8 +42,11 @@ public class ChatController {
     }
 
     @GetMapping("/{sessionId}/history")
-    public ResponseEntity<byte[]> getHistory(@PathVariable String sessionId) {
-        return chatApiService.getSessionHistory(sessionId);
+    public ResponseEntity<byte[]> getHistory(
+            @PathVariable String sessionId,
+            @RequestParam("student_id") String studentId
+    ) {
+        return chatApiService.getSessionHistory(sessionId, studentId);
     }
 
     @PostMapping("/init")
@@ -52,8 +55,11 @@ public class ChatController {
     }
 
     @DeleteMapping("/{sessionId}")
-    public ResponseEntity<byte[]> deleteSession(@PathVariable String sessionId) {
-        return chatApiService.deleteSession(sessionId);
+    public ResponseEntity<byte[]> deleteSession(
+            @PathVariable String sessionId,
+            @RequestParam("student_id") String studentId
+    ) {
+        return chatApiService.deleteSession(sessionId, studentId);
     }
 
     @PostMapping("/{sessionId}/messages")
@@ -62,13 +68,17 @@ public class ChatController {
     }
 
     @PostMapping("/{sessionId}/messages/stop")
-    public ResponseEntity<byte[]> stopStream(@PathVariable String sessionId) {
-        return chatApiService.stopStream(sessionId);
+    public ResponseEntity<byte[]> stopStream(
+            @PathVariable String sessionId,
+            @RequestParam("student_id") String studentId
+    ) {
+        return chatApiService.stopStream(sessionId, studentId);
     }
 
     @GetMapping("/{sessionId}/messages/stream")
     public WebAsyncTask<ResponseEntity<StreamingResponseBody>> streamMessage(
             @PathVariable String sessionId,
+            @RequestParam("student_id") String studentId,
             @RequestParam String message,
             @RequestParam(name = "use_role_pipeline", defaultValue = "true") Boolean useRolePipeline,
             @RequestParam(name = "use_adversarial_harness", defaultValue = "false") Boolean useAdversarialHarness,
@@ -77,6 +87,7 @@ public class ChatController {
         return new WebAsyncTask<>(chatStreamAsyncTimeoutMs, () ->
                 chatApiService.streamMessage(
                         sessionId,
+                        studentId,
                         message,
                         useRolePipeline,
                         useAdversarialHarness,

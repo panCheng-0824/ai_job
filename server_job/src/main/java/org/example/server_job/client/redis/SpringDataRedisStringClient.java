@@ -4,6 +4,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -40,5 +41,18 @@ public class SpringDataRedisStringClient implements RedisStringClient {
     public boolean delete(String key) {
         Boolean removed = template.delete(key);
         return Boolean.TRUE.equals(removed);
+    }
+
+    @Override
+    public long deleteByPattern(String pattern) {
+        if (pattern == null || pattern.isBlank()) {
+            return 0;
+        }
+        Set<String> keys = template.keys(pattern);
+        if (keys == null || keys.isEmpty()) {
+            return 0;
+        }
+        Long removed = template.delete(keys);
+        return removed == null ? 0 : removed;
     }
 }
