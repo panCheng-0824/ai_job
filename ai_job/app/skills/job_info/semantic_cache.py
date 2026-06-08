@@ -163,6 +163,9 @@ def build_scope(
     top_n_jobs: int,
     top_n_companies: int,
     student_context: str = "",
+    use_student_profile: bool = True,
+    score_baseline: int = 85,
+    min_recommend_score: int = 85,
 ) -> str:
     """
     构造缓存分区字符串（逻辑桶名，非 Redis 键）。
@@ -175,11 +178,17 @@ def build_scope(
     analyze_level = (os.getenv("JOB_RAG_ANALYZE_MODEL_LEVEL", "mid") or "mid").strip()
     analyze_fmt = (os.getenv("JOB_RAG_ANALYZE_RESPONSE_FORMAT", "json_object") or "json_object").strip()
     rewrite_off = _env_bool("JOB_RAG_QUERY_REWRITE_DISABLED", default=False)
-    profile_part = "none"
-    if _include_profile_in_scope():
+    profile_part = "guest"
+    if not use_student_profile:
+        profile_part = "guest"
+    elif _include_profile_in_scope():
         sc = (student_context or "").strip()
         if sc:
             profile_part = hashlib.sha256(sc.encode("utf-8")).hexdigest()[:16]
+        else:
+            profile_part = "none"
+    baseline = max(0, min(100, int(score_baseline or 85)))
+    min_score = max(0, min(100, int(min_recommend_score or 85)))
     parts = [
         f"engine={engine}",
         f"kb={kb}",
@@ -189,6 +198,9 @@ def build_scope(
         f"fmt={analyze_fmt}",
         f"rewrite_off={int(rewrite_off)}",
         f"profile={profile_part}",
+        f"score_base={baseline}",
+        f"min_score={min_score}",
+        f"use_profile={int(bool(use_student_profile))}",
     ]
     return "|".join(parts)
 

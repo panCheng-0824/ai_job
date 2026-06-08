@@ -8,7 +8,6 @@ import json
 
 from app.session.role.role005.domain.models import TurnResult
 from app.session.role.role005.domain.state import InterviewGraphState
-from app.session.role.role005.infra.checkpoint import save_checkpoint_hint
 from app.session.role.role_util.bindings import GraphBindings, is_cancelled
 
 
@@ -20,8 +19,6 @@ def make_finalize_turn_node(bindings: GraphBindings):
             return {}
         ctx = state.context
         sid = ctx.session.interview_session_id
-        # Checkpoint 仅存 ai_job Redis，业务进度以 server_job 为准
-        ckpt = save_checkpoint_hint(sid, {"phase": ctx.session.phase})
 
         turn_result = TurnResult(
             interview_session_id=sid,
@@ -34,7 +31,6 @@ def make_finalize_turn_node(bindings: GraphBindings):
             session_delta={
                 "evaluator_status": state.evaluator_json.get("status"),
             },
-            checkpoint_id=ckpt,
             final_answer_text=state.final_answer,
         )
         payload = turn_result.model_dump()

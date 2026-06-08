@@ -82,6 +82,22 @@ def greprag_delete_doc(doc_id: str):
     return {"success": True, "doc_id": target}
 
 
+@router.delete("/api/rag/greprag/md-file")
+def greprag_delete_md_file(file_path: str):
+    """按绝对/相对路径删除 GrepRAG Markdown 文件（须在 docs 目录内）。"""
+    trace_id = uuid.uuid4().hex[:8]
+    target = (file_path or "").strip()
+    _step(trace_id, 1, "收到 GrepRAG 删除 Markdown 请求, file_path=%s", target)
+    if not target:
+        raise HTTPException(status_code=400, detail="file_path 不能为空")
+    deleted = get_greprag_service().delete_markdown_file(target)
+    if not deleted:
+        _step(trace_id, 2, "删除未命中, file_path=%s", target)
+        raise HTTPException(status_code=404, detail="Markdown 文件不存在或路径无效")
+    _step(trace_id, 2, "删除成功, file_path=%s", target)
+    return {"success": True, "file_path": target}
+
+
 @router.get("/api/rag/greprag/config")
 def greprag_config():
     """步骤：读取当前 GrepRAG 配置并返回。"""

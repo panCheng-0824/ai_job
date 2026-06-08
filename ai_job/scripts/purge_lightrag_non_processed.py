@@ -64,8 +64,8 @@ def main() -> None:
     parser.add_argument(
         "--max-concurrent",
         type=int,
-        default=4,
-        help="并发删除上限，默认 4",
+        default=1,
+        help="并发删除上限，Neo4j 单文档删除须串行，默认 1",
     )
     parser.add_argument(
         "--no-disk-merge",

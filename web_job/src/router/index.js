@@ -38,6 +38,10 @@ const router = createRouter({
       redirect: (to) => ({ path: "/tools", query: { ...to.query, tab: "search" } })
     },
     {
+      path: "/ai-search",
+      redirect: (to) => ({ path: "/tools", query: { ...to.query, tab: "ai-search" } })
+    },
+    {
       path: "/ocr",
       redirect: (to) => ({ path: "/tools", query: { ...to.query, tab: "ocr" } })
     }

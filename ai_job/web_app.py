@@ -18,6 +18,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.portal import chat_stream_service
 from app.portal import chat_turn_service
 from app.portal import data_catalog
+from app.portal import ai_search_service
+from app.portal import ai_search_stream_service
 from app.portal import ocr_service
 from app.portal import online_search_service
 from app.portal import session_service
@@ -25,6 +27,7 @@ from app.portal import session_store
 from app.portal import voice_service
 from app.portal.errors import PortalError
 from app.portal.schemas import (
+    AiSearchCrawlRequest,
     ChatMessageRequest,
     ChatStreamMessageRequest,
     InternalChatPayload,
@@ -46,6 +49,18 @@ from app.portal import stream_registry
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=BASE_DIR / ".env", override=False)
+
+from app.rag.lightrag.config import load_lightrag_config_from_env
+from app.rag.lightrag.tiktoken_cache import configure_tiktoken_cache, warmup_tiktoken_encoding
+
+configure_tiktoken_cache()
+try:
+    warmup_tiktoken_encoding(load_lightrag_config_from_env().tiktoken_model_name)
+except Exception as _tiktoken_err:
+    logging.getLogger(__name__).warning(
+        "tiktoken 启动预热失败（LightRAG 将尝试 jsDelivr 离线词表或字符回退；可运行 scripts/warmup_tiktoken.py 预下载）: %s",
+        _tiktoken_err,
+    )
 
 app = FastAPI(title="ai_job", description="AI 能力服务（LightRAG / GraphRAG / 对话 / 语音 / OCR 等）；业务数据与门户页面由 server_job + web_job 提供。")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
@@ -122,6 +137,35 @@ def online_search(query: str, engine: str = "baidu", topk: int = 5, deep_search:
         return online_search_service.run_online_search(query, engine, topk, deep_search)
     except PortalError as e:
         raise _pe(e) from e
+
+
+@app.post("/api/ai-search/crawl")
+def ai_search_crawl(payload: AiSearchCrawlRequest):
+    try:
+        return ai_search_service.run_ai_search_crawl(
+            url=payload.url,
+            prompt=payload.prompt,
+            mode=payload.mode,
+            max_pages=payload.max_pages,
+            follow_links=payload.follow_links,
+            link_selector=payload.link_selector,
+            require_login=payload.require_login,
+        )
+    except PortalError as e:
+        raise _pe(e) from e
+
+
+@app.post("/api/ai-search/crawl/stream")
+def ai_search_crawl_stream(payload: AiSearchCrawlRequest):
+    """流式采集：NDJSON chunked HTTP（非 SSE）。"""
+    try:
+        ai_search_stream_service.validate_crawl_request(payload)
+    except PortalError as e:
+        raise _pe(e) from e
+    return StreamingResponse(
+        ai_search_stream_service.iter_crawl_stream(payload),
+        media_type=ai_search_stream_service.NDJSON_MEDIA,
+    )
 
 
 @app.post("/api/ocr/recognize")

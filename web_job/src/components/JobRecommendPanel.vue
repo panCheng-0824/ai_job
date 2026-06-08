@@ -5,6 +5,8 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import FloatingFramePanel from "./FloatingFramePanel.vue";
+import JobMatchReasonBlocks from "./JobMatchReasonBlocks.vue";
+import { resolveJobMatchReasonDisplay } from "../utils/jobMatchReason";
 
 const props = defineProps({
   jobs: { type: Array, default: () => [] },
@@ -48,16 +50,21 @@ const cacheHitDetail = computed(() => {
   return parts.join(" · ");
 });
 
-function reasonsForJob(job) {
-  if (!job?.job_id) return [];
+function reasonMetaForJob(job) {
+  if (!job?.job_id) {
+    return { reason: "", sections: [], charCount: 0, score: null };
+  }
   const rec = props.recommendation?.recommended_jobs || [];
   const hit = rec.find((x) => x.job_id === job.job_id);
-  if (hit?.match_reasons?.length) return hit.match_reasons;
-  if (hit?.match_reason) return [hit.match_reason];
-  const raw = job.match_reasons;
-  if (Array.isArray(raw) && raw.length) return raw.map(String);
-  return [];
+  return resolveJobMatchReasonDisplay(hit, job);
 }
+
+const selectedReasonMeta = computed(() => {
+  if (!previewJob.value) {
+    return { reason: "", sections: [], charCount: 0, score: null };
+  }
+  return reasonMetaForJob(previewJob.value);
+});
 
 const selectedJob = computed(() => {
   const id = selectedJobId.value;
@@ -74,11 +81,6 @@ const previewJob = computed(() => {
 const reasonPanelTitle = computed(() => {
   if (!previewJob.value) return "";
   return previewJob.value.job_title || previewJob.value.job_name || "岗位";
-});
-
-const selectedReasonLines = computed(() => {
-  if (!previewJob.value) return [];
-  return reasonsForJob(previewJob.value);
 });
 
 const noJobReasonBlocks = computed(() => {
@@ -233,9 +235,13 @@ onBeforeUnmount(() => {
           </p>
           <template v-else>
             <p class="reason-job-title">{{ reasonPanelTitle }}</p>
-            <ul v-if="selectedReasonLines.length" class="reason-list">
-              <li v-for="(line, idx) in selectedReasonLines" :key="idx">{{ line }}</li>
-            </ul>
+            <JobMatchReasonBlocks
+              v-if="selectedReasonMeta.reason || selectedReasonMeta.sections?.length"
+              :reason="selectedReasonMeta.reason"
+              :sections="selectedReasonMeta.sections"
+              :score="selectedReasonMeta.score"
+              :char-count="selectedReasonMeta.charCount"
+            />
             <p v-else class="muted reason-placeholder">该岗位暂无单独生成的推荐理由。</p>
           </template>
         </template>
@@ -379,6 +385,8 @@ onBeforeUnmount(() => {
   padding: 12px;
   background: #fafafa;
   min-height: 100px;
+  max-height: min(72vh, 640px);
+  overflow: auto;
 }
 .reason-headline,
 .reason-job-title {

@@ -3,8 +3,8 @@ package org.example.server_job.ai.controller;
 import org.example.server_job.ai.service.DataApiService;
 import org.example.server_job.ai.service.JobRagSyncService;
 import org.example.server_job.ai.rag.RagSyncBatchCoordinator;
-import org.example.server_job.biz.entity.BizCompanyInfo;
-import org.example.server_job.biz.entity.BizJobsInfo;
+import org.example.server_job.biz.vo.BizCompanyApiVO;
+import org.example.server_job.biz.vo.BizJobApiVO;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -62,7 +62,7 @@ public class DataController {
 
     /** 企业列表全量（体量可控时使用）。 */
     @GetMapping("/companies")
-    public List<BizCompanyInfo> listCompanies() {
+    public List<BizCompanyApiVO> listCompanies() {
         return dataApiService.listCompanies();
     }
 
@@ -84,13 +84,19 @@ public class DataController {
 
     /** 按统一社会信用代码查询单家企业。 */
     @GetMapping("/companies/{creditCode}")
-    public BizCompanyInfo getCompany(@PathVariable String creditCode) {
+    public BizCompanyApiVO getCompany(@PathVariable String creditCode) {
         return dataApiService.getCompany(creditCode);
+    }
+
+    /** 企业详情页 JSON 预览：字典翻译后的结构化展示。 */
+    @GetMapping("/companies/{creditCode}/detail-preview")
+    public Map<String, Object> previewCompanyDetail(@PathVariable String creditCode) {
+        return dataApiService.previewCompanyDetail(creditCode);
     }
 
     /** 岗位全量列表（不分页；列表页主路径建议使用 {@link #listJobsPaged}）。 */
     @GetMapping("/jobs")
-    public List<BizJobsInfo> listJobs() {
+    public List<BizJobApiVO> listJobs() {
         return dataApiService.listJobs();
     }
 
@@ -107,15 +113,44 @@ public class DataController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer pageSize,
             @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "true") Boolean syncedOnly
+            @RequestParam(defaultValue = "true") Boolean syncedOnly,
+            @RequestParam(required = false) String companyType,
+            @RequestParam(required = false) String industry
     ) {
-        return dataApiService.listJobsPaged(page, pageSize, keyword, syncedOnly);
+        return dataApiService.listJobsPaged(page, pageSize, keyword, syncedOnly, companyType, industry);
+    }
+
+    /**
+     * 岗位列表筛选维度统计：公司类型（单位性质）与行业各选项的岗位总数、已同步数。
+     */
+    @GetMapping("/jobs/filter-facets")
+    public Map<String, Object> jobFilterFacets(@RequestParam(required = false) String keyword) {
+        return dataApiService.jobFilterFacets(keyword);
+    }
+
+    /**
+     * 按用人单位组织机构代码查关联岗位（{@code t_biz_jobs_info.yrdw}）。
+     * 须在 {@code /jobs/{jobId}} 之前注册，避免路径被当成 jobId。
+     */
+    @GetMapping("/jobs/by-company")
+    public List<BizJobApiVO> listJobsByCompany(
+            @RequestParam String yrdw,
+            @RequestParam(required = false) String excludeJobId,
+            @RequestParam(defaultValue = "12") Integer limit
+    ) {
+        return dataApiService.listJobsByCompany(yrdw, excludeJobId, limit);
     }
 
     /** 按岗位主键查询单条岗位实体（含正文等字段）。 */
     @GetMapping("/jobs/{jobId}")
-    public BizJobsInfo getJob(@PathVariable String jobId) {
+    public BizJobApiVO getJob(@PathVariable String jobId) {
         return dataApiService.getJob(jobId);
+    }
+
+    /** 预览岗位同步 RAG 的正文（Markdown），与真实同步组装逻辑一致。 */
+    @GetMapping("/jobs/{jobId}/rag-preview")
+    public Map<String, Object> previewJobRag(@PathVariable String jobId) {
+        return jobRagSyncService.previewJobRag(jobId);
     }
 
     /**
@@ -128,12 +163,38 @@ public class DataController {
     }
 
     /**
+     * 下架单个岗位的知识库数据：删除 ai_job 侧 LightRAG + GrepRAG，并将 synRag 置为未同步。
+     */
+    @PostMapping("/jobs/{jobId}/unsync-rag")
+    public Map<String, Object> unsyncJobFromRag(@PathVariable String jobId) {
+        return jobRagSyncService.unsyncJobFromRag(jobId);
+    }
+
+    /**
      * 岗位 RAG 同步统计：总数、已同步（{@code synRag = "1"}）、未同步。
      * <p>可选 {@code keyword} 与岗位分页一致，仅统计命中关键词的岗位；空为全库。</p>
      */
     @GetMapping("/jobs/rag-sync/stats")
-    public Map<String, Object> ragSyncStats(@RequestParam(required = false) String keyword) {
-        return jobRagSyncService.ragSyncStats(keyword);
+    public Map<String, Object> ragSyncStats(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String companyType,
+            @RequestParam(required = false) String industry
+    ) {
+        return jobRagSyncService.ragSyncStats(keyword, companyType, industry);
+    }
+
+    /**
+     * 单独清理 LightRAG 积压（pending / processing / failed），不占用批量同步槽位、不触发岗位同步。
+     */
+    @PostMapping("/jobs/rag-sync/purge-backlog")
+    public Map<String, Object> purgeLightRagBacklog() {
+        return jobRagSyncService.purgeLightRagBacklog();
+    }
+
+    /** LightRAG 积压统计（pending / processing / failed），供同步面板展示。 */
+    @GetMapping("/jobs/rag-sync/backlog-stats")
+    public Map<String, Object> lightRagBacklogStats() {
+        return jobRagSyncService.lightRagBacklogStats();
     }
 
     /**
@@ -142,7 +203,7 @@ public class DataController {
      * 设计要点：
      * <ul>
      *   <li>立即返回 {@link SseEmitter}，具体同步在 {@link CompletableFuture#runAsync} 异步线程中执行，避免阻塞 Tomcat 工作线程整段批量时间。</li>
-     *   <li>事件名约定：{@code stats}（初始统计）、{@code progress}（每条完成）、{@code done}（汇总）、{@code error}（例如已有同步在进行）。</li>
+     *   <li>事件名约定：{@code stats}（初始统计）、{@code purge}（同步前清理 LightRAG 积压）、{@code progress}（每条完成）、{@code done}（汇总）、{@code error}（例如已有同步在进行）。</li>
      *   <li>浏览器关闭或取消请求导致连接完成时，由服务层注册的回调触发「取消」，未开始的岗位会被跳过。</li>
      * </ul>
      * </p>
@@ -150,15 +211,44 @@ public class DataController {
     @PostMapping(value = "/jobs/sync-rag/pending", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter syncJobsPendingRagStream(@RequestBody(required = false) Map<String, Object> body) {
         String keyword = "";
-        if (body != null && body.get("keyword") != null) {
-            keyword = String.valueOf(body.get("keyword"));
+        String companyType = "";
+        String industry = "";
+        boolean accelerate = false;
+        boolean purgeBeforeSync = true;
+        if (body != null) {
+            if (body.get("keyword") != null) {
+                keyword = String.valueOf(body.get("keyword"));
+            }
+            if (body.get("companyType") != null) {
+                companyType = String.valueOf(body.get("companyType"));
+            }
+            if (body.get("industry") != null) {
+                industry = String.valueOf(body.get("industry"));
+            }
+            Object accelerateRaw = body.get("accelerate");
+            if (accelerateRaw instanceof Boolean b) {
+                accelerate = b;
+            } else if (accelerateRaw != null) {
+                accelerate = Boolean.parseBoolean(String.valueOf(accelerateRaw).trim());
+            }
+            Object purgeRaw = body.get("purgeBeforeSync");
+            if (purgeRaw instanceof Boolean b) {
+                purgeBeforeSync = b;
+            } else if (purgeRaw != null) {
+                purgeBeforeSync = Boolean.parseBoolean(String.valueOf(purgeRaw).trim());
+            }
         }
         final String keywordFinal = keyword;
+        final String companyTypeFinal = companyType;
+        final String industryFinal = industry;
+        final boolean accelerateFinal = accelerate;
+        final boolean purgeBeforeSyncFinal = purgeBeforeSync;
         // 0L：不设置超时时间，避免长批量被服务端主动掐断（仍受代理/网关超时影响）
         SseEmitter emitter = new SseEmitter(0L);
         CompletableFuture.runAsync(() -> {
             try {
-                jobRagSyncService.streamSyncPendingJobs(emitter, keywordFinal);
+                jobRagSyncService.streamSyncPendingJobs(
+                        emitter, keywordFinal, companyTypeFinal, industryFinal, accelerateFinal, purgeBeforeSyncFinal);
             } catch (Exception ex) {
                 try {
                     emitter.completeWithError(ex);

@@ -219,6 +219,33 @@ def run_ocr(settings: OCRSettings) -> list[OCRLine]:
     return normalized
 
 
+def run_ocr_bytes(
+    data: bytes,
+    *,
+    lang: str = "ch",
+    use_angle_cls: bool = False,
+    suffix: str = ".png",
+) -> list[OCRLine]:
+    """对内存图片执行 OCR（供 ai_search 验证码等场景）。"""
+    import tempfile
+
+    if not data:
+        raise ValueError("image bytes 不能为空")
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(data)
+        path = tmp.name
+    try:
+        return run_ocr(
+            OCRSettings(
+                image_path=path,
+                lang=lang,
+                use_angle_cls=use_angle_cls,
+            )
+        )
+    finally:
+        Path(path).unlink(missing_ok=True)
+
+
 def run_recognition(
     file_path: Path | str,
     lang: str = "ch",

@@ -10,6 +10,8 @@ import org.example.server_job.biz.entity.BizStudentInfo;
 import org.example.server_job.biz.service.BizCompanyInfoService;
 import org.example.server_job.biz.service.BizJobsInfoService;
 import org.example.server_job.biz.service.BizStudentInfoService;
+import org.example.server_job.biz.support.BizDictBm;
+import org.example.server_job.biz.support.BizDictLabelSupport;
 import org.example.server_job.student.entity.StudentCompanyReview;
 import org.example.server_job.student.entity.StudentCompanyReviewTag;
 import org.example.server_job.student.entity.StudentFavoriteJob;
@@ -56,6 +58,7 @@ public class StudentPortalActivityServiceImpl implements StudentPortalActivitySe
     private final BizStudentInfoService bizStudentInfoService;
     private final BizJobsInfoService bizJobsInfoService;
     private final BizCompanyInfoService bizCompanyInfoService;
+    private final BizDictLabelSupport dictLabelSupport;
     private final StudentFavoriteJobMapper favoriteMapper;
     private final StudentFollowCompanyMapper followMapper;
     private final StudentJobReviewMapper jobReviewMapper;
@@ -68,6 +71,7 @@ public class StudentPortalActivityServiceImpl implements StudentPortalActivitySe
             BizStudentInfoService bizStudentInfoService,
             BizJobsInfoService bizJobsInfoService,
             BizCompanyInfoService bizCompanyInfoService,
+            BizDictLabelSupport dictLabelSupport,
             StudentFavoriteJobMapper favoriteMapper,
             StudentFollowCompanyMapper followMapper,
             StudentJobReviewMapper jobReviewMapper,
@@ -79,6 +83,7 @@ public class StudentPortalActivityServiceImpl implements StudentPortalActivitySe
         this.bizStudentInfoService = bizStudentInfoService;
         this.bizJobsInfoService = bizJobsInfoService;
         this.bizCompanyInfoService = bizCompanyInfoService;
+        this.dictLabelSupport = dictLabelSupport;
         this.favoriteMapper = favoriteMapper;
         this.followMapper = followMapper;
         this.jobReviewMapper = jobReviewMapper;
@@ -600,15 +605,16 @@ public class StudentPortalActivityServiceImpl implements StudentPortalActivitySe
     }
 
     private Map<String, Object> hydrateJob(BizJobsInfo j) {
+        BizCompanyInfo company = bizCompanyInfoService.getByZzjgdm(j.getYrdw());
         Map<String, Object> cr = new LinkedHashMap<>();
-        cr.put("company_name", j.getCompanyName());
-        cr.put("credit_code", j.getCompanyId());
+        cr.put("company_name", company != null ? company.getGsmc() : j.getYrdw());
+        cr.put("credit_code", j.getYrdw());
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("job_id", j.getId());
-        m.put("job_title", j.getJobName());
-        m.put("city", j.getAddress());
-        m.put("district", j.getArea());
-        m.put("salary_range_month", j.getSalaryRange());
+        m.put("job_id", j.getJobid());
+        m.put("job_title", j.getZwmc());
+        m.put("city", j.getGzdd());
+        m.put("district", j.getGzdd());
+        m.put("salary_range_month", j.getYxjb() == null ? null : String.valueOf(j.getYxjb()));
         m.put("salary_months", "-");
         m.put("company_relation", cr);
         return m;
@@ -616,10 +622,11 @@ public class StudentPortalActivityServiceImpl implements StudentPortalActivitySe
 
     private Map<String, Object> hydrateCompany(BizCompanyInfo c) {
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("credit_code", c.getId());
-        m.put("company_name", c.getCompanyName());
-        m.put("industry", c.getArea());
-        m.put("employee_count_range", c.getCompanySize());
+        m.put("credit_code", c.getWid());
+        m.put("company_name", c.getGsmc());
+        m.put("industry", dictLabelSupport.industryLabel(c.getHylx()));
+        m.put("employee_count_range", dictLabelSupport.gsgmLabel(c.getGsgm()));
+        m.put("company_type", dictLabelSupport.dwxzLabel(c.getDwxz()));
         return m;
     }
 

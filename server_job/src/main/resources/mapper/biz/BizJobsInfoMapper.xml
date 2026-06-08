@@ -4,4 +4,41 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.example.server_job.biz.mapper.BizJobsInfoMapper">
 
+    <sql id="jobKeywordFilter">
+        <if test="keyword != null and keyword != ''">
+            AND (
+                j.zwmc LIKE CONCAT('%', #{keyword}, '%')
+                OR j.yrdw LIKE CONCAT('%', #{keyword}, '%')
+                OR j.gzdd LIKE CONCAT('%', #{keyword}, '%')
+                OR j.gjz LIKE CONCAT('%', #{keyword}, '%')
+                OR j.zwms LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+    </sql>
+
+    <select id="countJobsGroupByCompanyDwxz" resultType="org.example.server_job.biz.dto.JobFacetCountRow">
+        SELECT CAST(c.dwxz AS CHAR) AS code,
+               COUNT(DISTINCT j.jobid) AS total,
+               COUNT(DISTINCT CASE WHEN r.syn_rag = 1 THEN j.jobid END) AS synced
+        FROM t_biz_jobs_info j
+                 INNER JOIN t_biz_compary_info c ON j.yrdw = c.zzjgdm
+                 LEFT JOIN t_biz_jobs_rag_sync r ON j.jobid = r.jobid
+        WHERE c.dwxz IS NOT NULL
+        <include refid="jobKeywordFilter"/>
+        GROUP BY c.dwxz
+    </select>
+
+    <select id="countJobsGroupByCompanyHylx" resultType="org.example.server_job.biz.dto.JobFacetCountRow">
+        SELECT TRIM(c.hylx) AS code,
+               COUNT(DISTINCT j.jobid) AS total,
+               COUNT(DISTINCT CASE WHEN r.syn_rag = 1 THEN j.jobid END) AS synced
+        FROM t_biz_jobs_info j
+                 INNER JOIN t_biz_compary_info c ON j.yrdw = c.zzjgdm
+                 LEFT JOIN t_biz_jobs_rag_sync r ON j.jobid = r.jobid
+        WHERE c.hylx IS NOT NULL
+          AND TRIM(c.hylx) != ''
+        <include refid="jobKeywordFilter"/>
+        GROUP BY TRIM(c.hylx)
+    </select>
+
 </mapper>

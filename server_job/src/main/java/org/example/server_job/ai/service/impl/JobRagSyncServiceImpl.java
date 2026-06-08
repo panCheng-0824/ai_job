@@ -10,8 +10,15 @@ import org.example.server_job.ai.client.AiJobHttpResponse;
 import org.example.server_job.ai.rag.RagSyncBatchCoordinator;
 import org.example.server_job.ai.rag.RagSyncRunState;
 import org.example.server_job.ai.service.JobRagSyncService;
+import org.example.server_job.biz.entity.BizCompanyInfo;
 import org.example.server_job.biz.entity.BizJobsInfo;
+import org.example.server_job.biz.entity.BizJobsRagSync;
+import org.example.server_job.biz.service.BizCompanyInfoService;
 import org.example.server_job.biz.service.BizJobsInfoService;
+import org.example.server_job.biz.service.BizJobsRagSyncService;
+import org.example.server_job.biz.support.BizDetailPreviewBuilder;
+import org.example.server_job.biz.support.BizJobListScopeSupport;
+import org.example.server_job.biz.support.JobRagTextBuilder;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -36,6 +43,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -57,8 +65,23 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
 
     private static final Logger log = LogManager.getLogger(JobRagSyncServiceImpl.class);
 
-    /** 本库岗位表：读取待同步列表、单条查询、同步成功后回写 synRag / ragMdPath。 */
+    /** 本库岗位表：读取待同步列表、单条查询。 */
     private final BizJobsInfoService bizJobsInfoService;
+
+    /** 企业主数据：RAG 正文拼装时补充公司信息。 */
+    private final BizCompanyInfoService bizCompanyInfoService;
+
+    /** RAG 同步状态独立表：回写 syn_rag / rag_md_path。 */
+    private final BizJobsRagSyncService bizJobsRagSyncService;
+
+    /** 岗位 + 企业 + 字典 → Markdown 正文。 */
+    private final JobRagTextBuilder jobRagTextBuilder;
+
+    /** 详情页 JSON 预览（字典翻译后结构化展示）。 */
+    private final BizDetailPreviewBuilder detailPreviewBuilder;
+
+    /** 岗位列表 / RAG 同步共用查询范围。 */
+    private final BizJobListScopeSupport bizJobListScopeSupport;
 
     /** 访问 ai_job 网关的 OkHttp 封装，用于 POST JSON 到 LightRAG、GrepRAG 等路径。 */
     private final AiJobGatewayService aiJobGatewayService;
@@ -83,22 +106,52 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
     @Value("${ai-job.rag.insert-path:/rag/lightrag/insert}")
     private String ragInsertPath;
 
+    /** ai_job 侧 LightRAG 清理 pending/processing/failed 积压路径。 */
+    @Value("${ai-job.rag.purge-non-processed-path:/rag/lightrag/purge-non-processed}")
+    private String lightRagPurgeNonProcessedPath;
+
+    /** ai_job 侧 LightRAG 积压统计路径。 */
+    @Value("${ai-job.rag.backlog-stats-path:/rag/lightrag/backlog-stats}")
+    private String lightRagBacklogStatsPath;
+
     /** ai_job 侧 GrepRAG 文本落 Markdown 路径，默认 {@code /rag/greprag/text-to-md}。 */
     @Value("${ai-job.rag.greprag-text-to-md-path:/rag/greprag/text-to-md}")
     private String grepRagTextToMdPath;
+
+    /** ai_job 侧 LightRAG 按 doc_id 删除路径，默认 {@code /rag/lightrag/docs/{docId}}。 */
+    @Value("${ai-job.rag.delete-doc-path:/rag/lightrag/docs}")
+    private String lightRagDeleteDocPath;
+
+    /** ai_job 侧 GrepRAG 删除 Markdown 路径，默认 {@code /rag/greprag/md-file}。 */
+    @Value("${ai-job.rag.greprag-delete-md-path:/rag/greprag/md-file}")
+    private String grepRagDeleteMdPath;
 
     /** 写入请求体中的 source 字段，标识数据来自本服务。 */
     @Value("${ai-job.rag.source:server_job}")
     private String ragSource;
 
+    /** 批量同步开启「加速」时的最大并行条数（与 {@link RagSyncExecutorConfig} 线程池大小一致）。 */
+    @Value("${ai-job.rag.sync-thread-pool-core-size:3}")
+    private int ragSyncParallelism;
+
     public JobRagSyncServiceImpl(
             BizJobsInfoService bizJobsInfoService,
+            BizCompanyInfoService bizCompanyInfoService,
+            BizJobsRagSyncService bizJobsRagSyncService,
+            JobRagTextBuilder jobRagTextBuilder,
+            BizDetailPreviewBuilder detailPreviewBuilder,
+            BizJobListScopeSupport bizJobListScopeSupport,
             AiJobGatewayService aiJobGatewayService,
             ObjectMapper objectMapper,
             @Qualifier("ragSyncExecutor") Executor ragSyncExecutor,
             RagSyncBatchCoordinator ragSyncBatchCoordinator
     ) {
         this.bizJobsInfoService = bizJobsInfoService;
+        this.bizCompanyInfoService = bizCompanyInfoService;
+        this.bizJobsRagSyncService = bizJobsRagSyncService;
+        this.jobRagTextBuilder = jobRagTextBuilder;
+        this.detailPreviewBuilder = detailPreviewBuilder;
+        this.bizJobListScopeSupport = bizJobListScopeSupport;
         this.aiJobGatewayService = aiJobGatewayService;
         this.objectMapper = objectMapper;
         this.ragSyncExecutor = ragSyncExecutor;
@@ -122,6 +175,91 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
         return syncRagForJob(job);
     }
 
+    @Override
+    public Map<String, Object> unsyncJobFromRag(String jobId) {
+        String normalizedJobId = normalizeJobId(jobId);
+        BizJobsInfo job = bizJobsInfoService.getById(normalizedJobId);
+        if (job == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "岗位不存在");
+        }
+        if (!bizJobsRagSyncService.isSynced(normalizedJobId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "该岗位尚未同步到知识库");
+        }
+        BizJobsRagSync rag = bizJobsRagSyncService.findByJobId(normalizedJobId);
+        String ragMdPath = rag != null ? rag.getRagMdPath() : null;
+        String lightDocId = toLightRagDocId(normalizedJobId);
+
+        log.info("岗位知识库下架开始, jobId={}, lightDocId={}, ragMdPath={}", normalizedJobId, lightDocId, ragMdPath);
+
+        CompletableFuture<AiJobHttpResponse> lightFuture = CompletableFuture.supplyAsync(
+                () -> deleteLightRagDoc(lightDocId, normalizedJobId),
+                ForkJoinPool.commonPool()
+        );
+        CompletableFuture<AiJobHttpResponse> grepFuture = CompletableFuture.supplyAsync(
+                () -> deleteGrepRagMarkdown(ragMdPath, normalizedJobId),
+                ForkJoinPool.commonPool()
+        );
+
+        try {
+            CompletableFuture.allOf(lightFuture, grepFuture).join();
+        } catch (CompletionException ex) {
+            unwrapRagSyncCompletionException(ex);
+        }
+
+        AiJobHttpResponse lightResp = lightFuture.join();
+        AiJobHttpResponse grepResp = grepFuture.join();
+        Map<String, Object> lightBody = parseUpstreamBody(lightResp);
+        Map<String, Object> grepBody = parseUpstreamBody(grepResp);
+
+        boolean lightOk = lightResp.statusCode() >= 200 && lightResp.statusCode() < 300;
+        boolean grepOk = grepResp.statusCode() >= 200 && grepResp.statusCode() < 300
+                || grepResp.statusCode() == 404;
+        if (!lightOk) {
+            String detail = Objects.toString(lightBody.getOrDefault("detail", "LightRAG 删除失败"), "LightRAG 删除失败");
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, detail);
+        }
+        if (!grepOk) {
+            String detail = Objects.toString(grepBody.getOrDefault("detail", "GrepRAG 删除 Markdown 失败"), "GrepRAG 删除 Markdown 失败");
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, detail);
+        }
+
+        bizJobsRagSyncService.markUnsynced(normalizedJobId);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", true);
+        result.put("message", "知识库下架成功");
+        result.put("jobId", normalizedJobId);
+        result.put("synRag", "0");
+        result.put("graphRag", lightBody);
+        result.put("grepRag", grepBody);
+        log.info("岗位知识库下架完成, jobId={}", normalizedJobId);
+        return result;
+    }
+
+    @Override
+    public Map<String, Object> previewJobRag(String jobId) {
+        String normalizedJobId = normalizeJobId(jobId);
+        BizJobsInfo job = bizJobsInfoService.getById(normalizedJobId);
+        if (job == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "岗位不存在");
+        }
+        BizCompanyInfo company = loadCompanyForJob(job);
+        BizJobsRagSync rag = bizJobsRagSyncService.findByJobId(job.getJobid());
+        String text = jobRagTextBuilder.build(job, company);
+        String filename = jobRagTextBuilder.buildMarkdownFilename(job, company);
+        Map<String, Object> display = detailPreviewBuilder.buildJobPreview(
+                job, company, rag, text, filename, ragSource);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("展示数据", display);
+        result.put("jobId", job.getJobid());
+        result.put("source", ragSource);
+        result.put("filename", filename);
+        result.put("job_ids", List.of(job.getJobid()));
+        result.put("markdown", text);
+        result.put("textLength", text.length());
+        return result;
+    }
+
     /**
      * 非流式批量同步：筛选 {@code synRag != "1"} 的岗位，逐条提交到 {@link #ragSyncExecutor}，全部结束后汇总。
      * <p>
@@ -132,7 +270,7 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
     public Map<String, Object> syncJobToRagList() {
         List<BizJobsInfo> pending = bizJobsInfoService.list().stream()
                 .filter(Objects::nonNull)
-                .filter(j -> j.getId() != null && !j.getId().isBlank())
+                .filter(j -> j.getJobid() != null && !j.getJobid().isBlank())
                 .filter(this::needsRagSync)
                 .toList();
 
@@ -182,16 +320,15 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
      * 统计岗位总数、已写入 RAG（{@code synRag = "1"}）、未同步数；可选按关键词限定在岗位名/企业名/地址/地区上的命中范围。
      */
     @Override
-    public Map<String, Object> ragSyncStats(String keyword) {
-        String q = normalizeRagKeyword(keyword);
+    public Map<String, Object> ragSyncStats(String keyword, String companyType, String industry) {
+        String q = BizJobListScopeSupport.normalizeKeyword(keyword);
+        String companyTypeCode = BizJobListScopeSupport.normalizeKeyword(companyType);
+        String industryCode = BizJobListScopeSupport.normalizeKeyword(industry);
         LambdaQueryWrapper<BizJobsInfo> base = new LambdaQueryWrapper<>();
-        applyJobKeywordScope(base, q);
+        bizJobListScopeSupport.applyListScope(base, q, companyTypeCode, industryCode);
         long total = bizJobsInfoService.count(base);
 
-        LambdaQueryWrapper<BizJobsInfo> syncedW = new LambdaQueryWrapper<>();
-        applyJobKeywordScope(syncedW, q);
-        syncedW.eq(BizJobsInfo::getSynRag, "1");
-        long synced = bizJobsInfoService.count(syncedW);
+        long synced = countSyncedInScope(q, companyTypeCode, industryCode);
 
         long unsynced = Math.max(0L, total - synced);
         Map<String, Object> m = new LinkedHashMap<>();
@@ -199,6 +336,8 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
         m.put("synced", synced);
         m.put("unsynced", unsynced);
         m.put("keyword", q);
+        m.put("companyType", companyTypeCode);
+        m.put("industry", industryCode);
         return m;
     }
 
@@ -221,33 +360,57 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
      * @param emitter 由 Controller 创建并已设置无超时；本方法不负责在成功路径外重复 complete（异常路径会 completeWithError）
      */
     @Override
-    public void streamSyncPendingJobs(SseEmitter emitter, String keyword) {
+    public void streamSyncPendingJobs(
+            SseEmitter emitter,
+            String keyword,
+            String companyType,
+            String industry,
+            boolean accelerate,
+            boolean purgeBeforeSync
+    ) {
         // 仅在本方法成功「占槽」后非空，用于 finally 中成对 endRun，以及中断时 cancel
         RagSyncRunState runState = null;
         try {
-            String q = normalizeRagKeyword(keyword);
+            String q = BizJobListScopeSupport.normalizeKeyword(keyword);
+            String companyTypeCode = BizJobListScopeSupport.normalizeKeyword(companyType);
+            String industryCode = BizJobListScopeSupport.normalizeKeyword(industry);
             LambdaQueryWrapper<BizJobsInfo> scope = new LambdaQueryWrapper<>();
-            applyJobKeywordScope(scope, q);
+            bizJobListScopeSupport.applyListScope(scope, q, companyTypeCode, industryCode);
             long total = bizJobsInfoService.count(scope);
 
-            LambdaQueryWrapper<BizJobsInfo> syncedScope = new LambdaQueryWrapper<>();
-            applyJobKeywordScope(syncedScope, q);
-            syncedScope.eq(BizJobsInfo::getSynRag, "1");
-            long initialSynced = bizJobsInfoService.count(syncedScope);
+            long initialSynced = countSyncedInScope(q, companyTypeCode, industryCode);
 
             List<BizJobsInfo> candidates = bizJobsInfoService.list(scope);
             List<BizJobsInfo> pending = candidates.stream()
                     .filter(Objects::nonNull)
-                    .filter(j -> j.getId() != null && !j.getId().isBlank())
+                    .filter(j -> j.getJobid() != null && !j.getJobid().isBlank())
                     .filter(this::needsRagSync)
                     .toList();
+
+            if (purgeBeforeSync && !pending.isEmpty()) {
+                Map<String, Object> purgeResult = doPurgeLightRagBacklog();
+                emitSse(emitter, "purge", purgeResult);
+                if (Boolean.FALSE.equals(purgeResult.get("success"))) {
+                    emitSse(emitter, "error", Map.of(
+                            "detail",
+                            Objects.toString(purgeResult.get("message"), "LightRAG 积压清理失败")
+                    ));
+                    emitter.complete();
+                    return;
+                }
+            }
 
             Map<String, Object> startStats = new LinkedHashMap<>();
             startStats.put("total", total);
             startStats.put("synced", initialSynced);
             startStats.put("unsynced", Math.max(0L, total - initialSynced));
+            int maxParallel = resolveBatchMaxParallel(accelerate);
             startStats.put("batchTotal", pending.size());
             startStats.put("keyword", q);
+            startStats.put("companyType", companyTypeCode);
+            startStats.put("industry", industryCode);
+            startStats.put("accelerate", accelerate);
+            startStats.put("maxParallel", maxParallel);
             emitSse(emitter, "stats", startStats);
 
             if (pending.isEmpty()) {
@@ -274,10 +437,13 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
             runState = opt.get();
             // Lambda 内只能引用 effectively final 变量，故单独声明 final 引用供异步任务与回调共用
             final RagSyncRunState runRef = runState;
-            Runnable cancelHook = runRef::cancel;
-            emitter.onCompletion(cancelHook);
-            emitter.onTimeout(cancelHook);
-            emitter.onError(e -> runRef.cancel());
+            Runnable releaseHook = () -> {
+                runRef.cancel();
+                ragSyncBatchCoordinator.endRun(runRef);
+            };
+            emitter.onCompletion(releaseHook);
+            emitter.onTimeout(releaseHook);
+            emitter.onError(e -> releaseHook.run());
 
             // 多线程写入 items，使用同步列表；进度中的 synced 用「本批已成功数 + initialSynced」近似展示
             List<Map<String, Object>> items = Collections.synchronizedList(new ArrayList<>(pending.size()));
@@ -285,6 +451,7 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
             AtomicInteger batchDone = new AtomicInteger();
             int batchSize = pending.size();
             CountDownLatch latch = new CountDownLatch(batchSize);
+            Semaphore parallelGate = new Semaphore(maxParallel);
 
             for (BizJobsInfo job : pending) {
                 CompletableFuture.supplyAsync(() -> {
@@ -293,7 +460,13 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
                                 if (runRef.isCancelled()) {
                                     return skippedRow(job, "已取消（未执行同步）");
                                 }
-                                return syncOneJobInBatch(job);
+                                parallelGate.acquire();
+                                try {
+                                    emitJobSyncing(emitter, job, batchSize);
+                                    return syncOneJobInBatch(job);
+                                } finally {
+                                    parallelGate.release();
+                                }
                             } catch (InterruptedException e) {
                                 Thread.currentThread().interrupt();
                                 return skippedRow(job, "已中断");
@@ -304,10 +477,10 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
                                 Map<String, Object> r = row;
                                 if (ex != null) {
                                     r = new LinkedHashMap<>();
-                                    r.put("jobId", job.getId());
+                                    r.put("jobId", job.getJobid());
                                     r.put("success", false);
                                     r.put("message", ex.getMessage() != null ? ex.getMessage() : String.valueOf(ex));
-                                    log.error("批量同步 RAG 任务异常, jobId={}", job.getId(), ex);
+                                    log.error("批量同步 RAG 任务异常, jobId={}", job.getJobid(), ex);
                                 }
                                 items.add(r);
                                 if (Boolean.TRUE.equals(r.get("success"))) {
@@ -324,7 +497,7 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
                                 progress.put("item", r);
                                 emitSse(emitter, "progress", progress);
                             } catch (Exception sendEx) {
-                                log.warn("SSE progress 发送失败, jobId={}", job.getId(), sendEx);
+                                log.warn("SSE progress 发送失败, jobId={}", job.getJobid(), sendEx);
                             } finally {
                                 latch.countDown();
                             }
@@ -395,11 +568,25 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
      */
     private static Map<String, Object> skippedRow(BizJobsInfo job, String reason) {
         Map<String, Object> r = new LinkedHashMap<>();
-        r.put("jobId", job.getId());
+        r.put("jobId", job.getJobid());
+        r.put("jobName", job.getZwmc());
         r.put("success", false);
         r.put("skipped", true);
         r.put("message", reason);
         return r;
+    }
+
+    /** 单条岗位开始写入 RAG 时推送，供前端展示「正在同步」岗位名与计时进度条。 */
+    private void emitJobSyncing(SseEmitter emitter, BizJobsInfo job, int batchTotal) {
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("jobId", job.getJobid());
+            payload.put("jobName", job.getZwmc());
+            payload.put("batchTotal", batchTotal);
+            emitSse(emitter, "syncing", payload);
+        } catch (IOException ex) {
+            log.warn("SSE syncing 发送失败, jobId={}", job.getJobid(), ex);
+        }
     }
 
     /**
@@ -418,7 +605,8 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
      */
     private Map<String, Object> syncOneJobInBatch(BizJobsInfo job) {
         Map<String, Object> row = new LinkedHashMap<>();
-        row.put("jobId", job.getId());
+        row.put("jobId", job.getJobid());
+        row.put("jobName", job.getZwmc());
         try {
             Map<String, Object> detail = syncRagForJob(job);
             row.put("success", true);
@@ -428,12 +616,12 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
             row.put("success", false);
             row.put("httpStatus", ex.getStatusCode().value());
             row.put("message", ex.getReason());
-            log.warn("批量同步 RAG 单条失败, jobId={}, status={}, reason={}", job.getId(), ex.getStatusCode(), ex.getReason());
+            log.warn("批量同步 RAG 单条失败, jobId={}, status={}, reason={}", job.getJobid(), ex.getStatusCode(), ex.getReason());
             return row;
         } catch (Exception ex) {
             row.put("success", false);
             row.put("message", ex.getMessage());
-            log.error("批量同步 RAG 单条异常, jobId={}, reason={}", job.getId(), ex.getMessage(), ex);
+            log.error("批量同步 RAG 单条异常, jobId={}, reason={}", job.getJobid(), ex.getMessage(), ex);
             return row;
         }
     }
@@ -450,30 +638,31 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
      * </ol>
      */
     private Map<String, Object> syncRagForJob(BizJobsInfo job) {
-        String ragText = buildRagText(job);
+        BizCompanyInfo company = loadCompanyForJob(job);
+        String ragText = jobRagTextBuilder.build(job, company);
+        String jobId = job.getJobid();
         Map<String, Object> requestBody = new LinkedHashMap<>();
         requestBody.put("texts", List.of(ragText));
-        requestBody.put("job_ids", List.of(job.getId()));
+        requestBody.put("job_ids", List.of(jobId));
         requestBody.put("source", ragSource);
 
         try {
             String requestJson = objectMapper.writeValueAsString(requestBody);
             Map<String, Object> grepRagRequestBody = new LinkedHashMap<>();
-            grepRagRequestBody.put("filename", buildMarkdownFilename(job));
+            String filename = jobRagTextBuilder.buildMarkdownFilename(job, company);
+            grepRagRequestBody.put("filename", filename);
             grepRagRequestBody.put("text", ragText);
             String grepRagRequestJson = objectMapper.writeValueAsString(grepRagRequestBody);
 
             log.info("岗位同步到 RAG 开始(线程池并行上游), jobId={}, textLength={}, grepFilename={}",
-                    job.getId(), ragText.length(), grepRagRequestBody.get("filename"));
+                    jobId, ragText.length(), filename);
 
-            // 必须使用与 ragSyncExecutor 不同的执行器：批量同步时外层 supplyAsync 已占用池内线程，
-            // 若此处仍向 ragSyncExecutor 提交并 join，池线程耗尽会导致死锁（常见现象：只成功同步一条后卡住）。
             CompletableFuture<AiJobHttpResponse> lightRagFuture = CompletableFuture.supplyAsync(
-                    () -> postLightRagInsert(requestJson, job.getId()),
+                    () -> postLightRagInsert(requestJson, jobId),
                     ForkJoinPool.commonPool()
             );
             CompletableFuture<AiJobHttpResponse> grepRagFuture = CompletableFuture.supplyAsync(
-                    () -> postGrepRagTextToMd(grepRagRequestJson, job.getId()),
+                    () -> postGrepRagTextToMd(grepRagRequestJson, jobId),
                     ForkJoinPool.commonPool()
             );
 
@@ -487,67 +676,69 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
             AiJobHttpResponse grepRagUpstream = grepRagFuture.join();
 
             Map<String, Object> graphRagBody = parseUpstreamBody(graphRagUpstream);
-            log.info("岗位同步到 GraphRAG 完成, jobId={}, statusCode={}", job.getId(), graphRagUpstream.statusCode());
+            log.info("岗位同步到 GraphRAG 完成, jobId={}, statusCode={}", jobId, graphRagUpstream.statusCode());
 
             if (graphRagUpstream.statusCode() < 200 || graphRagUpstream.statusCode() >= 300) {
                 String detail = Objects.toString(graphRagBody.getOrDefault("detail", "GraphRAG 同步失败"), "GraphRAG 同步失败");
-                log.error("岗位同步到 GraphRAG 失败, jobId={}, statusCode={}, detail={}", job.getId(), graphRagUpstream.statusCode(), detail);
+                log.error("岗位同步到 GraphRAG 失败, jobId={}, statusCode={}, detail={}", jobId, graphRagUpstream.statusCode(), detail);
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, detail);
             }
 
             Map<String, Object> grepRagBody = parseUpstreamBody(grepRagUpstream);
-            log.info("岗位同步到 GrepRAG 完成, jobId={}, statusCode={}", job.getId(), grepRagUpstream.statusCode());
+            log.info("岗位同步到 GrepRAG 完成, jobId={}, statusCode={}", jobId, grepRagUpstream.statusCode());
             if (grepRagUpstream.statusCode() < 200 || grepRagUpstream.statusCode() >= 300) {
                 String detail = Objects.toString(grepRagBody.getOrDefault("detail", "GrepRAG 创建 Markdown 失败"), "GrepRAG 创建 Markdown 失败");
-                log.error("岗位同步到 GrepRAG 失败, jobId={}, statusCode={}, detail={}", job.getId(), grepRagUpstream.statusCode(), detail);
+                log.error("岗位同步到 GrepRAG 失败, jobId={}, statusCode={}, detail={}", jobId, grepRagUpstream.statusCode(), detail);
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, detail);
             }
 
-            BizJobsInfo update = new BizJobsInfo();
-            update.setId(job.getId());
-            update.setSynRag("1");
-            update.setRagMdPath(extractRagMdPath(grepRagBody));
-            bizJobsInfoService.updateById(update);
+            String ragMdPath = extractRagMdPath(grepRagBody);
+            bizJobsRagSyncService.markSynced(jobId, ragMdPath);
 
             Map<String, Object> result = new HashMap<>();
             result.put("success", true);
             result.put("message", "同步知识库成功");
-            result.put("jobId", job.getId());
+            result.put("jobId", jobId);
             result.put("synRag", "1");
-            result.put("ragMdPath", update.getRagMdPath());
+            result.put("ragMdPath", ragMdPath);
             result.put("graphRag", graphRagBody);
             result.put("grepRag", grepRagBody);
             return result;
         } catch (ResponseStatusException ex) {
             throw ex;
         } catch (Exception ex) {
-            log.error("岗位同步到 RAG 失败, jobId={}, reason={}", job.getId(), ex.getMessage(), ex);
+            log.error("岗位同步到 RAG 失败, jobId={}, reason={}", jobId, ex.getMessage(), ex);
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "调用 ai_job 失败: " + ex.getMessage());
         }
     }
 
-    /** 与 {@link org.example.server_job.ai.service.impl.DataApiServiceImpl#listJobsPaged} 中关键词条件保持一致。 */
-    private static String normalizeRagKeyword(String keyword) {
-        return keyword == null ? "" : keyword.trim();
+    /** 统计查询范围内已同步岗位数（关联 t_biz_jobs_rag_sync）。 */
+    private long countSyncedInScope(String normalizedKeyword, String companyType, String industry) {
+        LambdaQueryWrapper<BizJobsInfo> w = new LambdaQueryWrapper<>();
+        bizJobListScopeSupport.applyListScope(w, normalizedKeyword, companyType, industry);
+        w.inSql(BizJobsInfo::getJobid,
+                "SELECT jobid FROM t_biz_jobs_rag_sync WHERE syn_rag = 1");
+        return bizJobsInfoService.count(w);
     }
 
-    private static void applyJobKeywordScope(LambdaQueryWrapper<BizJobsInfo> w, String normalizedKeyword) {
-        if (normalizedKeyword == null || normalizedKeyword.isEmpty()) {
-            return;
-        }
-        w.and(x -> x.like(BizJobsInfo::getJobName, normalizedKeyword)
-                .or().like(BizJobsInfo::getCompanyName, normalizedKeyword)
-                .or().like(BizJobsInfo::getAddress, normalizedKeyword)
-                .or().like(BizJobsInfo::getArea, normalizedKeyword));
-    }
-
-    /** 判断该岗位是否仍需要同步：synRag 为空或非 "1" 视为待同步。 */
+    /** 判断该岗位是否仍需要同步：独立 RAG 状态表未标记 syn_rag=1 视为待同步。 */
     private boolean needsRagSync(BizJobsInfo job) {
-        String flag = job.getSynRag();
-        if (flag == null || flag.isBlank()) {
-            return true;
+        return !bizJobsRagSyncService.isSynced(job.getJobid());
+    }
+
+    /** 批量 SSE：未加速时串行（1）；加速时按配置的线程池并行度。 */
+    private int resolveBatchMaxParallel(boolean accelerate) {
+        if (!accelerate) {
+            return 1;
         }
-        return !"1".equals(flag.trim());
+        return Math.max(1, ragSyncParallelism);
+    }
+
+    private BizCompanyInfo loadCompanyForJob(BizJobsInfo job) {
+        if (job.getYrdw() == null || job.getYrdw().isBlank()) {
+            return null;
+        }
+        return bizCompanyInfoService.getByZzjgdm(job.getYrdw().trim());
     }
 
     /** 在线程池 worker 中执行：POST LightRAG insert；IOException 包装为 UncheckedIOException 供 join 路径统一处理。 */
@@ -560,6 +751,90 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
         }
     }
 
+    @Override
+    public Map<String, Object> purgeLightRagBacklog() {
+        return doPurgeLightRagBacklog();
+    }
+
+    @Override
+    public Map<String, Object> lightRagBacklogStats() {
+        Map<String, Object> out = new LinkedHashMap<>();
+        try {
+            log.info("LightRAG 积压统计 HTTP 开始, path={}", lightRagBacklogStatsPath);
+            AiJobHttpResponse resp = aiJobGatewayService.get(lightRagBacklogStatsPath, Map.of());
+            Map<String, Object> body = parseUpstreamBody(resp);
+            if (resp.statusCode() < 200 || resp.statusCode() >= 300) {
+                out.put("success", false);
+                out.put("httpStatus", resp.statusCode());
+                out.put("message", Objects.toString(body.getOrDefault("detail", "LightRAG 积压统计失败"), "LightRAG 积压统计失败"));
+                out.put("body", body);
+                return out;
+            }
+            out.put("success", true);
+            out.putAll(body);
+            return out;
+        } catch (IOException e) {
+            log.error("LightRAG 积压统计 IO 失败, reason={}", e.getMessage(), e);
+            out.put("success", false);
+            out.put("message", "调用 ai_job 失败: " + e.getMessage());
+            return out;
+        }
+    }
+
+    /**
+     * 清理 LightRAG 中 pending / processing / failed 积压，避免历史半完成文档占用资源。
+     * 返回 Map 含 success、candidate_count、success_count、fullyCleared 等；HTTP 非 2xx 时 success=false 并带 message。
+     */
+    private Map<String, Object> doPurgeLightRagBacklog() {
+        Map<String, Object> out = new LinkedHashMap<>();
+        try {
+            String path = lightRagPurgeNonProcessedPath.replaceAll("/+$", "")
+                    + "?dry_run=false&max_concurrent=1";
+            log.info("LightRAG 积压清理 HTTP 开始, path={}", path);
+            AiJobHttpResponse resp = aiJobGatewayService.postJson(path, "{}");
+            Map<String, Object> body = parseUpstreamBody(resp);
+            if (resp.statusCode() < 200 || resp.statusCode() >= 300) {
+                out.put("success", false);
+                out.put("httpStatus", resp.statusCode());
+                out.put("message", Objects.toString(body.getOrDefault("detail", "LightRAG 积压清理失败"), "LightRAG 积压清理失败"));
+                out.put("body", body);
+                log.warn("LightRAG 积压清理失败, status={}, body={}", resp.statusCode(), body);
+                return out;
+            }
+            out.put("success", true);
+            out.putAll(body);
+            int candidate = toInt(body.get("candidate_count"));
+            int successCnt = toInt(body.get("success_count"));
+            int notFoundCnt = toInt(body.get("not_found_count"));
+            int failureCnt = toInt(body.get("failure_count"));
+            int exceptionCnt = toInt(body.get("exception_count"));
+            boolean queueCleared = Boolean.TRUE.equals(body.get("queue_cleared"))
+                    || toInt(body.get("remaining_non_processed_count")) == 0;
+            boolean deepDeleteFullyCleared = Boolean.TRUE.equals(body.get("deep_delete_fully_cleared"));
+            boolean fullyCleared = candidate <= 0
+                    || deepDeleteFullyCleared
+                    || (queueCleared && failureCnt == 0 && exceptionCnt == 0);
+            out.put("fullyCleared", fullyCleared);
+            out.put("queueCleared", queueCleared);
+            out.put("deepDeleteFullyCleared", deepDeleteFullyCleared);
+            log.info(
+                    "LightRAG 积压清理完成, candidate={}, success={}, failure={}, exception={}, queueCleared={}, fullyCleared={}",
+                    candidate,
+                    successCnt,
+                    failureCnt,
+                    exceptionCnt,
+                    queueCleared,
+                    fullyCleared
+            );
+            return out;
+        } catch (IOException e) {
+            log.error("LightRAG 积压清理 IO 失败, reason={}", e.getMessage(), e);
+            out.put("success", false);
+            out.put("message", "调用 ai_job 失败: " + e.getMessage());
+            return out;
+        }
+    }
+
     /** 在线程池 worker 中执行：POST GrepRAG text-to-md。 */
     private AiJobHttpResponse postGrepRagTextToMd(String grepRagRequestJson, String jobId) {
         try {
@@ -568,6 +843,39 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    private AiJobHttpResponse deleteLightRagDoc(String docId, String jobId) {
+        try {
+            String path = lightRagDeleteDocPath.replaceAll("/+$", "") + "/" + java.net.URLEncoder.encode(docId, StandardCharsets.UTF_8);
+            log.info("岗位下架 LightRAG HTTP 开始, jobId={}, docId={}, path={}", jobId, docId, path);
+            return aiJobGatewayService.delete(path);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private AiJobHttpResponse deleteGrepRagMarkdown(String ragMdPath, String jobId) {
+        if (ragMdPath == null || ragMdPath.isBlank()) {
+            log.info("岗位下架 GrepRAG 跳过（无 ragMdPath）, jobId={}", jobId);
+            return new AiJobHttpResponse(404, Map.of(), new byte[0]);
+        }
+        try {
+            String q = "file_path=" + java.net.URLEncoder.encode(ragMdPath.trim(), StandardCharsets.UTF_8);
+            String path = grepRagDeleteMdPath.replaceAll("/+$", "") + "?" + q;
+            log.info("岗位下架 GrepRAG HTTP 开始, jobId={}, path={}", jobId, path);
+            return aiJobGatewayService.delete(path);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static String toLightRagDocId(String jobId) {
+        String s = jobId == null ? "" : jobId.trim();
+        if (s.isEmpty()) {
+            return s;
+        }
+        return s.startsWith("job-") ? s : "job-" + s;
     }
 
     /**
@@ -614,71 +922,7 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
         return normalized;
     }
 
-    /**
-     * 将岗位实体展平为一段结构化 Markdown 文本，作为 RAG 入库正文。
-     * 空字段用 "-" 占位，便于模型阅读。
-     */
-    private String buildRagText(BizJobsInfo job) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("# 岗位信息：").append(orDash(job.getJobName())).append("\n\n");
-        sb.append("## 基本信息\n");
-        sb.append("- 岗位ID：").append(orDash(job.getId())).append('\n');
-        sb.append("- 招聘标题：").append(orDash(job.getPostingTitle())).append('\n');
-        sb.append("- 岗位类型：").append(orDash(job.getJobType())).append('\n');
-        sb.append("- 行业：").append(orDash(job.getIndustry())).append('\n');
-        sb.append("- 领域：").append(orDash(job.getArea())).append('\n');
-        sb.append("- 地址：").append(orDash(job.getAddress())).append('\n');
-        sb.append("- 学历要求：").append(orDash(job.getEducation())).append('\n');
-        sb.append("- 专业要求：").append(orDash(job.getMajorReq())).append('\n');
-        sb.append("- 薪资范围：").append(orDash(job.getSalaryRange())).append('\n');
-        sb.append("- 招聘人数：").append(orDash(job.getVacancies())).append('\n');
-        sb.append("- 发布时间：").append(orDash(job.getPublishTime())).append('\n');
-        sb.append("- 创建时间：").append(orDash(job.getCreateTime())).append("\n\n");
-
-        sb.append("## 企业信息\n");
-        sb.append("- 公司名称：").append(orDash(job.getCompanyName())).append('\n');
-        sb.append("- 企业统一编码：").append(orDash(job.getCompanyId())).append('\n');
-        sb.append("- 公司性质：").append(orDash(job.getCompanyType())).append("\n\n");
-
-        sb.append("## 来源信息\n");
-        sb.append("- 来源：").append(orDash(job.getSource())).append("\n\n");
-
-        sb.append("## 岗位正文\n");
-        sb.append(orDash(job.getContent())).append('\n');
-        return sb.toString();
-    }
-
-    /**
-     * 生成 GrepRAG 落盘用的安全文件名：公司名、岗位名、岗位 ID 做文件名非法字符替换，
-     * 末尾加毫秒时间戳避免同岗位多次同步覆盖（与 ai_job 侧 text-to-md 逻辑一致）。
-     */
-    private String buildMarkdownFilename(BizJobsInfo job) {
-        String jobId = orDash(job.getId())
-                .replaceAll("[\\\\/:*?\"<>|\\s]+", "_")
-                .replaceAll("_+", "_")
-                .replaceAll("^_+|_+$", "");
-        if (jobId.isEmpty() || "-".equals(jobId)) {
-            jobId = "unknown";
-        }
-        String jobName = orDash(job.getJobName())
-                .replaceAll("[\\\\/:*?\"<>|\\s]+", "_")
-                .replaceAll("_+", "_")
-                .replaceAll("^_+|_+$", "");
-        if (jobName.isEmpty() || "-".equals(jobName)) {
-            jobName = "unknown";
-        }
-
-        String companyName = orDash(job.getCompanyName())
-                .replaceAll("[\\\\/:*?\"<>|\\s]+", "_")
-                .replaceAll("_+", "_")
-                .replaceAll("^_+|_+$", "");
-        if (companyName.isEmpty() || "-".equals(companyName)) {
-            companyName = "unknown";
-        }
-        return "job_" + companyName + "_" + jobName + "_" + jobId + "_" + System.currentTimeMillis() + ".md";
-    }
-
-    /** 从 GrepRAG JSON 响应中取 file_path 字符串，供写回 t_biz_jobs_info.ragMdPath。 */
+    /** 从 GrepRAG JSON 响应中取 file_path 字符串，供写回 t_biz_jobs_rag_sync.rag_md_path。 */
     private String extractRagMdPath(Map<String, Object> grepRagBody) {
         if (grepRagBody == null) {
             return null;
@@ -691,11 +935,18 @@ public class JobRagSyncServiceImpl implements JobRagSyncService {
         return value.isEmpty() ? null : value;
     }
 
-    /** null 或空白串统一为展示用 "-"，避免正文出现大量英文 null。 */
-    private String orDash(String value) {
-        if (value == null || value.trim().isEmpty()) {
-            return "-";
+    private static int toInt(Object value) {
+        if (value instanceof Number n) {
+            return n.intValue();
         }
-        return value.trim();
+        if (value == null) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value).trim());
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
     }
+
 }

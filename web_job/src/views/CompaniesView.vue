@@ -162,7 +162,7 @@ onBeforeUnmount(() => {
           <input
             v-model="searchInput"
             class="search"
-            placeholder="企业名 / 信用代码 / 行业 — 输入即本地筛选，回车查库"
+            placeholder="企业名称 / 企业ID / 行业 — 输入即本地筛选，回车查库"
             @keydown.enter.prevent="onSearchEnter"
           />
           <div class="toolbar-meta">
@@ -193,7 +193,7 @@ onBeforeUnmount(() => {
                   {{ isFollowing(item.credit_code) ? "已关注" : "关注" }}
                 </button>
                 <router-link class="inline-link" :to="`/companies/${item.credit_code}`">查看企业详情</router-link>
-                <router-link class="inline-link" to="/jobs">浏览全部岗位</router-link>
+                <router-link class="inline-link" :to="`/companies/${item.credit_code}#company-jobs`">浏览企业岗位</router-link>
               </div>
             </li>
           </ul>

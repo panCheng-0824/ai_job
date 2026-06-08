@@ -181,6 +181,34 @@ class GrepRAGService:
         log.info("GrepRAG 文本写入 Markdown 完成, file=%s", target)
         return str(target)
 
+    def delete_markdown_file(self, file_path: str) -> bool:
+        """删除 docs 目录下的 Markdown 文件，并清理内存索引中同路径条目。"""
+        op_id = "del-md-" + uuid.uuid4().hex[:8]
+        _step(op_id, 1, "delete_markdown_file start")
+        raw = (file_path or "").strip()
+        if not raw:
+            return False
+        target = Path(raw).expanduser().resolve()
+        docs_root = self._docs_dir.resolve()
+        if docs_root not in target.parents and target != docs_root:
+            log.warning("GrepRAG 删除 Markdown 拒绝越界路径, file=%s, docs_dir=%s", target, docs_root)
+            return False
+        removed_file = False
+        if target.is_file():
+            target.unlink(missing_ok=True)
+            removed_file = True
+        removed_docs = 0
+        with self._lock:
+            stale_ids = [doc_id for doc_id, doc in self._docs.items() if doc.file_path and Path(doc.file_path).resolve() == target]
+            for doc_id in stale_ids:
+                self._docs.pop(doc_id, None)
+                removed_docs += 1
+            if removed_docs:
+                self._save_to_disk()
+        _step(op_id, 2, "delete_markdown_file done, removed_file=%s, removed_docs=%s", removed_file, removed_docs)
+        log.info("GrepRAG 删除 Markdown 完成, file=%s, removed_file=%s, removed_docs=%s", target, removed_file, removed_docs)
+        return removed_file or removed_docs > 0
+
     def insert_texts(self, texts: List[str], source: str = "manual") -> int:
         """步骤：清洗输入 -> 生成 doc_id -> 入内存并持久化。"""
         op_id = "insert-" + uuid.uuid4().hex[:8]

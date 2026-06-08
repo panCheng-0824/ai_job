@@ -4,6 +4,13 @@ from typing import Any, Dict, List
 
 from pydantic import BaseModel, Field
 
+from app.skills.job_info.constants import (
+    DEFAULT_MIN_RECOMMEND_SCORE,
+    DEFAULT_SCORE_BASELINE,
+    DEFAULT_TOP_N_JOBS,
+    MAX_TOP_N_JOBS,
+)
+
 
 class SessionInitRequest(BaseModel):
     """会话初始化请求体。"""
@@ -52,11 +59,17 @@ class JobInfoQueryRequest(BaseModel):
     """岗位信息查询请求体。"""
 
     query: str
-    top_n_jobs: int = 5
+    top_n_jobs: int = Field(default=DEFAULT_TOP_N_JOBS, ge=1, le=MAX_TOP_N_JOBS)
     top_n_companies: int = 3
     # 是否走 LightRAG（True）或 GrepRAG（False）；均仅返回检索上下文，岗位结构化由业务侧模型完成
     use_rag: bool = True
     student_context: str = ""
+    # 是否将 student_context 带入改写与 LLM 分析；False 时为游客模式
+    use_student_profile: bool = True
+    # 良好匹配评分基准线（0–100），写入 LLM 提示词
+    score_baseline: int = Field(default=DEFAULT_SCORE_BASELINE, ge=0, le=100)
+    # 返回岗位最低 score 阈值（0–100），低于此分的条目会被过滤
+    min_recommend_score: int = Field(default=DEFAULT_MIN_RECOMMEND_SCORE, ge=0, le=100)
     # 是否使用语义相似缓存（需服务端 JOB_INFO_SEM_CACHE_ENABLED=1）；默认 True
     use_semantic_cache: bool = True
     # 已废弃：LightRAG 固定 only_need_context，保留字段仅为 API 兼容
@@ -103,3 +116,15 @@ class VoiceSpokenSummaryTextRequest(BaseModel):
 
     answer_text: str
     chat_model_level: str = "mid"
+
+
+class AiSearchCrawlRequest(BaseModel):
+    """智能网页采集（ai_search）请求体。"""
+
+    url: str
+    prompt: str = ""
+    mode: str = "scrapy"
+    max_pages: int = Field(default=5, ge=1, le=20)
+    follow_links: bool = False
+    link_selector: str = ""
+    require_login: bool = False

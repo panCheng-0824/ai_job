@@ -13,7 +13,10 @@ RECOM_JSON_SCHEMA: Dict[str, Any] = {
             "type": "string",
             "description": "yes 或 on 表示推荐，否则为 no",
         },
-        "reason": {"type": "string", "description": "总体推荐或未推荐原因"},
+        "reason": {
+            "type": "string",
+            "description": "总体推荐说明（80–200 字）：筛选逻辑、与学生画像整体契合度及主要取舍",
+        },
         "recomList": {
             "type": "array",
             "description": "推荐岗位列表，按匹配度从高到低",
@@ -22,8 +25,17 @@ RECOM_JSON_SCHEMA: Dict[str, Any] = {
                 "properties": {
                     "jobId": {"type": "string"},
                     "jonName": {"type": "string"},
-                    "score": {"type": "integer", "minimum": 0, "maximum": 100},
-                    "reason": {"type": "string"},
+                    "score": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "匹配分；须与 reason 中五维评分说明一致",
+                    },
+                    "reason": {
+                        "type": "string",
+                        "minLength": 300,
+                        "description": "不少于300字；四段标题：【匹配结论】【评分依据】【素材依据】【差异提示】",
+                    },
                     "city": {"type": "string"},
                     "companyName": {"type": "string"},
                     "salaryRange": {"type": "string"},

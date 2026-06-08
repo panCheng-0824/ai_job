@@ -33,6 +33,68 @@ export function apiPost(path, payload) {
 }
 
 /**
+ * POST NDJSON 流（application/x-ndjson）：按行解析 JSON，非 SSE。
+ */
+export async function apiPostNdjsonStream(path, body, { onEvent, signal } = {}) {
+  let resp;
+  try {
+    resp = await fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/x-ndjson, application/json"
+      },
+      body: JSON.stringify(body ?? {}),
+      signal
+    });
+  } catch (e) {
+    if (e?.name === "AbortError") throw e;
+    throw new Error("无法连接后端，请确认 server_job 与 ai_job 已启动");
+  }
+  if (!resp.ok) {
+    const text = await resp.text();
+    let detail = text;
+    try {
+      detail = JSON.parse(text).detail || text;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(detail || "请求失败");
+  }
+  const reader = resp.body?.getReader();
+  if (!reader) {
+    throw new Error("响应不支持流式读取");
+  }
+  const decoder = new TextDecoder();
+  let carry = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    carry += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = carry.indexOf("\n")) >= 0) {
+      const line = carry.slice(0, idx).trim();
+      carry = carry.slice(idx + 1);
+      if (!line) continue;
+      try {
+        onEvent?.(JSON.parse(line));
+      } catch (err) {
+        console.warn("NDJSON 解析失败", err, line);
+      }
+    }
+  }
+  carry += decoder.decode();
+  const tail = carry.trim();
+  if (tail) {
+    try {
+      onEvent?.(JSON.parse(tail));
+    } catch (err) {
+      console.warn("NDJSON 尾行解析失败", err, tail);
+    }
+  }
+}
+
+/**
  * POST 请求 SSE（text/event-stream），按事件块解析并回调 onEvent(eventName, dataObject)。
  */
 function _emitSseFrame(raw, onEvent) {

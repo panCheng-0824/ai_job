@@ -2,9 +2,14 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { apiDelete, apiGet, apiPost, getStudentId } from "../api/client";
+import { resolveDictLabel } from "../utils/dictLabel";
+import { fmtRegisteredCapital } from "../utils/formatCompany";
+import { sanitizeRichHtml } from "../utils/richText";
 
 const route = useRoute();
 const company = ref(null);
+/** 单位性质展示文案（后端未翻译时前端按 job_dwxz 字典兜底） */
+const companyTypeLabel = ref("-");
 const jobs = ref([]);
 const error = ref("");
 
@@ -41,15 +46,98 @@ const normalizedJobs = computed(() =>
 
 const creditCode = computed(() => String(route.params.credit_code || "").trim());
 
+/** 空值统一展示为「-」 */
+function fmt(v) {
+  if (v === null || v === undefined) return "-";
+  const s = String(v).trim();
+  return s || "-";
+}
+
+/** 公司主页等外链：补全协议供 <a href> 使用 */
+function normalizeExternalUrl(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  if (/^https?:\/\//i.test(s)) return s;
+  return `https://${s}`;
+}
+
 const kvRows = computed(() => {
-  const data = company.value;
-  if (!data) return [];
+  const c = company.value;
+  if (!c) return [];
   return [
-    ["企业名称", data.companyName || "-"],
-    ["行业", data.area || "-"],
-    ["企业规模", data.companySize || "-"],
-    ["所在地", data.address || "-"]
+    ["企业名称", fmt(c.companyName || c.gsmc)],
+    ["行业类型", fmt(c.area)],
+    ["企业规模", fmt(c.companySize)],
+    ["单位性质", fmt(companyTypeLabel.value)],
+    ["办公地址", fmt(c.address)],
+    ["办公地区", fmt(c.region)]
   ];
+});
+
+/** 折叠区块摘要：取前几条非空字段值 */
+function fieldPreviewValue(field) {
+  const v = String(field?.value ?? "").trim();
+  return v && v !== "-" ? v : "";
+}
+
+function sectionPreview(fields, max = 2) {
+  const parts = (fields || [])
+    .map((f) => fieldPreviewValue(f))
+    .filter(Boolean)
+    .slice(0, max);
+  return parts.length ? parts.join(" · ") : "点击展开查看";
+}
+
+const detailSections = computed(() => {
+  const c = company.value || {};
+  return [
+    {
+      title: "工商与规模",
+      fields: [
+        { label: "企业ID", value: fmt(c.id || c.wid) },
+        { label: "机构类型", value: fmt(c.jglx) },
+        { label: "组织机构代码", value: fmt(c.zzjgdm) },
+        { label: "单位性质", value: fmt(companyTypeLabel.value) },
+        { label: "单位类型", value: fmt(c.dwlx) },
+        { label: "公司规模", value: fmt(c.companySize) },
+        { label: "注册资金（万元）", value: fmtRegisteredCapital(c.zczj) },
+        { label: "成立时间", value: fmt(c.clsj) },
+        {
+          label: "公司主页",
+          value: fmt(c.gszy),
+          href: c.gszy ? normalizeExternalUrl(c.gszy) : ""
+        }
+      ]
+    },
+    {
+      title: "地址与联系",
+      fields: [
+        { label: "办公地址", value: fmt(c.address) },
+        { label: "办公地区", value: fmt(c.region) },
+        { label: "注册地址", value: fmt(c.dwzcdz) },
+        { label: "单位邮箱", value: fmt(c.website) },
+        { label: "联系人", value: fmt(c.lxr) },
+        { label: "联系人职位", value: fmt(c.lxrzw) },
+        { label: "联系人电话", value: fmt(c.lxrdh) },
+        { label: "联系人手机", value: fmt(c.lxrsjh) },
+        { label: "联系人邮箱", value: fmt(c.lxrdzyj) }
+      ]
+    }
+  ];
+});
+
+/** 单位简介富文本（dwjj） */
+const companyIntroHtml = computed(() => sanitizeRichHtml(company.value?.dwjj || ""));
+
+const companyDetailPreview = ref(null);
+const companyPreviewJson = computed(() =>
+  companyDetailPreview.value ? JSON.stringify(companyDetailPreview.value, null, 2) : ""
+);
+const companyPreviewHint = computed(() => {
+  const p = companyDetailPreview.value;
+  const name = p?.companyName || company.value?.companyName;
+  const jobCount = p?.关联岗位数 ?? p?.RAG打包预览?.关联岗位总数 ?? normalizedJobs.value?.length ?? 0;
+  return name ? `${name} · ${jobCount} 岗打包` : "RAG 打包预览";
 });
 
 const loggedIn = computed(() => Boolean(getStudentId()));
@@ -128,17 +216,44 @@ async function loadPublicCoReviews() {
   }
 }
 
+async function loadCompanyJobs(yrdw, limit = 12) {
+  const code = String(yrdw || "").trim();
+  if (!code) {
+    jobs.value = [];
+    return;
+  }
+  const params = new URLSearchParams({ yrdw: code, limit: String(limit) });
+  try {
+    jobs.value = await apiGet(`/api/jobs/by-company?${params}`);
+  } catch {
+    jobs.value = [];
+  }
+}
+
+async function loadCompanyDetailPreview() {
+  const cc = creditCode.value;
+  if (!cc) {
+    companyDetailPreview.value = null;
+    return;
+  }
+  try {
+    companyDetailPreview.value = await apiGet(
+      `/api/companies/${encodeURIComponent(cc)}/detail-preview`
+    );
+  } catch {
+    companyDetailPreview.value = null;
+  }
+}
+
 async function loadCompany() {
   try {
     error.value = "";
     reviewHint.value = "";
     const cc = creditCode.value;
-    const [one, allJobs] = await Promise.all([
-      apiGet(`/api/companies/${encodeURIComponent(cc)}`),
-      apiGet("/api/jobs")
-    ]);
+    const one = await apiGet(`/api/companies/${encodeURIComponent(cc)}`);
     company.value = one;
-    jobs.value = (allJobs || []).filter((j) => j.companyId === one.id).slice(0, 12);
+    companyTypeLabel.value = await resolveDictLabel("job_dwxz", one?.companyType);
+    await loadCompanyJobs(one?.zzjgdm || one?.id, 12);
 
     await loadCoTagCatalog();
     if (getStudentId()) await refreshCoContext();
@@ -149,9 +264,12 @@ async function loadCompany() {
       selectedTagIds.value = [];
     }
     await loadPublicCoReviews();
+    await loadCompanyDetailPreview();
   } catch (err) {
     error.value = err.message || "加载失败";
     company.value = null;
+    companyTypeLabel.value = "-";
+    companyDetailPreview.value = null;
   }
 }
 
@@ -225,9 +343,9 @@ watch(
 <template>
   <div>
     <section class="hero">
-      <span class="badge">Company Detail</span>
-      <h1>{{ company?.companyName || company?.company_name || "加载中..." }}</h1>
-      <p>credit_code：<code>{{ route.params.credit_code }}</code></p>
+
+      <h1>{{ company?.companyName || company?.gsmc || "加载中..." }}</h1>
+      <p>企业ID（WID）：<code>{{ route.params.credit_code }}</code></p>
       <div v-if="showCompanyTipNoReview" class="hero-tip-row" aria-label="状态提示">
         <span class="tip-chip tip-chip--muted">未评价</span>
       </div>
@@ -251,6 +369,29 @@ watch(
         <p v-if="loggedIn" class="muted fol-hint">
           {{ companyFollowed ? "该企业已在你的关注列表中。" : "关注后可在「我的」中快速回访。" }}
         </p>
+        <details v-for="section in detailSections" :key="section.title" class="info-fold">
+          <summary class="info-fold-summary">
+            <span class="info-fold-title">{{ section.title }}</span>
+            <span class="info-fold-hint muted">{{ sectionPreview(section.fields) }}</span>
+          </summary>
+          <div class="info-fold-body">
+            <div class="kv">
+              <template v-for="field in section.fields" :key="`${section.title}-${field.label}`">
+                <div class="k">{{ field.label }}</div>
+                <div class="v">
+                  <a
+                    v-if="field.href"
+                    :href="field.href"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="external-link"
+                  >{{ field.value }}</a>
+                  <template v-else>{{ field.value || "-" }}</template>
+                </div>
+              </template>
+            </div>
+          </div>
+        </details>
         <details class="review-fold">
           <summary class="review-fold-summary">评价与口碑（点击展开）</summary>
           <div class="review-fold-body">
@@ -301,18 +442,50 @@ watch(
         </ul>
           </div>
         </details>
-        <h3 class="section-title">该企业发布的岗位</h3>
-        <ul class="list">
-          <li v-if="!normalizedJobs.length">暂无该企业岗位数据</li>
-          <li v-for="item in normalizedJobs" :key="item.job_id">
-            <router-link :to="`/jobs/${encodeURIComponent(item.job_id)}`">{{ item.job_title || "-" }}</router-link>
-            <div class="post-meta">行业：{{ item.district || "-" }}</div>
-            <div class="post-meta">薪资：{{ item.salary_range_month || "-" }}</div>
-            <div class="post-meta">地址：{{ item.city || "-" }}</div>
-          </li>
-        </ul>
+        <details class="info-fold">
+          <summary class="info-fold-summary">
+            <span class="info-fold-title">单位简介</span>
+            <span class="info-fold-hint muted">{{ companyIntroHtml ? "点击展开查看" : "暂无单位简介" }}</span>
+          </summary>
+          <div class="info-fold-body">
+            <div
+              v-if="companyIntroHtml"
+              class="rich-text-block"
+              v-html="companyIntroHtml"
+            />
+            <p v-else class="muted">暂无单位简介</p>
+          </div>
+        </details>
+        <details class="info-fold">
+          <summary class="info-fold-summary">
+            <span class="info-fold-title">该企业发布的岗位</span>
+            <span class="info-fold-hint muted">{{ normalizedJobs.length ? `${normalizedJobs.length} 个` : "暂无" }}</span>
+          </summary>
+          <div id="company-jobs" class="info-fold-body">
+            <ul class="list">
+              <li v-if="!normalizedJobs.length">暂无该企业岗位数据</li>
+              <li v-for="item in normalizedJobs" :key="item.job_id">
+                <router-link :to="`/jobs/${encodeURIComponent(item.job_id)}`">{{ item.job_title || "-" }}</router-link>
+                <div class="post-meta">行业：{{ item.district || "-" }}</div>
+                <div class="post-meta">薪资：{{ item.salary_range_month || "-" }}</div>
+                <div class="post-meta">地址：{{ item.city || "-" }}</div>
+              </li>
+            </ul>
+          </div>
+        </details>
+        <details v-if="companyPreviewJson" class="info-fold rag-debug-fold">
+          <summary class="info-fold-summary">
+            <span class="info-fold-title">RAG 打包预览（字典翻译）</span>
+            <span class="info-fold-hint muted">{{ companyPreviewHint }} · 点击展开</span>
+          </summary>
+          <div class="info-fold-body">
+            <p class="rag-debug-tip muted">
+              「展示数据」为企业全量字段（字典已翻译为中文）；「RAG打包预览」为一岗一文档策略下嵌入岗位的企业区块，以及各关联岗位的完整打包 JSON（含 markdown 正文）。
+            </p>
+            <pre class="rag-debug-pre">{{ companyPreviewJson }}</pre>
+          </div>
+        </details>
         <p class="error">{{ error }}</p>
-        <pre>{{ company ? JSON.stringify(company, null, 2) : "" }}</pre>
       </main>
     </div>
   </div>
@@ -384,6 +557,72 @@ watch(
 .review-fold-body {
   padding-top: 4px;
 }
+.info-fold {
+  margin-top: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 0 12px 12px;
+  background: #fafafa;
+}
+.info-fold-summary {
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 12px;
+  padding: 12px 0 10px;
+  list-style: none;
+  user-select: none;
+}
+.info-fold-summary::-webkit-details-marker {
+  display: none;
+}
+.info-fold-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+.info-fold-title::before {
+  content: "▸ ";
+  display: inline-block;
+  transition: transform 0.15s ease;
+  color: #94a3b8;
+}
+.info-fold[open] .info-fold-title::before {
+  transform: rotate(90deg);
+}
+.info-fold-hint {
+  font-size: 0.82rem;
+  font-weight: 400;
+  text-align: right;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.info-fold-body {
+  padding-top: 2px;
+  border-top: 1px solid #eceff3;
+}
+.rag-debug-tip {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+}
+.rag-debug-pre {
+  margin: 0;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 12px;
+  max-height: 48vh;
+  overflow: auto;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 .portrait {
   margin-top: 10px;
   line-height: 1.6;
@@ -402,6 +641,14 @@ watch(
 }
 .k {
   color: var(--text-muted);
+}
+.external-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  word-break: break-all;
+}
+.external-link:hover {
+  text-decoration: underline;
 }
 .btn-row {
   display: flex;
@@ -491,22 +738,36 @@ watch(
   font-size: 0.82rem;
   color: #4b5563;
 }
-pre {
-  margin-top: 12px;
-  border-radius: 10px;
-  background: #0f172a;
-  color: #f8fafc;
-  padding: 12px;
-  max-height: 36vh;
-  overflow: auto;
-  font-size: 0.78rem;
-}
 .error {
   color: var(--danger);
   margin-top: 8px;
   min-height: 20px;
   font-size: 0.9rem;
   font-weight: 600;
+}
+.rich-text-block {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  background: #ffffff;
+  color: #1f2937;
+  font-size: 0.92rem;
+  line-height: 1.8;
+  word-break: break-word;
+  max-height: 360px;
+  overflow: auto;
+}
+.rich-text-block :deep(p) {
+  margin: 0 0 0.75em;
+}
+.rich-text-block :deep(ul),
+.rich-text-block :deep(ol) {
+  margin: 0 0 0.75em;
+  padding-left: 1.25em;
+}
+.rich-text-block :deep(img) {
+  max-width: 100%;
+  height: auto;
 }
 @media (max-width: 900px) {
   .kv {

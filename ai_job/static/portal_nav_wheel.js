@@ -43,7 +43,7 @@
     if (p === "/resume") return "/resume";
     if (p.startsWith("/jobs")) return "/jobs";
     if (p.startsWith("/companies")) return "/companies";
-    if (p === "/tools" || p === "/data-search" || p === "/ocr") return "/tools";
+    if (p === "/tools" || p === "/data-search" || p === "/ai-search" || p === "/ocr") return "/tools";
     return "";
   }
 

@@ -1,4 +1,6 @@
 import { apiGet } from "./client";
+import { fmtRegisteredCapital } from "../utils/formatCompany";
+import { richTextToPlain } from "../utils/richText";
 import { fetchResumeStore } from "../modules/resume/api";
 import { formatSectionItemsText, normalizeSectionItems } from "../modules/resume/sectionsModel";
 import { pickSeriesDefaultVersion, stripTimeCopySuffix } from "../modules/resume/storage";
@@ -7,43 +9,67 @@ import { pickSeriesDefaultVersion, stripTimeCopySuffix } from "../modules/resume
 const MESSAGE_CONTEXT_MAX = 12000;
 
 /**
- * 字段标签：与 server_job dbData / 实体注释对齐，便于模型理解语义。
- * @see server_job/dbData/t_biz_jobs_info.sql
- * @see server_job/dbData/t_biz_company_info.sql
+ * 字段标签：与 server_job 0605 schema（t_biz_jobs_info / t_biz_compary_info）对齐。
  */
 const JOB_FIELD_LABELS = {
   id: "岗位ID",
-  source: "信息来源",
-  companyId: "公司ID",
-  industry: "所属行业",
-  jobNumb: "职位编码",
-  jobType: "岗位性质",
-  majorReq: "专业限制",
-  companyName: "公司全称",
-  area: "涉及领域",
-  useKeyWords: "关键字",
-  createTime: "创建时间",
-  jobName: "岗位全称",
-  postingTitle: "招聘标题",
-  address: "所在地址",
-  companyType: "公司性质",
-  publishTime: "发布时间",
-  salaryRange: "薪资范围",
+  jobid: "岗位ID",
+  yrdw: "用人单位ID",
+  companyId: "用人单位ID",
+  zwmc: "职位名称",
+  jobName: "职位名称",
+  zwlbText: "职位类别",
+  salaryRange: "月薪级别",
+  xqrs: "需求人数",
+  vacancies: "需求人数",
+  jzrq: "截止日期",
+  gzdd: "工作地点",
+  address: "工作地点",
+  area: "工作地区",
+  xlyqText: "学历要求",
   education: "学历要求",
-  vacancies: "招聘数量",
+  nlqxText: "能力需求",
+  xbyqText: "性别要求",
+  sxqText: "实习期",
+  gjzText: "关键字",
+  companyName: "用人单位",
+  companyType: "公司性质",
+  industry: "行业类型",
+  hylx: "行业类型",
+  lxr: "联系人",
+  lxryx: "联系人邮箱",
+  lxrdh: "联系人电话",
+  lxrsjh: "联系人手机",
+  sxsj: "生效时间",
+  createTime: "创建时间",
   synRag: "知识库同步状态",
   ragMdPath: "知识库文档路径",
-  content: "招聘正文"
+  content: "职位描述",
+  zwms: "职位描述"
 };
 
 const COMPANY_FIELD_LABELS = {
   id: "企业ID",
-  companyName: "公司全称",
+  wid: "企业ID",
+  gsmc: "公司名称",
+  companyName: "公司名称",
+  companyType: "单位性质",
   companySize: "公司规模",
-  companyType: "公司性质",
-  website: "公司网址",
-  area: "涉及领域",
-  address: "所在地址"
+  hylx: "行业类型",
+  area: "行业类型",
+  region: "办公地区",
+  address: "办公地址",
+  dwzcdz: "注册地址",
+  website: "单位邮箱",
+  dwyx: "单位邮箱",
+  gszy: "公司主页",
+  zczj: "注册资金（万元）",
+  dwjj: "单位简介",
+  jglx: "机构类型",
+  zzjgdm: "组织机构代码",
+  lxr: "联系人",
+  lxrdh: "联系人电话",
+  lxrsjh: "联系人手机"
 };
 
 function clip(text, max = MESSAGE_CONTEXT_MAX) {
@@ -99,94 +125,84 @@ function formatEpoch(ms) {
 }
 
 /**
- * 岗位详情 → 模型隐藏文本（对齐 BizJobsInfo / t_biz_jobs_info）。
+ * 岗位详情 → 模型隐藏文本（0605 t_biz_jobs_info）。
  * @param {Record<string, unknown>} job GET /api/jobs/{id} 响应
  */
 function formatJobDetail(job) {
   if (!job) return "（未获取到岗位详情）";
 
-  const rel = job.company_relation && typeof job.company_relation === "object" ? job.company_relation : {};
-  const companyName = pick(job, "companyName", "company_name") || pick(rel, "company_name", "companyName");
-  const companyId = pick(job, "companyId", "company_id") || pick(rel, "credit_code", "companyId");
-
   const basicLines = [
-    lineFrom(job, JOB_FIELD_LABELS.id, "id", "job_id"),
-    lineFrom(job, JOB_FIELD_LABELS.jobName, "jobName", "job_name", "job_title"),
-    lineFrom(job, JOB_FIELD_LABELS.postingTitle, "postingTitle", "posting_title"),
-    lineFrom(job, JOB_FIELD_LABELS.jobNumb, "jobNumb", "job_numb"),
-    lineFrom(job, JOB_FIELD_LABELS.jobType, "jobType", "job_type"),
-    line(JOB_FIELD_LABELS.companyName, companyName),
-    line(JOB_FIELD_LABELS.companyId, companyId),
+    lineFrom(job, JOB_FIELD_LABELS.id, "id", "job_id", "jobid"),
+    lineFrom(job, JOB_FIELD_LABELS.jobName, "jobName", "zwmc", "job_name", "job_title"),
+    lineFrom(job, JOB_FIELD_LABELS.zwlbText, "zwlbText"),
+    lineFrom(job, JOB_FIELD_LABELS.companyName, "companyName", "company_name"),
+    lineFrom(job, JOB_FIELD_LABELS.companyId, "companyId", "yrdw", "company_id"),
     lineFrom(job, JOB_FIELD_LABELS.companyType, "companyType", "company_type"),
     lineFrom(job, JOB_FIELD_LABELS.industry, "industry"),
     lineFrom(job, JOB_FIELD_LABELS.area, "area", "district"),
-    lineFrom(job, JOB_FIELD_LABELS.address, "address", "city"),
-    lineFrom(job, JOB_FIELD_LABELS.education, "education"),
-    lineFrom(job, JOB_FIELD_LABELS.majorReq, "majorReq", "major_req"),
+    lineFrom(job, JOB_FIELD_LABELS.address, "address", "gzdd", "city"),
+    lineFrom(job, JOB_FIELD_LABELS.xlyqText, "xlyqText", "education"),
+    lineFrom(job, JOB_FIELD_LABELS.nlqxText, "nlqxText"),
     lineFrom(job, JOB_FIELD_LABELS.salaryRange, "salaryRange", "salary_range_month", "salary"),
-    lineFrom(job, JOB_FIELD_LABELS.vacancies, "vacancies"),
-    lineFrom(job, JOB_FIELD_LABELS.useKeyWords, "useKeyWords", "use_key_words")
+    lineFrom(job, JOB_FIELD_LABELS.sxqText, "sxqText"),
+    lineFrom(job, JOB_FIELD_LABELS.vacancies, "vacancies", "xqrs"),
+    lineFrom(job, JOB_FIELD_LABELS.jzrq, "jzrq"),
+    lineFrom(job, JOB_FIELD_LABELS.gjzText, "gjzText"),
+    lineFrom(job, JOB_FIELD_LABELS.xbyqText, "xbyqText")
+  ];
+
+  const contactLines = [
+    lineFrom(job, JOB_FIELD_LABELS.lxr, "lxr"),
+    lineFrom(job, JOB_FIELD_LABELS.lxryx, "lxryx"),
+    lineFrom(job, JOB_FIELD_LABELS.lxrdh, "lxrdh"),
+    lineFrom(job, JOB_FIELD_LABELS.lxrsjh, "lxrsjh")
   ];
 
   const metaLines = [
-    lineFrom(job, JOB_FIELD_LABELS.source, "source"),
-    lineFrom(job, JOB_FIELD_LABELS.publishTime, "publishTime", "publish_time"),
+    lineFrom(job, JOB_FIELD_LABELS.sxsj, "sxsj"),
     lineFrom(job, JOB_FIELD_LABELS.createTime, "createTime", "create_time"),
     line(JOB_FIELD_LABELS.synRag, formatSynRag(pick(job, "synRag", "syn_rag"))),
     lineFrom(job, JOB_FIELD_LABELS.ragMdPath, "ragMdPath", "rag_md_path")
   ];
 
-  const content = pick(
-    job,
-    "content",
-    "job_description",
-    "job_requirement",
-    "description"
-  );
-  // const html = pick(job, "html");
-  const bodyParts = [];
-  if (content) {
-    bodyParts.push(blockSection(JOB_FIELD_LABELS.content, [content]));
-  }
-  // if (html && html !== content) {
-  //   bodyParts.push(
-  //     blockSection("原始网页摘要", [
-  //       "（以下为 html 字段摘录，可能含标签）",
-  //       html.length > 4000 ? `${html.slice(0, 4000)}\n…（html 已截断）` : html
-  //     ])
-  //   );
-  // }
+  const content = richTextToPlain(pick(job, "content", "zwms", "job_description", "description"));
 
   const sections = [
     blockSection("岗位概要", basicLines),
-    blockSection("来源与时间", metaLines),
-    ...bodyParts
+    blockSection("联系信息", contactLines),
+    blockSection("时间与知识库", metaLines),
+    content ? blockSection(JOB_FIELD_LABELS.content, [content]) : ""
   ].filter(Boolean);
 
   return clip(sections.join("\n\n") || "（岗位字段为空）");
 }
 
 /**
- * 企业详情 → 模型隐藏文本（对齐 BizCompanyInfo / t_biz_company_info）。
+ * 企业详情 → 模型隐藏文本（0605 t_biz_compary_info）。
  * @param {Record<string, unknown>} company GET /api/companies/{creditCode} 响应
  */
 function formatCompanyDetail(company) {
   if (!company) return "（未获取到企业详情）";
 
   const lines = [
-    lineFrom(company, COMPANY_FIELD_LABELS.id, "id", "credit_code"),
-    lineFrom(company, COMPANY_FIELD_LABELS.companyName, "companyName", "company_name"),
+    lineFrom(company, COMPANY_FIELD_LABELS.id, "id", "wid", "credit_code"),
+    lineFrom(company, COMPANY_FIELD_LABELS.companyName, "companyName", "gsmc", "company_name"),
     lineFrom(company, COMPANY_FIELD_LABELS.companyType, "companyType", "company_type"),
     lineFrom(company, COMPANY_FIELD_LABELS.companySize, "companySize", "company_scale"),
     lineFrom(company, COMPANY_FIELD_LABELS.area, "area", "industry"),
-    lineFrom(company, COMPANY_FIELD_LABELS.address, "address", "registered_address"),
-    lineFrom(company, COMPANY_FIELD_LABELS.website, "website")
+    lineFrom(company, COMPANY_FIELD_LABELS.region, "region"),
+    lineFrom(company, COMPANY_FIELD_LABELS.address, "address", "dwbgdz"),
+    lineFrom(company, COMPANY_FIELD_LABELS.dwzcdz, "dwzcdz"),
+    lineFrom(company, COMPANY_FIELD_LABELS.website, "website", "dwyx"),
+    lineFrom(company, COMPANY_FIELD_LABELS.gszy, "gszy"),
+    line(COMPANY_FIELD_LABELS.zczj, fmtRegisteredCapital(pick(company, "zczj"))),
+    lineFrom(company, COMPANY_FIELD_LABELS.jglx, "jglx"),
+    lineFrom(company, COMPANY_FIELD_LABELS.zzjgdm, "zzjgdm"),
+    lineFrom(company, COMPANY_FIELD_LABELS.lxr, "lxr"),
+    lineFrom(company, COMPANY_FIELD_LABELS.lxrdh, "lxrdh"),
+    lineFrom(company, COMPANY_FIELD_LABELS.lxrsjh, "lxrsjh"),
+    line(COMPANY_FIELD_LABELS.dwjj, richTextToPlain(pick(company, "dwjj")))
   ];
-
-  const extra = pick(company, "business_scope", "businessScope");
-  if (extra) {
-    lines.push(line("经营范围", extra));
-  }
 
   return clip(blockSection("企业概要", lines) || "（企业字段为空）");
 }
@@ -255,14 +271,14 @@ function formatResumeDetail(resume) {
 }
 
 function buildJobCard(ref, job) {
-  const id = pick(job, "id", "job_id") || ref.ref_id;
+  const id = pick(job, "id", "job_id", "jobid") || ref.ref_id;
   const title =
     ref.title ||
-    pick(job, "jobName", "job_name", "job_title", "postingTitle") ||
+    pick(job, "jobName", "zwmc", "job_name", "job_title") ||
     id;
   const subtitle =
     ref.subtitle ||
-    [pick(job, "address", "city"), pick(job, "area"), pick(job, "companyName")].filter(Boolean).join(" · ");
+    [pick(job, "address", "gzdd", "city"), pick(job, "area"), pick(job, "companyName")].filter(Boolean).join(" · ");
   return {
     type: "job",
     ref_id: id,
@@ -273,11 +289,11 @@ function buildJobCard(ref, job) {
 }
 
 function buildCompanyCard(ref, company) {
-  const id = pick(company, "id", "credit_code") || ref.ref_id;
-  const title = ref.title || pick(company, "companyName", "company_name") || id;
+  const id = pick(company, "id", "wid", "credit_code") || ref.ref_id;
+  const title = ref.title || pick(company, "companyName", "gsmc", "company_name") || id;
   const subtitle =
     ref.subtitle ||
-    [pick(company, "area"), pick(company, "companySize"), pick(company, "address")]
+    [pick(company, "area", "industry"), pick(company, "companySize"), pick(company, "address", "region")]
       .filter(Boolean)
       .join(" · ");
   return {

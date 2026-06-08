@@ -21,6 +21,7 @@ class LightRAGConfig:
     vector_storage: str = "MilvusVectorDBStorage"
     query_mode: str = "mix"
     top_k: int = 20
+    tiktoken_model_name: str = "gpt-4o-mini"
 
 
 def resolve_lightrag_working_dir(cfg: LightRAGConfig) -> Path:
@@ -92,6 +93,37 @@ def load_lightrag_config_from_env() -> LightRAGConfig:
         vector_storage=vector_storage,
         query_mode=os.getenv("LIGHTRAG_QUERY_MODE", "mix"),
         top_k=int(os.getenv("LIGHTRAG_TOP_K", "20")),
+        tiktoken_model_name=(
+            os.getenv("LIGHTRAG_TIKTOKEN_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+        ),
     )
     log.info("LightRAG 环境配置加载完成, config=%s", cfg)
     return cfg
+
+
+def resolve_lightrag_worker_settings() -> dict[str, int]:
+    """
+    LightRAG 内部 worker 超时与并发（见 lightrag.constants / lightrag.lightrag）。
+
+    - ``EMBEDDING_TIMEOUT``：embedding 单次调用预算（秒）；worker 实际上限约为 2× 该值。
+    - ``LLM_TIMEOUT``：LLM 实体抽取等（秒）；worker 实际上限约为 2× 该值。
+    - 本地 4bit embedding（如 Qwen3-Embedding）较慢，默认提高到 180s，避免 60s worker 超时。
+    """
+    embedding_timeout = max(30, int(os.getenv("EMBEDDING_TIMEOUT", "180") or "180"))
+    llm_timeout = max(30, int(os.getenv("LLM_TIMEOUT", "180") or "180"))
+    embedding_func_max_async = max(1, int(os.getenv("EMBEDDING_FUNC_MAX_ASYNC", "1") or "1"))
+    embedding_batch_num = max(1, int(os.getenv("EMBEDDING_BATCH_NUM", "4") or "4"))
+    log.info(
+        "LightRAG worker 配置, embedding_timeout=%ss, llm_timeout=%ss, "
+        "embedding_func_max_async=%s, embedding_batch_num=%s",
+        embedding_timeout,
+        llm_timeout,
+        embedding_func_max_async,
+        embedding_batch_num,
+    )
+    return {
+        "embedding_timeout": embedding_timeout,
+        "llm_timeout": llm_timeout,
+        "embedding_func_max_async": embedding_func_max_async,
+        "embedding_batch_num": embedding_batch_num,
+    }

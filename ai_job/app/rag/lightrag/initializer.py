@@ -6,8 +6,9 @@ import logging
 import time
 from typing import Any
 
-from .config import LightRAGConfig, resolve_lightrag_working_dir
+from .config import LightRAGConfig, load_lightrag_config_from_env, resolve_lightrag_worker_settings, resolve_lightrag_working_dir
 from .runtime import build_openai_funcs, load_light_rag_symbols, select_llm_entry
+from .tiktoken_cache import build_lightrag_tokenizer, warmup_tiktoken_encoding
 from .trace import step
 
 log = logging.getLogger(__name__)
@@ -30,12 +31,17 @@ async def initialize_rag_instance(config: LightRAGConfig, op_id: str) -> Any:
     working_dir.mkdir(parents=True, exist_ok=True)
 
     log.info(
-        "LightRAG 初始化参数确认, workspace=%s, graph_storage=%s, vector_storage=%s, working_dir=%s",
+        "LightRAG 初始化参数确认, workspace=%s, graph_storage=%s, vector_storage=%s, working_dir=%s, tiktoken_model=%s",
         config.workspace,
         config.graph_storage,
         config.vector_storage,
         str(working_dir),
+        config.tiktoken_model_name,
     )
+    step(log, op_id, 6, "初始化继续, 预热 tiktoken 词表, model=%s", config.tiktoken_model_name)
+    warmup_tiktoken_encoding(config.tiktoken_model_name)
+    tokenizer = build_lightrag_tokenizer(config.tiktoken_model_name)
+    worker = resolve_lightrag_worker_settings()
     rag = LightRAG(
         working_dir=str(working_dir),
         workspace=config.workspace,
@@ -43,9 +49,15 @@ async def initialize_rag_instance(config: LightRAGConfig, op_id: str) -> Any:
         embedding_func=embedding_func,
         graph_storage=config.graph_storage,
         vector_storage=config.vector_storage,
+        tokenizer=tokenizer,
+        tiktoken_model_name=config.tiktoken_model_name,
+        default_llm_timeout=worker["llm_timeout"],
+        default_embedding_timeout=worker["embedding_timeout"],
+        embedding_func_max_async=worker["embedding_func_max_async"],
+        embedding_batch_num=worker["embedding_batch_num"],
     )
-    step(log, op_id, 6, "初始化继续, 执行存储层初始化")
+    step(log, op_id, 7, "初始化继续, 执行存储层初始化")
     await rag.initialize_storages()
     elapsed_ms = int((time.perf_counter() - started) * 1000)
-    step(log, op_id, 7, "初始化完成, elapsedMs=%s", elapsed_ms)
+    step(log, op_id, 8, "初始化完成, elapsedMs=%s", elapsed_ms)
     return rag

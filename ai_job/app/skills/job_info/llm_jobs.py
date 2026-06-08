@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from app.skills.job_info.llm_parse import coerce_score
+from app.skills.job_info.reason_format import parse_match_reason_sections
 
 
 def jobs_from_recom_list(recom_list: List[Any]) -> List[Dict[str, Any]]:
@@ -18,6 +19,7 @@ def jobs_from_recom_list(recom_list: List[Any]) -> List[Dict[str, Any]]:
         if not jid and not title:
             continue
         reason = str(item.get("reason") or "").strip()
+        sections = parse_match_reason_sections(reason)
         score = coerce_score(item.get("score"))
         city = str(item.get("city") or "").strip()
         salary = str(
@@ -40,6 +42,7 @@ def jobs_from_recom_list(recom_list: List[Any]) -> List[Dict[str, Any]]:
                 "company_name": company,
                 "score": score,
                 "match_reasons": [reason] if reason else [],
+                "match_reason_sections": sections,
             }
         )
     return out
@@ -51,6 +54,7 @@ def jobs_to_recommended_jobs(jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]
     for j in jobs:
         reasons = [str(x).strip() for x in (j.get("match_reasons") or []) if str(x).strip()]
         match_reason = "；".join(reasons) if reasons else ""
+        sections = j.get("match_reason_sections") or parse_match_reason_sections(match_reason)
         recommended.append(
             {
                 "job_id": j.get("job_id", ""),
@@ -65,6 +69,7 @@ def jobs_to_recommended_jobs(jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]
                 "score": j.get("score", 0),
                 "match_reason": match_reason,
                 "match_reasons": reasons,
+                "match_reason_sections": sections,
             }
         )
     return recommended

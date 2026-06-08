@@ -12,6 +12,12 @@ import logging
 import os
 from typing import Any, Dict
 
+from app.skills.job_info.constants import (
+    DEFAULT_MIN_RECOMMEND_SCORE,
+    DEFAULT_SCORE_BASELINE,
+    DEFAULT_TOP_N_JOBS,
+    MAX_TOP_N_JOBS,
+)
 from app.skills.job_info.context import payload_field
 from app.skills.job_info.llm_client import analyze_retrieval_sync
 from app.skills.job_info.llm_jobs import jobs_from_recom_list, jobs_to_recommended_jobs
@@ -47,6 +53,57 @@ def _payload_bool(value: Any, *, default: bool) -> bool:
     return s in ("1", "true", "yes", "on")
 
 
+def _clamp_score(value: Any, *, default: int) -> int:
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        n = default
+    return max(0, min(100, n))
+
+
+def resolve_recommend_options(payload: Any) -> Dict[str, Any]:
+    """解析 HTTP 请求中的推荐配置（与前端岗位推荐面板一致）。"""
+    use_profile = _payload_bool(
+        payload_field(payload, "use_student_profile", True), default=True
+    )
+    raw_ctx = str(payload_field(payload, "student_context", "") or "").strip()
+    top_n_raw = payload_field(payload, "top_n_jobs", DEFAULT_TOP_N_JOBS)
+    try:
+        top_n_jobs = max(1, min(MAX_TOP_N_JOBS, int(top_n_raw or DEFAULT_TOP_N_JOBS)))
+    except (TypeError, ValueError):
+        top_n_jobs = DEFAULT_TOP_N_JOBS
+    return {
+        "use_student_profile": use_profile,
+        "student_context": raw_ctx if use_profile else "",
+        "score_baseline": _clamp_score(
+            payload_field(payload, "score_baseline", DEFAULT_SCORE_BASELINE),
+            default=DEFAULT_SCORE_BASELINE,
+        ),
+        "min_recommend_score": _clamp_score(
+            payload_field(payload, "min_recommend_score", DEFAULT_MIN_RECOMMEND_SCORE),
+            default=DEFAULT_MIN_RECOMMEND_SCORE,
+        ),
+        "top_n_jobs": top_n_jobs,
+    }
+
+
+def _recommend_options_meta(opts: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "use_student_profile": bool(opts.get("use_student_profile")),
+        "score_baseline": int(opts.get("score_baseline", DEFAULT_SCORE_BASELINE)),
+        "min_recommend_score": int(opts.get("min_recommend_score", DEFAULT_MIN_RECOMMEND_SCORE)),
+        "top_n_jobs": int(opts.get("top_n_jobs", DEFAULT_TOP_N_JOBS)),
+    }
+
+
+def _filter_jobs_by_score(
+    jobs: list, *, min_score: int, top_n: int
+) -> list:
+    filtered = [j for j in jobs if int(j.get("score") or 0) >= min_score]
+    filtered.sort(key=lambda j: int(j.get("score") or 0), reverse=True)
+    return filtered[:top_n]
+
+
 def _use_semantic_cache_payload(payload: Any) -> bool:
     """
     是否使用语义相似缓存。
@@ -75,22 +132,36 @@ async def deal_data_by_llm(data: Dict[str, Any], payload: Any) -> Dict[str, Any]
 
     注意：岗位字段来自模型 JSON，**不**请求 server_job 拉详情。
     """
+    opts = resolve_recommend_options(payload)
     query = str(payload_field(payload, "query", "") or "").strip()
-    student_context = str(payload_field(payload, "student_context", "") or "").strip()
-    top_n_jobs = max(1, int(payload_field(payload, "top_n_jobs", 5) or 5))
+    student_context = str(opts["student_context"] or "").strip()
+    top_n_jobs = int(opts["top_n_jobs"])
+    min_score = int(opts["min_recommend_score"])
+    score_baseline = int(opts["score_baseline"])
+    use_profile = bool(opts["use_student_profile"])
+    options_meta = _recommend_options_meta(opts)
 
     rag = data.get("rag") or {}
     retrieval_text = str(rag.get("retrieval_context") or "").strip()
 
     if not rag.get("enabled") or not retrieval_text:
-        return decorate_response(data)
+        out = decorate_response(data)
+        out["recommend_options"] = options_meta
+        return out
 
     if _llm_disabled():
-        return decorate_response(data)
+        out = decorate_response(data)
+        out["recommend_options"] = options_meta
+        return out
 
     try:
         parsed = await asyncio.to_thread(
-            analyze_retrieval_sync, query, student_context, retrieval_text
+            analyze_retrieval_sync,
+            query,
+            student_context,
+            retrieval_text,
+            score_baseline=score_baseline,
+            use_student_profile=use_profile,
         )
     except Exception as e:
         log.warning("岗位素材 LLM 分析失败: %s", e, exc_info=True)
@@ -98,6 +169,7 @@ async def deal_data_by_llm(data: Dict[str, Any], payload: Any) -> Dict[str, Any]
         rag_out = dict(out.get("rag") or {})
         rag_out["llm_error"] = str(e)
         out["rag"] = rag_out
+        out["recommend_options"] = options_meta
         return out
 
     recom_list = recom_list_from_parsed(parsed)
@@ -113,10 +185,12 @@ async def deal_data_by_llm(data: Dict[str, Any], payload: Any) -> Dict[str, Any]
             "jobs": [],
             "companies": [],
             "llm": llm_summary,
+            "recommend_options": options_meta,
             "recommendation": build_recommendation_no_match(data, causes=[reason]),
         }
 
-    jobs = jobs_from_recom_list(recom_list)[:top_n_jobs]
+    jobs_all = jobs_from_recom_list(recom_list)
+    jobs = _filter_jobs_by_score(jobs_all, min_score=min_score, top_n=top_n_jobs)
     recommended = jobs_to_recommended_jobs(jobs)
 
     if jobs:
@@ -124,8 +198,13 @@ async def deal_data_by_llm(data: Dict[str, Any], payload: Any) -> Dict[str, Any]
     else:
         rec = build_recommendation_no_match(
             data,
-            causes=["模型已推荐但未解析出有效岗位条目（需含 jobId 或岗位名称）。"],
-            suggestions=["可调整提示或检查模型输出的 recomList 格式。"],
+            causes=[
+                f"模型给出的岗位均未达到最低推荐分数 {min_score} 分（评分基准 {score_baseline} 分）。"
+            ],
+            suggestions=[
+                "可适当降低「最低推荐分数」后重试。",
+                "或调整岗位诉求关键词以扩大检索范围。",
+            ],
         )
 
     return {
@@ -133,6 +212,7 @@ async def deal_data_by_llm(data: Dict[str, Any], payload: Any) -> Dict[str, Any]
         "jobs": jobs,
         "companies": [],
         "llm": llm_summary,
+        "recommend_options": options_meta,
         "recommendation": rec,
     }
 
@@ -156,10 +236,14 @@ async def run_job_info_query_async(payload: Any) -> Dict[str, Any]:
 
         return decorate_response(empty_retrieval_response())
 
-    student_context = str(payload_field(payload, "student_context", "") or "").strip()
-    top_n_jobs = max(1, int(payload_field(payload, "top_n_jobs", 5) or 5))
+    opts = resolve_recommend_options(payload)
+    student_context = str(opts["student_context"] or "").strip()
+    top_n_jobs = int(opts["top_n_jobs"])
     top_n_companies = max(1, int(payload_field(payload, "top_n_companies", 3) or 3))
     use_rag = bool(payload_field(payload, "use_rag", True))
+    use_profile = bool(opts["use_student_profile"])
+    score_baseline = int(opts["score_baseline"])
+    min_recommend_score = int(opts["min_recommend_score"])
 
     # 改写仅执行一次，ctx 供检索与缓存共用
     ctx = await build_recommend_ctx(query, student_context)
@@ -169,6 +253,9 @@ async def run_job_info_query_async(payload: Any) -> Dict[str, Any]:
         top_n_jobs=top_n_jobs,
         top_n_companies=top_n_companies,
         student_context=student_context,
+        use_student_profile=use_profile,
+        score_baseline=score_baseline,
+        min_recommend_score=min_recommend_score,
     )
 
     # --- 读缓存（在线程池执行，避免阻塞 embed 同步调用）---

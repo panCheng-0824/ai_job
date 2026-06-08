@@ -112,6 +112,56 @@ class LightRAGService:
             normalized = normalized.split(".")[-1]
         return normalized
 
+    @staticmethod
+    def _extract_status_error_from_row(row: Any) -> tuple[str, str]:
+        """从 LightRAG doc_status 条目提取 status 与 error（兼容 error_msg 字段）。"""
+        if isinstance(row, dict):
+            status = LightRAGService._normalize_doc_status(row.get("status", ""))
+            error = str(
+                row.get("error_msg")
+                or row.get("error")
+                or row.get("message")
+                or ""
+            ).strip()
+            return status, error
+        if row is not None:
+            status = LightRAGService._normalize_doc_status(getattr(row, "status", ""))
+            error = str(
+                getattr(row, "error_msg", "")
+                or getattr(row, "error", "")
+                or getattr(row, "message", "")
+                or ""
+            ).strip()
+            return status, error
+        return "", ""
+
+    def _read_disk_doc_status_rows(self, doc_ids: list[str]) -> dict[str, dict[str, str]]:
+        """从磁盘 kv_store_doc_status JSON 读取状态（API 未返回 error 时兜底）。"""
+        if not doc_ids:
+            return {}
+        wanted = set(doc_ids)
+        found: dict[str, dict[str, str]] = {}
+        cfg_root = Path(self._config.working_dir).expanduser().resolve()
+        for path in sorted({p for p in cfg_root.rglob("kv_store_*doc_status*.json") if p.is_file()}):
+            try:
+                raw = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if not isinstance(raw, dict):
+                continue
+            for doc_id in list(wanted):
+                if doc_id in found:
+                    continue
+                row = raw.get(doc_id)
+                if not isinstance(row, dict):
+                    continue
+                status, error = self._extract_status_error_from_row(row)
+                if status or error:
+                    found[doc_id] = {"status": status, "error": error}
+            if len(found) >= len(wanted):
+                break
+        return found
+
     async def _get_doc_status_details(
         self, docs: list[str], explicit_doc_ids: list[str] | None = None
     ) -> dict[str, dict[str, str]]:
@@ -127,23 +177,22 @@ class LightRAGService:
             else:
                 doc_ids = [compute_mdhash_id(content, prefix="doc-") for content in docs]
             fn = getattr(self._rag, "aget_docs_by_ids", None)
-            if fn is None:
-                return {}
-            raw = await fn(doc_ids) if asyncio.iscoroutinefunction(fn) else fn(doc_ids)
-            if not isinstance(raw, dict):
-                return {}
+            raw: dict[Any, Any] = {}
+            if fn is not None:
+                raw = await fn(doc_ids) if asyncio.iscoroutinefunction(fn) else fn(doc_ids)
+                if not isinstance(raw, dict):
+                    raw = {}
+            disk_rows = self._read_disk_doc_status_rows(doc_ids)
             out: dict[str, dict[str, str]] = {}
             for doc_id in doc_ids:
                 item = raw.get(doc_id)
-                status = ""
-                error = ""
-                if isinstance(item, dict):
-                    status = self._normalize_doc_status(item.get("status", ""))
-                    error = str(item.get("error", "") or item.get("message", "")).strip()
-                elif item is not None:
-                    # 兼容 DocProcessingStatus 对象
-                    status = self._normalize_doc_status(getattr(item, "status", ""))
-                    error = str(getattr(item, "error", "") or getattr(item, "message", "")).strip()
+                status, error = self._extract_status_error_from_row(item)
+                if not status and not error:
+                    disk_item = disk_rows.get(doc_id, {})
+                    status = disk_item.get("status", "")
+                    error = disk_item.get("error", "")
+                elif not error:
+                    error = disk_rows.get(doc_id, {}).get("error", "")
                 if status or error:
                     out[doc_id] = {
                         "status": status,
@@ -213,9 +262,12 @@ class LightRAGService:
                     failed[doc_id] = {**item, "error": err}
 
             if failed:
-                detail = {
-                    k: {"status": v.get("status", ""), "error": v.get("error", "")} for k, v in failed.items()
-                }
+                detail = {}
+                for k, v in failed.items():
+                    err = (v.get("error") or "").strip()
+                    if not err:
+                        err = "LightRAG 未返回具体原因（常见：LLM 实体抽取失败、Neo4j/Milvus 写入异常；请查 ai_job 日志）"
+                    detail[k] = {"status": v.get("status", ""), "error": err}
                 raise RuntimeError("LightRAG 文档处理失败（明确失败）: " + str(detail))
 
             if not pending_like:
@@ -446,6 +498,18 @@ class LightRAGService:
     async def update_entity(self, entity_name: str, data: dict[str, Any]) -> Any:
         return await self._call_rag_method(["aedit_entity", "edit_entity"], entity_name, data)
 
+    async def delete_by_doc_id(self, doc_id: str) -> Any:
+        """按文档 id 删除 LightRAG 中的岗位/文档及其关联索引。"""
+        raw = str(doc_id or "").strip()
+        if not raw:
+            raise ValueError("doc_id 不能为空")
+        await self._ensure_ready()
+        assert self._rag is not None
+        delete_fn = getattr(self._rag, "adelete_by_doc_id", None)
+        if delete_fn is None:
+            raise RuntimeError("当前 LightRAG 版本不支持 adelete_by_doc_id")
+        return await delete_fn(raw)
+
     async def delete_entity(self, entity_name: str) -> Any:
         return await self._call_rag_method(["adelete_by_entity", "delete_by_entity"], entity_name)
 
@@ -461,12 +525,86 @@ class LightRAGService:
     async def delete_relation(self, src_id: str, tgt_id: str) -> Any:
         return await self._call_rag_method(["adelete_by_relation", "delete_by_relation"], src_id, tgt_id)
 
+    def _aggregate_disk_doc_status_counts(self) -> dict[str, int]:
+        """扫描 working_dir 下所有 kv_store doc_status，按 doc_id 去重统计各状态数量。"""
+        counts: dict[str, int] = {"pending": 0, "processing": 0, "failed": 0, "processed": 0}
+        seen_doc_ids: set[str] = set()
+        cfg_root = Path(self._config.working_dir).expanduser().resolve()
+        paths = sorted({p for p in cfg_root.rglob("kv_store_*doc_status*.json") if p.is_file()})
+        for path in paths:
+            try:
+                raw = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                log.warning("读取 doc_status 统计失败, path=%s", path, exc_info=True)
+                continue
+            if not isinstance(raw, dict):
+                continue
+            for doc_id, row in raw.items():
+                doc_key = str(doc_id).strip()
+                if not doc_key or doc_key in seen_doc_ids or not isinstance(row, dict):
+                    continue
+                seen_doc_ids.add(doc_key)
+                st = self._normalize_doc_status(row.get("status", ""))
+                if st in counts:
+                    counts[st] += 1
+                elif st:
+                    counts[st] = counts.get(st, 0) + 1
+        return counts
+
+    async def get_backlog_stats(self) -> dict[str, Any]:
+        """
+        返回 LightRAG 文档积压统计（pending / processing / failed 及 processed 总量）。
+        内存与磁盘取各桶最大值，与清理积压逻辑一致。
+        """
+        disk = self._aggregate_disk_doc_status_counts()
+        memory: dict[str, int] = {"pending": 0, "processing": 0, "failed": 0, "processed": 0}
+        memory_available = False
+        storage: dict[str, Any] = {}
+        try:
+            await self._ensure_ready()
+            assert self._rag is not None
+            from lightrag.base import DocStatus
+
+            rag = self._rag
+            pending, processing, failed, status_counts = await asyncio.gather(
+                rag.get_docs_by_status(DocStatus.PENDING),
+                rag.get_docs_by_status(DocStatus.PROCESSING),
+                rag.get_docs_by_status(DocStatus.FAILED),
+                self._get_processing_status_counts(),
+            )
+            memory = {
+                "pending": len(pending),
+                "processing": len(processing),
+                "failed": len(failed),
+                "processed": int(status_counts.get("processed", 0)),
+            }
+            memory_available = True
+            storage = self.storage_info()
+        except Exception as exc:
+            log.warning("LightRAG 内存积压统计不可用, 仅返回磁盘统计, reason=%s", exc)
+
+        pending = max(memory["pending"], disk.get("pending", 0))
+        processing = max(memory["processing"], disk.get("processing", 0))
+        failed = max(memory["failed"], disk.get("failed", 0))
+        processed = max(memory.get("processed", 0), disk.get("processed", 0))
+        return {
+            "pending": pending,
+            "processing": processing,
+            "failed": failed,
+            "processed": processed,
+            "backlog_total": pending + processing + failed,
+            "memory_available": memory_available,
+            "from_memory": memory if memory_available else None,
+            "from_disk": disk,
+            **storage,
+        }
+
     async def delete_non_processed_documents(
         self,
         *,
         dry_run: bool = False,
         merge_disk_doc_status: bool = True,
-        max_concurrent_deletes: int = 4,
+        max_concurrent_deletes: int = 1,
         strip_non_processed_from_disk_doc_status: bool = True,
     ) -> dict[str, Any]:
         """
@@ -550,13 +688,25 @@ class LightRAGService:
                 },
             }
 
-        sem = asyncio.Semaphore(max(1, int(max_concurrent_deletes)))
+        # Neo4j 的 Single document deletion 不支持并发；串行 + 可重试错误退避，避免
+        # "Deletion not allowed: current job 'Single document deletion' is not a document deletion job"。
+        async def _delete_one_with_retry(doc_id: str) -> Any:
+            last: Any = None
+            for attempt in range(3):
+                last = await rag.adelete_by_doc_id(doc_id)
+                status = getattr(last, "status", "")
+                if status in ("success", "not_found"):
+                    return last
+                msg = str(getattr(last, "message", "") or "")
+                if attempt < 2 and self._is_retriable_delete_failure(msg):
+                    await asyncio.sleep(0.4 * (attempt + 1))
+                    continue
+                return last
+            return last
 
-        async def _one(doc_id: str) -> Any:
-            async with sem:
-                return await rag.adelete_by_doc_id(doc_id)
-
-        results = await asyncio.gather(*[_one(d) for d in ordered], return_exceptions=True)
+        results: list[Any] = []
+        for doc_id in ordered:
+            results.append(await _delete_one_with_retry(doc_id))
 
         successes: list[str] = []
         not_found: list[str] = []
@@ -596,15 +746,24 @@ class LightRAGService:
                 disk_strip_report.get("doc_status_entries_removed", 0),
             )
 
+        cfg_root = Path(self._config.working_dir).expanduser().resolve()
+        strip_paths = sorted({p for p in cfg_root.rglob("kv_store_*doc_status*.json") if p.is_file()})
+        remaining_non_processed = self._count_non_processed_on_disk(strip_paths)
+        deep_delete_fully_cleared = len(ordered) == 0 or (
+            len(failures) == 0 and len(errors) == 0 and len(successes) + len(not_found) >= len(ordered)
+        )
+        queue_cleared = len(ordered) == 0 or remaining_non_processed == 0
+
         step(
             log,
             op_id,
             8,
-            "delete_non_processed_documents 完成, success=%s not_found=%s fail=%s exc=%s",
+            "delete_non_processed_documents 完成, success=%s not_found=%s fail=%s exc=%s queue_cleared=%s",
             len(successes),
             len(not_found),
             len(failures),
             len(errors),
+            queue_cleared,
         )
         return {
             "dry_run": False,
@@ -613,12 +772,35 @@ class LightRAGService:
             "not_found_count": len(not_found),
             "failure_count": len(failures),
             "exception_count": len(errors),
+            "queue_cleared": queue_cleared,
+            "remaining_non_processed_count": remaining_non_processed,
+            "deep_delete_fully_cleared": deep_delete_fully_cleared,
             "success_doc_ids": successes,
             "not_found_doc_ids": not_found,
             "failures": failures,
             "errors": errors,
             "disk_strip": disk_strip_report,
         }
+
+    @staticmethod
+    def _count_non_processed_on_disk(paths: list[Path]) -> int:
+        count = 0
+        for path in paths:
+            try:
+                raw = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if not isinstance(raw, dict):
+                continue
+            for row in raw.values():
+                if isinstance(row, dict) and str(row.get("status", "")).strip().lower() != "processed":
+                    count += 1
+        return count
+
+    @staticmethod
+    def _is_retriable_delete_failure(message: str) -> bool:
+        m = (message or "").lower()
+        return "deletion not allowed" in m or "single document deletion" in m
 
     @staticmethod
     def _rewrite_disk_doc_status_remove_non_processed(paths: list[Path]) -> dict[str, Any]:

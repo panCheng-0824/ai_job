@@ -246,11 +246,20 @@ def build_openai_funcs(entry: ModelEntry) -> tuple[Any, Any]:
             expected_endpoint,
         )
         try:
+            embed_http_timeout = float(
+                os.getenv(
+                    "LIGHTRAG_EMBED_HTTP_TIMEOUT",
+                    os.getenv("EMBEDDING_TIMEOUT", "180"),
+                )
+                or "180"
+            )
+            embed_http_timeout = max(30.0, embed_http_timeout)
             result = await openai_embed.func(
                 input_payload,
                 model=embedding_model,
                 api_key=embedding_key,
                 base_url=embedding_api,
+                client_configs={"timeout": embed_http_timeout},
             )
             arr = np.asarray(result)
             actual_dim = _infer_embedding_dim(result)

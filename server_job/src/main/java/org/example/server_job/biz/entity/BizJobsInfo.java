@@ -5,78 +5,103 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
+/**
+ * 岗位信息表 {@code t_biz_jobs_info} 实体（0605 新 schema）。
+ */
 @Data
 @TableName("t_biz_jobs_info")
 public class BizJobsInfo {
 
-    @TableId("id")
-    private String id;
+    /** 用人单位，存 {@code t_biz_compary_info.zzjgdm}（组织机构代码）。 */
+    @TableField("yrdw")
+    private String yrdw;
 
-    @TableField("source")
-    private String source;
+    @TableId("jobid")
+    private String jobid;
 
-    @TableField("companyId")
-    private String companyId;
+    @TableField("zwmc")
+    private String zwmc;
 
-    @TableField("industry")
-    private String industry;
+    @TableField("xqrs")
+    private Integer xqrs;
 
-    @TableField("jobNumb")
-    private String jobNumb;
+    @TableField("jzrq")
+    private String jzrq;
 
-    @TableField("jobType")
-    private String jobType;
+    @TableField("zwlb")
+    private Integer zwlb;
 
-    @TableField("majorReq")
-    private String majorReq;
+    @TableField("yxjb")
+    /** 月薪级别，{@code job_yxjb.DM}，展示单位元 */
+    private Integer yxjb;
 
-    @TableField("companyName")
-    private String companyName;
+    @TableField("sxq")
+    /** 实习期，{@code jpb_sxq.DM}，展示单位月 */
+    private Integer sxq;
 
-    @TableField("area")
-    private String area;
+    @TableField("xbyq")
+    private Integer xbyq;
 
-    @TableField("useKeyWords")
-    private String useKeyWords;
+    @TableField("gzszsf")
+    private Integer gzszsf;
 
-    @TableField("create_time")
-    private String createTime;
+    @TableField("gzszcs")
+    private Integer gzszcs;
 
-    @TableField("html")
-    private String html;
+    @TableField("gzszdq")
+    private Integer gzszdq;
 
-    @TableField("synRag")
-    private String synRag;
+    @TableField("lxryx")
+    private String lxryx;
 
-    @TableField("ragMdPath")
-    private String ragMdPath;
+    @TableField("xlyq")
+    /** 学历要求，逗号分隔的 {@code job_xl.DM} */
+    private String xlyq;
 
+    @TableField("nlqx")
+    /** 能力需求，逗号分隔的 {@code job_nl.DM} */
+    private String nlqx;
 
+    @TableField("sxsj")
+    private LocalDateTime sxsj;
 
-    @TableField("jobName")
-    private String jobName;
+    @TableField("zt")
+    private Integer zt;
 
-    @TableField("address")
-    private String address;
+    @TableField("lxrdh")
+    private String lxrdh;
 
-    @TableField("companyType")
-    private String companyType;
+    @TableField("lxrsjh")
+    private String lxrsjh;
 
-    @TableField("publishTime")
-    private String publishTime;
+    @TableField("lxrqq")
+    private String lxrqq;
 
-    @TableField("salaryRange")
-    private String salaryRange;
+    @TableField("lxrwx")
+    private String lxrwx;
 
-    @TableField("education")
-    private String education;
+    @TableField("zwms")
+    /** 职位描述（富文本 HTML） */
+    private String zwms;
 
-    @TableField("vacancies")
-    private String vacancies;
+    @TableField("lxr")
+    private String lxr;
 
-    @TableField("content")
-    private String content;
+    @TableField("sfzm")
+    private Integer sfzm;
 
-    @TableField("postingTitle")
-    private String postingTitle;
+    @TableField("nd")
+    private Integer nd;
+
+    @TableField("cjsj")
+    private LocalDateTime cjsj;
+
+    @TableField("gzdd")
+    private String gzdd;
+
+    /** 关键字，逗号分隔的 {@code job_gjz.DM} */
+    @TableField("gjz")
+    private String gjz;
 }

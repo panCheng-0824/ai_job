@@ -59,7 +59,12 @@ def invoke_chat_completion(
 
 
 def analyze_retrieval_sync(
-    user_query: str, student_context: str, retrieval_context: str
+    user_query: str,
+    student_context: str,
+    retrieval_context: str,
+    *,
+    score_baseline: int = 85,
+    use_student_profile: bool = True,
 ) -> Dict[str, Any]:
     """
     同步分析检索素材，返回规范化后的 recom JSON 对象。
@@ -79,7 +84,13 @@ def analyze_retrieval_sync(
         },
         {
             "role": "user",
-            "content": build_analysis_prompt(user_query, student_context, retrieval_context),
+            "content": build_analysis_prompt(
+                user_query,
+                student_context,
+                retrieval_context,
+                score_baseline=score_baseline,
+                use_student_profile=use_student_profile,
+            ),
         },
     ]
     content = invoke_chat_completion(

@@ -114,6 +114,85 @@ async def lightrag_query(payload: LightRAGQueryRequest):
     }
 
 
+@router.get("/api/rag/lightrag/backlog-stats")
+async def lightrag_backlog_stats():
+    """LightRAG 积压统计：pending / processing / failed / processed。"""
+    trace_id = uuid.uuid4().hex[:8]
+    _step(trace_id, 1, "收到 LightRAG 积压统计请求")
+    try:
+        result = await get_lightrag_service().get_backlog_stats()
+        _step(
+            trace_id,
+            2,
+            "积压统计完成, pending=%s processing=%s failed=%s backlog_total=%s",
+            result.get("pending", 0),
+            result.get("processing", 0),
+            result.get("failed", 0),
+            result.get("backlog_total", 0),
+        )
+    except LightRAGUnavailableError as exc:
+        log.exception("[trace=%s] LightRAG 积压统计失败, 原因=运行环境不可用", trace_id)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        detail = f"LightRAG 积压统计失败: {exc.__class__.__name__}: {exc}"
+        log.error("[trace=%s] LightRAG 积压统计异常, detail=%s", trace_id, detail)
+        raise HTTPException(status_code=502, detail=detail) from exc
+    return {"success": True, **result}
+
+
+@router.post("/api/rag/lightrag/purge-non-processed")
+async def lightrag_purge_non_processed(
+    dry_run: bool = False,
+    max_concurrent: int = 1,
+):
+    """删除 LightRAG 中 pending / processing / failed 状态的文档（同步前清理积压）。"""
+    trace_id = uuid.uuid4().hex[:8]
+    _step(trace_id, 1, "收到 LightRAG 清理非 processed 文档请求, dry_run=%s", dry_run)
+    try:
+        service = get_lightrag_service()
+        result = await service.delete_non_processed_documents(
+            dry_run=bool(dry_run),
+            max_concurrent_deletes=max(1, int(max_concurrent)),
+        )
+        _step(
+            trace_id,
+            2,
+            "delete_non_processed_documents 完成, dry_run=%s, candidate=%s",
+            dry_run,
+            result.get("candidate_count", 0),
+        )
+    except LightRAGUnavailableError as exc:
+        log.exception("[trace=%s] LightRAG 清理失败, 原因=运行环境不可用", trace_id)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        detail = f"LightRAG 清理失败: {exc.__class__.__name__}: {exc}"
+        log.error("[trace=%s] LightRAG 清理异常, detail=%s", trace_id, detail)
+        raise HTTPException(status_code=502, detail=detail) from exc
+    return {"success": True, **result, **get_lightrag_service().storage_info()}
+
+
+@router.delete("/api/rag/lightrag/docs/{doc_id}")
+async def lightrag_delete_doc(doc_id: str):
+    """按 doc_id 删除 LightRAG 文档（含向量/图谱关联）。"""
+    trace_id = uuid.uuid4().hex[:8]
+    target = (doc_id or "").strip()
+    _step(trace_id, 1, "收到 LightRAG 删除文档请求, doc_id=%s", target)
+    if not target:
+        raise HTTPException(status_code=400, detail="doc_id 不能为空")
+    try:
+        service = get_lightrag_service()
+        result = await service.delete_by_doc_id(target)
+        _step(trace_id, 2, "delete_by_doc_id 成功, doc_id=%s", target)
+    except LightRAGUnavailableError as exc:
+        log.exception("[trace=%s] LightRAG 删除失败, 原因=运行环境不可用", trace_id)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        detail = f"LightRAG 删除失败: {exc.__class__.__name__}: {exc}"
+        log.error("[trace=%s] LightRAG 删除异常, detail=%s", trace_id, detail)
+        raise HTTPException(status_code=502, detail=detail) from exc
+    return {"success": True, "doc_id": target, "result": result, **get_lightrag_service().storage_info()}
+
+
 @router.post("/api/rag/graph/entities")
 async def create_graph_entity(payload: GraphEntityCreateRequest):
     """步骤：参数校验 -> 调用服务创建实体 -> 返回创建结果。"""

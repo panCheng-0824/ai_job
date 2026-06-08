@@ -1,19 +1,35 @@
 <script setup>
+/**
+ * 工具箱：数据搜索 / 智能搜索 / OCR 三个 Tab。
+ */
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import AiSearchView from "./AiSearchView.vue";
 import DataSearchView from "./DataSearchView.vue";
 import OcrView from "./OcrView.vue";
 
+const TABS = [
+  { id: "search", label: "数据搜索" },
+  { id: "ai-search", label: "智能搜索" },
+  { id: "ocr", label: "OCR 识别" }
+];
+
 const route = useRoute();
 const router = useRouter();
-const tab = ref(route.query.tab === "ocr" ? "ocr" : "search");
 const isEmbed = computed(() => route.query._embed === "1");
+
+function resolveTab(raw) {
+  if (raw === "ocr") return "ocr";
+  if (raw === "ai-search" || raw === "ai_search") return "ai-search";
+  return "search";
+}
+
+const tab = ref(resolveTab(route.query.tab));
 
 watch(
   () => route.query.tab,
   (t) => {
-    if (t === "ocr") tab.value = "ocr";
-    else tab.value = "search";
+    tab.value = resolveTab(t);
   }
 );
 
@@ -21,7 +37,7 @@ watch(
 function setTab(next) {
   tab.value = next;
   const query = { ...route.query };
-  query.tab = next === "ocr" ? "ocr" : "search";
+  query.tab = next;
   router.replace({ path: "/tools", query });
 }
 </script>
@@ -38,30 +54,25 @@ function setTab(next) {
         </div>
         <nav class="dock-tabs" role="tablist" aria-label="工具切换">
           <button
+            v-for="item in TABS"
+            :key="item.id"
             type="button"
             role="tab"
-            :aria-selected="tab === 'search'"
+            :aria-selected="tab === item.id"
             class="dock-tab"
-            :class="{ active: tab === 'search' }"
-            @click="setTab('search')"
+            :class="{ active: tab === item.id }"
+            @click="setTab(item.id)"
           >
-            数据搜索
-          </button>
-          <button
-            type="button"
-            role="tab"
-            :aria-selected="tab === 'ocr'"
-            class="dock-tab"
-            :class="{ active: tab === 'ocr' }"
-            @click="setTab('ocr')"
-          >
-            OCR 识别
+            {{ item.label }}
           </button>
         </nav>
       </header>
       <div class="dock-body">
         <section v-show="tab === 'search'" class="dock-pane" :aria-hidden="tab !== 'search'">
           <DataSearchView compact />
+        </section>
+        <section v-show="tab === 'ai-search'" class="dock-pane" :aria-hidden="tab !== 'ai-search'">
+          <AiSearchView compact />
         </section>
         <section v-show="tab === 'ocr'" class="dock-pane" :aria-hidden="tab !== 'ocr'">
           <OcrView compact />
@@ -126,15 +137,9 @@ function setTab(next) {
   letter-spacing: -0.02em;
   color: #111827;
 }
-.dock-sub {
-  margin: 4px 0 0;
-  font-size: 0.82rem;
-  color: #6b7280;
-  line-height: 1.45;
-  max-width: 36rem;
-}
 .dock-tabs {
   display: inline-flex;
+  flex-wrap: wrap;
   padding: 4px;
   border-radius: 14px;
   background: #eef2ff;
@@ -147,7 +152,7 @@ function setTab(next) {
   color: #4b5563;
   font-size: 0.88rem;
   font-weight: 600;
-  padding: 8px 18px;
+  padding: 8px 14px;
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
@@ -199,6 +204,8 @@ function setTab(next) {
   .dock-tab {
     flex: 1;
     text-align: center;
+    padding: 8px 8px;
+    font-size: 0.82rem;
   }
 }
 </style>

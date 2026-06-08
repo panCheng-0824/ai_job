@@ -92,7 +92,7 @@ function pathKey(pathname) {
   if (p.startsWith("/jobs")) return "/jobs";
   if (p.startsWith("/companies")) return "/companies";
   if (p.startsWith("/me")) return "/me";
-  if (p === "/tools" || p === "/data-search" || p === "/ocr") return "/tools";
+  if (p === "/tools" || p === "/data-search" || p === "/ai-search" || p === "/ocr") return "/tools";
   return "";
 }
 

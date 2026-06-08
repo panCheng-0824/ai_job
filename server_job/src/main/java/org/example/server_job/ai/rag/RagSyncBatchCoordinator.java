@@ -40,11 +40,12 @@ public class RagSyncBatchCoordinator {
         }
     }
 
-    /** 与关闭 SSE 连接等价：取消当前批次。 */
+    /** 与关闭 SSE 连接等价：取消当前批次并释放占槽，便于立即重新开始同步。 */
     public void cancelCurrent() {
         RagSyncRunState s = active.get();
         if (s != null) {
             s.cancel();
+            endRun(s);
         }
     }
 }

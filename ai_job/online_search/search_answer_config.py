@@ -2,6 +2,8 @@ from urllib.parse import quote
 
 import scrapy
 
+from ai_search.constants import DEFAULT_REQUEST_HEADERS
+
 DEMO_QUERIES = [
     "如何准备算法面试",
     "人工智能就业趋势",
@@ -54,14 +56,6 @@ TRACKING_QUERY_KEYS = {
 
 MIN_BODY_LEN = 120
 MAX_AD_KEYWORD_HITS = 3
-
-DEFAULT_REQUEST_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
-    )
-}
 
 
 def build_search_url(engine: str, query: str) -> str:
