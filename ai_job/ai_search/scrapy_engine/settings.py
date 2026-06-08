@@ -1,0 +1,19 @@
+"""Scrapy 运行参数（ai_search 主配置，online_search 可复用部分常量）。"""
+
+from ai_search.constants import DEFAULT_REQUEST_HEADERS
+
+__all__ = ["DEFAULT_REQUEST_HEADERS", "SPIDER_CUSTOM_SETTINGS", "MIN_BODY_LEN", "MAX_BODY_CHARS"]
+
+SPIDER_CUSTOM_SETTINGS = {
+    "DOWNLOAD_TIMEOUT": 20,
+    "CONCURRENT_REQUESTS": 6,
+    "RETRY_TIMES": 2,
+    "AUTOTHROTTLE_ENABLED": True,
+    "LOG_LEVEL": "INFO",
+    "ROBOTSTXT_OBEY": False,
+    "COOKIES_ENABLED": True,
+}
+
+MIN_BODY_LEN = 80
+MAX_BODY_CHARS = 8000
+MAX_PAGES_DEFAULT = 10

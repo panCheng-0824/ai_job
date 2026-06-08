@@ -1,0 +1,21 @@
+{
+  "url": "https://job.ncss.cn/student/jobs/index.html",
+  "prompt": "招聘列表里面存在哪些岗位信息",
+  "mode_used": "scrapy",
+  "session_reused": false,
+  "llm_used": true,
+  "errors": [],
+  "started_at": "2026-06-02T05:33:02.633332+00:00",
+  "finished_at": "2026-06-02T05:33:08.830649+00:00",
+  "pages": [
+    {
+      "url": "https://job.ncss.cn/student/jobs/index.html",
+      "title": "职位信息-国家大学生就业服务平台",
+      "body": "您将要离开国家大学生就业服务平台，进入 投递个人简历，请保护好个人隐私安全。 您将要离开国家大学生就业服务平台，进入 就业网站投递，跳转网站可能存在投递限制，请注意。",
+      "fields": {
+        "raw_body_preview": "您将要离开国家大学生就业服务平台，进入 投递个人简历，请保护好个人隐私安全。 您将要离开国家大学生就业服务平台，进入 就业网站投递，跳转网站可能存在投递限制，请注意。",
+        "llm_note": "[]"
+      }
+    }
+  ]
+}
