@@ -78,12 +78,34 @@ def init_session(
     }
 
 
-def get_history_bundle(session_id: str) -> Dict[str, Any]:
+def get_history_bundle(session_id: str, before_index: int = None, limit: int = None) -> Dict[str, Any]:
     sessions = session_store.load_sessions()
     _, session = session_store.find_session(sessions, session_id)
     if not session:
         raise PortalError("会话不存在", 404)
-    return {"session_id": session_id, "history": session.get("history", [])}
+    full = session.get("history", [])
+    total = len(full)
+    if before_index is not None:
+        before = max(0, int(before_index))
+        n = max(1, min(int(limit or 20), 100))
+        start = max(0, before - n)
+        page = full[start:before]
+        return {
+            "session_id": session_id,
+            "history": page,
+            "total": total,
+            "start_index": start,
+            "has_more": start > 0,
+        }
+    n = max(1, min(int(limit or 20), 100))
+    page = full[-n:] if len(full) > n else full
+    return {
+        "session_id": session_id,
+        "history": page,
+        "total": total,
+        "start_index": max(0, total - len(page)),
+        "has_more": total > len(page),
+    }
 
 
 def load_session_pair_or_raise(session_id: str):

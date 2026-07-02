@@ -1,18 +1,88 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 import { apiGet, apiPost, apiPostSse, getStudentId } from "../api/client";
+import FloatingFramePanel from "../components/FloatingFramePanel.vue";
+import HomeTopBar from "../components/home/HomeTopBar.vue";
+import JobsCenterCompanyGrid from "../components/jobs/JobsCenterCompanyGrid.vue";
+import JobsCenterJobGrid from "../components/jobs/JobsCenterJobGrid.vue";
+import JobsFilterPanel from "../components/jobs/JobsFilterPanel.vue";
+import JobsMatchSettingsPanel from "../components/jobs/JobsMatchSettingsPanel.vue";
+import JobCompareBar from "../components/jobs/JobCompareBar.vue";
+import JobCompareModal from "../components/jobs/JobCompareModal.vue";
 import RagSyncThreeMinuteProgress from "../components/rag/RagSyncThreeMinuteProgress.vue";
+import {
+  SCORE_DIMENSION_DEFS,
+  clampDimensionScore,
+  cloneDefaultScoreDimensions
+} from "../constants/jobScoreRubric";
+import { useJobMatchWaitTimer } from "../composables/useJobMatchWaitTimer";
+import { useJobCompare } from "../composables/useJobCompare";
 import { useRagSyncThreeMinuteProgress } from "../composables/useRagSyncThreeMinuteProgress";
 import {
   RAG_SYNC_SECONDS_PER_JOB,
   formatRagSyncHms,
   useRagSyncEtaCountdown,
 } from "../composables/useRagSyncEtaCountdown";
+
+const AsyncJobDetail = defineAsyncComponent(() => import("../views/JobDetailView.vue"));
+const AsyncCompanyDetail = defineAsyncComponent(() => import("../views/CompanyDetailView.vue"));
+
+const router = useRouter();
+const activeTab = ref("match");
+const sortMode = ref("score");
+const { compareList, compareCount, isSelected, toggleCompare, clearCompare, maxCompare } = useJobCompare();
+const compareOpen = ref(false);
+const compareJobs = ref([]);
+
+function openCompare() {
+  const allJobs = [...matchedJobs.value, ...jobs.value];
+  const idSet = new Set(compareList.value);
+  compareJobs.value = allJobs.filter((j) => idSet.has(j.job_id || j.id));
+  compareOpen.value = true;
+}
+const matchedJobs = ref([]);
+const recommendation = ref(null);
+const matchLoading = ref(false);
+const matchWait = useJobMatchWaitTimer();
+const { elapsedMs: matchElapsedMs, start: startMatchWait, stop: stopMatchWait } = matchWait;
+const lastMatchDurationMs = ref(null);
+const matchQuery = ref("");
+const useStudentProfile = ref(true);
+const useSemanticCache = ref(true);
+const scoreBaseline = ref(85);
+const minRecommendScore = ref(85);
+const topNJobs = ref(9);
+const scoreDimensions = ref(cloneDefaultScoreDimensions());
+const companiesLoading = ref(false);
+const companySearchInput = ref("");
+const companyRemoteKeyword = ref("");
+const companiesList = ref([]);
+const companyPage = ref(1);
+const companyPageSize = 20;
+const companyTotal = ref(0);
+const companyHasMore = ref(false);
+const companyLoadingMore = ref(false);
+const studentPortrait = ref(null);
+const filterProvince = ref("");
+const filterCity = ref("");
+const filterSalaryMin = ref("");
+const filterSalaryMax = ref("");
+const filterEducation = ref([]);
+const filterCompanySize = ref([]);
+const filterJobNature = ref([]);
+const filterPublishTime = ref("");
+const jobDetailFrameOpen = ref(false);
+const jobDetailFrameFullscreen = ref(false);
+const jobDetailFrameTitle = ref("");
+const selectedJobId = ref("");
+const selectedCreditCode = ref("");
+const detailMode = ref("job");
 const jobs = ref([]);
 const page = ref(1);
 const pageSize = 20;
 const total = ref(0);
-const hasMore = ref(true);
+const hasMore = ref(false);
 const loadingMore = ref(false);
 /** 输入框内容：未按回车时仅参与本地过滤；按回车后写入 remoteKeyword 并走接口分页 */
 const searchInput = ref("");
@@ -30,16 +100,20 @@ const selectedIndustry = ref("");
 const error = ref("");
 const favoriteJobIds = ref(new Set());
 const sentinelRef = ref(null);
-const listScrollRef = ref(null);
 let observer;
 const normalizedJobs = computed(() =>
   (jobs.value || []).map((item) => ({
     job_id: item.id,
     job_title: item.jobName,
+    job_name: item.jobName,
     city: item.address,
     district: item.area,
     salary_range_month: item.salaryRange,
     salary_months: "-",
+    xlyqText: item.xlyqText,
+    createTime: item.createTime,
+    create_time: item.createTime,
+    company_name: item.companyName,
     company_relation: {
       company_name: item.companyName,
       credit_code: item.companyWid || item.companyId
@@ -47,13 +121,142 @@ const normalizedJobs = computed(() =>
   }))
 );
 
+const studentInfo = computed(() => studentPortrait.value?.["学生基本信息"] || {});
+const studentDisplayName = computed(() => studentInfo.value["姓名"] || "");
+
+const cityOptions = computed(() => {
+  const set = new Set();
+  for (const j of jobs.value || []) {
+    if (j.address) set.add(String(j.address));
+    if (j.area) set.add(String(j.area));
+  }
+  for (const j of matchedJobs.value || []) {
+    if (j.city) set.add(String(j.city));
+  }
+  return [...set].sort((a, b) => a.localeCompare(b, "zh-CN"));
+});
+
+function parseSalaryK(text) {
+  const raw = String(text || "");
+  const nums = raw.match(/\d+/g);
+  if (!nums?.length) return null;
+  return nums.map((n) => Number(n)).filter((n) => Number.isFinite(n));
+}
+
+function passesClientFilters(item) {
+  if (filterCity.value && item.city !== filterCity.value && item.district !== filterCity.value) {
+    return false;
+  }
+  if (filterSalaryMin.value || filterSalaryMax.value) {
+    const nums = parseSalaryK(item.salary_range_month);
+    if (!nums?.length) return false;
+    const val = Math.max(...nums);
+    const min = Number(filterSalaryMin.value);
+    const max = Number(filterSalaryMax.value);
+    if (Number.isFinite(min) && val < min) return false;
+    if (Number.isFinite(max) && val > max) return false;
+  }
+  if (filterEducation.value.length && !filterEducation.value.includes("any")) {
+    const edu = String(item.xlyqText || "").toLowerCase();
+    const needBachelor = filterEducation.value.includes("bachelor");
+    const needMaster = filterEducation.value.includes("master");
+    const needDoctor = filterEducation.value.includes("doctor");
+    if (needDoctor && !edu.includes("博")) return false;
+    if (needMaster && !edu.includes("硕") && !edu.includes("研")) return false;
+    if (needBachelor && !edu.includes("本") && !edu.includes("本科")) return false;
+  }
+  if (filterPublishTime.value) {
+    const ts = Number(item.createTime || item.create_time || 0);
+    if (!ts) return false;
+    const days = { "3d": 3, "7d": 7, "30d": 30 }[filterPublishTime.value] || 0;
+    if (days > 0 && Date.now() - ts > days * 86400000) return false;
+  }
+  return true;
+}
+
+const clientFilteredJobs = computed(() => normalizedJobs.value.filter(passesClientFilters));
+
 const filtered = computed(() => {
   const q = searchInput.value.trim().toLowerCase();
-  if (!q) return normalizedJobs.value;
-  return normalizedJobs.value.filter((item) => {
+  const base = clientFilteredJobs.value;
+  if (!q) return base;
+  return base.filter((item) => {
     const text = `${item.job_title || ""} ${item.city || ""} ${item.company_relation?.company_name || ""}`.toLowerCase();
     return text.includes(q);
   });
+});
+
+const gridJobs = computed(() => {
+  if (activeTab.value === "match") return matchedJobs.value.filter(passesClientFilters);
+  if (activeTab.value === "hot") return filtered.value;
+  return [];
+});
+
+const gridLoading = computed(() => {
+  if (activeTab.value === "match") return matchLoading.value;
+  if (activeTab.value === "hot") return loadingMore.value && !jobs.value.length;
+  return false;
+});
+
+const centerTabs = [
+  { key: "match", label: "智能匹配职位" },
+  { key: "hot", label: "热招职位" },
+  { key: "companies", label: "热门企业" }
+];
+
+const gridEmptyText = computed(() => {
+  if (activeTab.value === "match") return "暂无智能匹配岗位，请调整匹配设置或左侧筛选";
+  if (activeTab.value === "hot") return "没有匹配的岗位，请调整搜索或筛选";
+  return "暂无岗位";
+});
+
+const searchDisabled = computed(() => activeTab.value === "match");
+
+const searchPlaceholder = computed(() => {
+  if (activeTab.value === "match") return "智能匹配模式下请使用下方「匹配设置」调整诉求";
+  if (activeTab.value === "companies") return "搜索企业名称 / 行业 / 地区，回车查库";
+  return "搜索职位名 / 工作地点 / 用人单位，回车查库";
+});
+
+const toolbarSearchValue = computed({
+  get() {
+    return activeTab.value === "companies" ? companySearchInput.value : searchInput.value;
+  },
+  set(value) {
+    if (activeTab.value === "companies") companySearchInput.value = value;
+    else searchInput.value = value;
+  }
+});
+
+const normalizedCompanies = computed(() =>
+  (companiesList.value || []).map((item) => ({
+    credit_code: item.id,
+    company_name: item.companyName,
+    industry: item.area,
+    company_size: item.companySize,
+    job_count: Number(item.jobCount ?? 0)
+  }))
+);
+
+const filteredCompanies = computed(() => {
+  const q = companySearchInput.value.trim().toLowerCase();
+  if (!q) return normalizedCompanies.value;
+  return normalizedCompanies.value.filter((item) => {
+    const text = `${item.company_name || ""} ${item.credit_code || ""} ${item.industry || ""} ${item.company_size || ""}`.toLowerCase();
+    return text.includes(q);
+  });
+});
+
+const companyTotalText = computed(() => {
+  const draft = companySearchInput.value.trim();
+  const remote = companyRemoteKeyword.value.trim();
+  if (remote) {
+    return `检索「${remote}」：库内共 ${companyTotal.value} 家（已加载 ${filteredCompanies.value.length} 家）`;
+  }
+  if (draft) {
+    return `本地筛选 ${filteredCompanies.value.length} 家（回车可向库内检索）`;
+  }
+  return `共 ${companyTotal.value} 家企业`;
 });
 
 const totalText = computed(() => {
@@ -66,6 +269,12 @@ const totalText = computed(() => {
     return `本地筛选 ${filtered.value.length} 条（回车可向库内检索）`;
   }
   return `共 ${total.value} 个岗位`;
+});
+
+const pageSubtitle = computed(() => {
+  if (activeTab.value === "match") return "基于画像与诉求的智能匹配结果 · 使用下方匹配设置调整";
+  if (activeTab.value === "hot") return totalText.value;
+  return companyTotalText.value;
 });
 /** 仅输入未回车：本地过滤已加载列表，不展示服务端分页文案 */
 const isLocalFilterOnly = computed(() => {
@@ -189,12 +398,10 @@ function toggleFilterPanel() {
 
 function toggleCompanyType(code) {
   selectedCompanyType.value = selectedCompanyType.value === code ? "" : code;
-  void applyFilterScope();
 }
 
 function toggleIndustry(code) {
   selectedIndustry.value = selectedIndustry.value === code ? "" : code;
-  void applyFilterScope();
 }
 
 function clearCompanyTypeFilter() {
@@ -216,6 +423,85 @@ function clearFacetFilters() {
   void applyFilterScope();
 }
 
+function onSearchEnter() {
+  if (activeTab.value === "match") return;
+  if (activeTab.value === "companies") {
+    companyRemoteKeyword.value = companySearchInput.value.trim();
+    resetCompanyPagedList();
+    void loadNextCompanyPage();
+    return;
+  }
+  remoteKeyword.value = searchInput.value.trim();
+  resetPagedList();
+  void Promise.all([loadFilterFacets(), loadRagStats()]).then(() => loadNextPage());
+}
+
+function resetCompanyPagedList() {
+  companiesList.value = [];
+  companyPage.value = 1;
+  companyHasMore.value = true;
+  companyTotal.value = 0;
+}
+
+async function loadNextCompanyPage() {
+  if (companyLoadingMore.value || !companyHasMore.value) return;
+  companyLoadingMore.value = true;
+  companiesLoading.value = companyPage.value === 1;
+  try {
+    const rk = companyRemoteKeyword.value.trim();
+    const kw = rk ? `&keyword=${encodeURIComponent(rk)}` : "";
+    const data = await apiGet(
+      `/api/companies/paged?page=${companyPage.value}&pageSize=${companyPageSize}${kw}`
+    );
+    const items = data?.items || [];
+    companiesList.value.push(...items);
+    companyTotal.value = Number(data?.total || 0);
+    companyHasMore.value = Boolean(data?.hasMore);
+    companyPage.value += 1;
+  } catch (err) {
+    error.value = err.message;
+  } finally {
+    companyLoadingMore.value = false;
+    companiesLoading.value = false;
+  }
+}
+
+function buildScoreDimensionsPayload() {
+  const out = {};
+  for (const dim of SCORE_DIMENSION_DEFS) {
+    out[dim.key] = clampDimensionScore(
+      scoreDimensions.value[dim.key],
+      cloneDefaultScoreDimensions()[dim.key]
+    );
+  }
+  return out;
+}
+
+function buildStudentContextFromPortrait() {
+  const s = studentInfo.value || {};
+  return [
+    s["专业名称"] && `专业：${s["专业名称"]}`,
+    s["学历"] && `学历：${s["学历"]}`,
+    s["毕业年度"] && `毕业届别：${s["毕业年度"]}`,
+    s["学校名称"] && `学校：${s["学校名称"]}`,
+    s["院系名称"] && `院系：${s["院系名称"]}`
+  ]
+    .filter(Boolean)
+    .join("；");
+}
+
+function clampScore(value, fallback = 85) {
+  const n = Number.parseInt(String(value), 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(100, n));
+}
+
+function clampTopN(value, fallback = 9) {
+  const n = Number.parseInt(String(value), 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(1, Math.min(20, n));
+}
+
 /** 回车：用当前输入向服务端检索并重置无限滚动 */
 function resetPagedList() {
   jobs.value = [];
@@ -223,12 +509,6 @@ function resetPagedList() {
   hasMore.value = true;
   total.value = 0;
   error.value = "";
-}
-
-function onSearchEnter() {
-  remoteKeyword.value = searchInput.value.trim();
-  resetPagedList();
-  void Promise.all([loadFilterFacets(), loadRagStats()]).then(() => loadNextPage());
 }
 
 const hasFacetFilter = computed(
@@ -253,27 +533,214 @@ watch(syncedOnly, () => {
   void loadNextPage();
 });
 
+async function applyJobsFilters() {
+  if (activeTab.value === "companies") return;
+  await applyFilterScope();
+  if (activeTab.value === "match") await loadMatchedJobs();
+}
+
+function resetJobsFilters() {
+  filterProvince.value = "";
+  filterCity.value = "";
+  filterSalaryMin.value = "";
+  filterSalaryMax.value = "";
+  filterEducation.value = [];
+  filterCompanySize.value = [];
+  filterJobNature.value = [];
+  filterPublishTime.value = "";
+  selectedCompanyType.value = "";
+  selectedIndustry.value = "";
+  searchInput.value = "";
+  remoteKeyword.value = "";
+  companySearchInput.value = "";
+  companyRemoteKeyword.value = "";
+  void applyJobsFilters();
+}
+
+async function loadStudentPortrait() {
+  const sid = getStudentId();
+  if (!sid) return;
+  try {
+    studentPortrait.value = await apiGet(`/api/students/${encodeURIComponent(sid)}`);
+  } catch {
+    studentPortrait.value = null;
+  }
+}
+
+function buildDefaultMatchQuery() {
+  const s = studentInfo.value || {};
+  const major = s["专业名称"] || "对口";
+  const edu = s["学历"] || "";
+  return `想找${major}${edu ? `（${edu}）` : ""}相关岗位，薪资合理、发展稳定`;
+}
+
+async function loadMatchedJobs() {
+  const qText = String(matchQuery.value || buildDefaultMatchQuery()).trim();
+  if (!qText) {
+    error.value = "请在匹配设置中输入岗位诉求";
+    return;
+  }
+  matchQuery.value = qText;
+  matchLoading.value = true;
+  lastMatchDurationMs.value = null;
+  error.value = "";
+  startMatchWait();
+  try {
+    const studentContext = useStudentProfile.value ? buildStudentContextFromPortrait() : "";
+    const data = await apiPost("/api/skills/job-info-query", {
+      query: qText,
+      top_n_jobs: clampTopN(topNJobs.value),
+      top_n_companies: 9,
+      use_rag: true,
+      use_semantic_cache: useSemanticCache.value,
+      use_student_profile: useStudentProfile.value,
+      student_context: studentContext,
+      score_baseline: clampScore(scoreBaseline.value),
+      min_recommend_score: clampScore(minRecommendScore.value),
+      score_dimensions: buildScoreDimensionsPayload()
+    });
+    matchedJobs.value = data.jobs || [];
+    recommendation.value = data.recommendation || null;
+  } catch (err) {
+    error.value = err.message;
+    matchedJobs.value = [];
+    recommendation.value = null;
+  } finally {
+    stopMatchWait();
+    lastMatchDurationMs.value = matchElapsedMs.value;
+    matchLoading.value = false;
+  }
+}
+
+function openJobDetailFrame(job) {
+  if (!job?.job_id) return;
+  selectedJobId.value = String(job.job_id).trim();
+  selectedCreditCode.value = "";
+  detailMode.value = "job";
+  jobDetailFrameTitle.value = job.job_title || job.job_name || job.job_id || "岗位详情";
+  jobDetailFrameOpen.value = true;
+  jobDetailFrameFullscreen.value = false;
+}
+
+function openCompanyDetailFrame(company) {
+  const code = String(
+    company?.credit_code || company?.id || company?.company_id || company?.companyId || ""
+  ).trim();
+  if (!code) return;
+  selectedCreditCode.value = code;
+  selectedJobId.value = "";
+  detailMode.value = "company";
+  jobDetailFrameTitle.value = company?.company_name || company?.companyName || code || "企业详情";
+  jobDetailFrameOpen.value = true;
+  jobDetailFrameFullscreen.value = false;
+}
+
+function closeDetailFrame() {
+  jobDetailFrameOpen.value = false;
+  jobDetailFrameFullscreen.value = false;
+  jobDetailFrameTitle.value = "";
+  selectedJobId.value = "";
+  selectedCreditCode.value = "";
+}
+
+function toggleDetailFrameFullscreen() {
+  jobDetailFrameFullscreen.value = !jobDetailFrameFullscreen.value;
+}
+
+function openDetailFullWindow() {
+  if (detailMode.value === "job" && selectedJobId.value) {
+    window.open(`/jobs/${encodeURIComponent(selectedJobId.value)}`, "_blank", "noopener,noreferrer");
+  } else if (detailMode.value === "company" && selectedCreditCode.value) {
+    window.open(`/companies/${encodeURIComponent(selectedCreditCode.value)}`, "_blank", "noopener,noreferrer");
+  }
+}
+
+function onJobDetailDocKey(ev) {
+  if (ev.key === "Escape" && jobDetailFrameOpen.value) closeDetailFrame();
+}
+
+function handleJobViewDetail(job) {
+  openJobDetailFrame(job);
+}
+
+function handleCompanyViewDetail(company) {
+  openCompanyDetailFrame(company);
+}
+
+function handleJobApply(job) {
+  openJobDetailFrame(job);
+}
+
+function handleJobResume() {
+  router.push("/resume/create");
+}
+
+function handleJobInterview() {
+  router.push("/interview/industry");
+}
+
+watch(activeTab, async (tab) => {
+  if (tab === "companies" && !companiesList.value.length) {
+    resetCompanyPagedList();
+    await loadNextCompanyPage();
+  }
+  await nextTick();
+  setupInfiniteScrollObserver();
+  maybeLoadMoreForActiveTab();
+});
+
+function maybeLoadMoreForActiveTab() {
+  if (activeTab.value === "hot") {
+    if (hasMore.value && !loadingMore.value) void loadNextPage();
+    return;
+  }
+  if (activeTab.value === "companies") {
+    if (companyHasMore.value && !companyLoadingMore.value) void loadNextCompanyPage();
+  }
+}
+
+function setupInfiniteScrollObserver() {
+  if (observer) observer.disconnect();
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) maybeLoadMoreForActiveTab();
+    },
+    { root: null, rootMargin: "320px 0px", threshold: 0.01 }
+  );
+  if (sentinelRef.value) observer.observe(sentinelRef.value);
+}
+
+function onHotConfigToggle(event) {
+  if (event.target?.open && activeTab.value === "hot") {
+    void refreshRagPanelStats();
+  }
+}
+
 watch(remoteKeyword, () => {
   void loadFilterFacets();
-  if (ragPanelOpen.value) void loadRagStats();
+  if (activeTab.value === "hot") void loadRagStats();
 });
 
 onMounted(async () => {
+  document.addEventListener("keydown", onJobDetailDocKey);
   await loadFavorites();
+  await loadStudentPortrait();
+  matchQuery.value = buildDefaultMatchQuery();
   await loadFilterFacets();
-  await loadNextPage();
-  observer = new IntersectionObserver(
-    (entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        loadNextPage();
-      }
-    },
-    { root: listScrollRef.value, rootMargin: "200px 0px" }
-  );
-  if (sentinelRef.value) observer.observe(sentinelRef.value);
+
+  const alreadyLoaded = sessionStorage.getItem("jobs_data_loaded");
+  if (!alreadyLoaded) {
+    await Promise.all([loadNextPage(), loadMatchedJobs()]);
+    sessionStorage.setItem("jobs_data_loaded", "1");
+  }
+
+  await nextTick();
+  setupInfiniteScrollObserver();
 });
 
 onBeforeUnmount(() => {
+  matchWait.reset();
+  document.removeEventListener("keydown", onJobDetailDocKey);
   window.clearTimeout(ragStatsDebounceTimer);
   if (observer) observer.disconnect();
   if (syncRunning.value) {
@@ -282,8 +749,8 @@ onBeforeUnmount(() => {
   }
 });
 
-/** ---------- 知识库 RAG 批量同步（默认折叠） ---------- */
-const ragPanelOpen = ref(false);
+/** ---------- 知识库 RAG 批量同步 ---------- */
+const ragPanelTab = ref("sync");
 const ragStats = ref({ total: 0, synced: 0, unsynced: 0, keyword: "" });
 const ragBacklog = ref({
   pending: 0,
@@ -309,8 +776,6 @@ const ragPurgeBeforeSync = ref(true);
 const purgeRunning = ref(false);
 const purgeLog = ref([]);
 const purgeDoneSummary = ref(null);
-/** 知识库面板当前 Tab：sync | purge */
-const ragPanelTab = ref("sync");
 
 /** ---------- 串行同步：3 分钟刻度进度条 + 当前岗位名 ---------- */
 const currentSyncJobName = ref("");
@@ -543,7 +1008,7 @@ async function refreshRagPanelStats() {
 
 let ragStatsDebounceTimer;
 watch(searchInput, () => {
-  if (!ragPanelOpen.value) return;
+  if (activeTab.value !== "hot") return;
   window.clearTimeout(ragStatsDebounceTimer);
   ragStatsDebounceTimer = window.setTimeout(() => {
     void refreshRagPanelStats();
@@ -555,13 +1020,6 @@ watch(ragAccelerate, () => {
     refreshRagEtaAnchor(true);
   }
 });
-
-function toggleRagPanel() {
-  ragPanelOpen.value = !ragPanelOpen.value;
-  if (ragPanelOpen.value) {
-    void refreshRagPanelStats();
-  }
-}
 
 function switchRagPanelTab(tab) {
   if (tab !== "sync" && tab !== "purge") return;
@@ -790,119 +1248,142 @@ async function cancelRagSync() {
 </script>
 
 <template>
-  <div>
-    <section class="hero">
-      <h1>岗位列表</h1>
-      <p>统一浏览岗位、企业与学生画像，让信息不再割裂。</p>
-    </section>
-    <div class="container">
-      <main class="panel">
-        <div class="toolbar sticky-toolbar">
-          <input
-            v-model="searchInput"
-            class="search"
-            placeholder="职位名 / 工作地点 / 用人单位 — 输入即本地筛选，回车查库"
-            @keydown.enter.prevent="onSearchEnter"
-          />
-          <div class="toolbar-meta">
-            <router-link class="me-link" to="/me">我的</router-link>
-            <span class="count">{{ totalText }}</span>
-            <span v-if="showPageText" class="count">{{ pageText }}</span>
-          </div>
-        </div>
-        <label class="switch-line">
-          <input v-model="syncedOnly" type="checkbox" />
-          仅显示已同步知识库
-        </label>
-        <section class="job-facet-panel" aria-label="岗位筛选">
-          <div class="job-facet-head">
-            <h2 class="job-facet-title">筛选</h2>
-            <div class="job-facet-actions">
-              <button
-                type="button"
-                class="btn-linkish"
-                :disabled="filterFacetsLoading || filterRefreshing"
-                @click="refreshFilterData"
-              >
-                {{ filterRefreshing ? "刷新中…" : "刷新" }}
-              </button>
-              <button type="button" class="btn-linkish" @click="toggleFilterPanel">
-                {{ filterPanelOpen ? "收起" : "展开" }}
-              </button>
-              <button
-                v-if="hasFacetFilter && filterPanelOpen"
-                type="button"
-                class="btn-linkish job-facet-clear"
-                @click="clearFacetFilters"
-              >
-                清除筛选
-              </button>
+  <div class="home-main">
+      <HomeTopBar
+        title="岗位中心"
+        :subtitle="pageSubtitle"
+        :student-name="studentDisplayName"
+      />
+
+      <div class="jobs-center-layout">
+        <JobsFilterPanel
+          v-model:province="filterProvince"
+          v-model:city="filterCity"
+          v-model:salary-min="filterSalaryMin"
+          v-model:salary-max="filterSalaryMax"
+          v-model:education="filterEducation"
+          v-model:company-size="filterCompanySize"
+          v-model:job-nature="filterJobNature"
+          v-model:publish-time="filterPublishTime"
+          v-model:selected-company-type="selectedCompanyType"
+          :cities="cityOptions"
+          :provinces="[]"
+          :company-types="filterFacets.companyTypes"
+          :loading="filterFacetsLoading"
+          :disabled="activeTab === 'companies'"
+          @apply="applyJobsFilters"
+          @reset="resetJobsFilters"
+        />
+
+        <div class="jobs-center-main">
+          <div class="jobs-toolbar" :class="{ 'jobs-toolbar--match': searchDisabled }">
+            <div class="jobs-search-wrap">
+              <input
+              v-model="toolbarSearchValue"
+              class="jobs-search"
+              :class="{ 'jobs-search--disabled': searchDisabled }"
+              :disabled="searchDisabled"
+              :placeholder="searchPlaceholder"
+              :aria-label="searchPlaceholder"
+              @keydown.enter.prevent="onSearchEnter"
+            />
+              <span v-if="searchDisabled" class="search-lock-hint">匹配模式下不可用</span>
+            </div>
+            <div v-if="activeTab === 'hot'" class="jobs-toolbar-meta">
+              <span v-if="showPageText" class="count">{{ pageText }}</span>
+              <span class="count">{{ totalText }}</span>
+              <label class="switch-line jobs-sync-toggle">
+                <input v-model="syncedOnly" type="checkbox" />
+                仅已同步知识库
+              </label>
+            </div>
+            <div v-else-if="activeTab === 'companies'" class="jobs-toolbar-meta">
+              <span class="count">{{ companyTotalText }}</span>
             </div>
           </div>
-          <p v-if="hasFacetFilter && !filterPanelOpen" class="job-facet-collapsed-hint muted">
-            已选：{{ selectedFilterSummary }}
-          </p>
-          <template v-if="filterPanelOpen">
-          <div v-if="filterFacetsLoading && !filterFacets.companyTypes.length" class="job-facet-loading muted">统计加载中…</div>
-          <div class="job-facet-group">
-            <div class="job-facet-label">公司类型（单位性质）</div>
-            <div class="job-facet-chips">
+
+          <header class="jobs-panel-tabs">
+            <nav class="jobs-tabs" aria-label="岗位中心分类">
               <button
+                v-for="tab in centerTabs"
+                :key="tab.key"
                 type="button"
-                class="facet-chip"
-                :class="{ active: !selectedCompanyType }"
-                @click="clearCompanyTypeFilter"
+                class="jobs-tab"
+                :class="{ active: activeTab === tab.key }"
+                @click="activeTab = tab.key"
               >
-                全部
+                {{ tab.label }}
               </button>
-              <button
-                v-for="item in filterFacets.companyTypes"
-                :key="'ct-' + item.code"
-                type="button"
-                class="facet-chip"
-                :class="{ active: selectedCompanyType === item.code }"
-                :title="`${item.label}：共 ${item.total} 个岗位，已同步 ${item.synced}`"
-                @click="toggleCompanyType(item.code)"
-              >
-                <span class="facet-chip-label">{{ item.label }}</span>
-                <span class="facet-chip-count">{{ item.total }} / {{ item.synced }}</span>
-              </button>
-            </div>
+            </nav>
+          </header>
+
+          <div v-if="activeTab !== 'companies'" class="sort-tabs">
+            <span class="sort-tabs-label">排序：</span>
+            <button :class="{ active: sortMode === 'score' }" @click="sortMode = 'score'">评分优先</button>
+            <button :class="{ active: sortMode === 'salary' }" @click="sortMode = 'salary'">薪资优先</button>
+            <button :class="{ active: sortMode === 'date' }" @click="sortMode = 'date'">最新发布</button>
           </div>
-          <div class="job-facet-group">
-            <div class="job-facet-label">行业性质</div>
-            <div class="job-facet-chips job-facet-chips--scroll">
-              <button
-                type="button"
-                class="facet-chip"
-                :class="{ active: !selectedIndustry }"
-                @click="clearIndustryFilter"
-              >
-                全部
-              </button>
-              <button
-                v-for="item in filterFacets.industries"
-                :key="'ind-' + item.code"
-                type="button"
-                class="facet-chip"
-                :class="{ active: selectedIndustry === item.code }"
-                :title="`${item.label}：共 ${item.total} 个岗位，已同步 ${item.synced}`"
-                @click="toggleIndustry(item.code)"
-              >
-                <span class="facet-chip-label">{{ item.label }}</span>
-                <span class="facet-chip-count">{{ item.total }} / {{ item.synced }}</span>
-              </button>
-            </div>
-          </div>
-          <p class="job-facet-foot muted">数字格式：岗位总数 / 已同步数；与列表、知识库同步范围一致（关键词需回车查库）。</p>
-          </template>
-        </section>
-        <div class="rag-toolbar-foot">
-          <button type="button" class="btn-rag-toggle" @click="toggleRagPanel">
-            {{ ragPanelOpen ? "收起「知识库同步」" : "展开「知识库同步」" }}
-          </button>
-        </div>
-        <section v-show="ragPanelOpen" class="rag-sync-panel" aria-label="知识库同步">
+
+          <JobsCenterJobGrid
+            v-if="activeTab !== 'companies'"
+            v-model:sort-mode="sortMode"
+            :jobs="gridJobs"
+            :recommendation="recommendation"
+            :loading="gridLoading"
+            :empty-text="gridEmptyText"
+            :pad-placeholders="activeTab === 'match'"
+            :expand-all="activeTab === 'hot'"
+            :match-elapsed-ms="matchElapsedMs"
+            :last-match-duration-ms="activeTab === 'match' ? lastMatchDurationMs : null"
+            @view-detail="handleJobViewDetail"
+            @apply="handleJobApply"
+            @resume="handleJobResume"
+            @interview="handleJobInterview"
+          >
+            <template v-if="activeTab === 'hot'" #after-grid>
+              <div ref="sentinelRef" class="load-state">
+                <span v-if="loadingMore">加载岗位中…</span>
+                <span v-else-if="!hasMore && jobs.length">已加载全部岗位</span>
+                <span v-else-if="hasMore">继续下滑加载更多岗位</span>
+              </div>
+            </template>
+          </JobsCenterJobGrid>
+
+          <JobsCenterCompanyGrid
+            v-else
+            :companies="filteredCompanies"
+            :loading="companiesLoading && !companiesList.length"
+            :loading-more="companyLoadingMore"
+            @view-detail="handleCompanyViewDetail"
+          >
+            <template #after-grid>
+              <div ref="sentinelRef" class="load-state">
+                <span v-if="companyLoadingMore">加载企业中…</span>
+                <span v-else-if="!companyHasMore && companiesList.length">已加载全部企业</span>
+                <span v-else-if="companyHasMore">继续下滑加载更多企业</span>
+              </div>
+            </template>
+          </JobsCenterCompanyGrid>
+
+          <details v-if="activeTab === 'match'" class="jobs-tab-config" open>
+            <summary>匹配设置</summary>
+            <JobsMatchSettingsPanel
+              v-model:query="matchQuery"
+              v-model:use-student-profile="useStudentProfile"
+              v-model:use-semantic-cache="useSemanticCache"
+              v-model:score-baseline="scoreBaseline"
+              v-model:min-recommend-score="minRecommendScore"
+              v-model:top-n-jobs="topNJobs"
+              v-model:score-dimensions="scoreDimensions"
+              :loading="matchLoading"
+              @run="loadMatchedJobs"
+            />
+          </details>
+
+          <details v-else-if="activeTab === 'hot'" class="jobs-tab-config" @toggle="onHotConfigToggle">
+            <summary>知识库同步与管理</summary>
+            <div class="rag-config-body">
+        <section class="rag-sync-panel" aria-label="知识库同步">
           <div class="rag-sync-head">
             <h2 class="rag-sync-title">知识库 RAG</h2>
             <nav class="rag-tab-bar" role="tablist" aria-label="RAG 操作">
@@ -1128,128 +1609,159 @@ async function cancelRagSync() {
             </div>
           </div>
         </section>
-        <div ref="listScrollRef" class="list-scroll-wrap">
-        <ul class="post-grid">
-          <li v-if="!filtered.length" class="empty">没有匹配结果</li>
-          <li v-for="item in filtered" v-else :key="item.job_id" class="post-card">
-            <router-link class="post-title" :to="`/jobs/${item.job_id}`">{{ item.job_title || "-" }}</router-link>
-            <div class="post-meta">企业：{{ item.company_relation?.company_name || "-" }}</div>
-            <div class="post-meta">行业：{{ item.district || "-" }} </div>
-            <div class="post-meta">薪资：{{ item.salary_range_month || "-" }} </div>
-            <div class="post-meta">地址：{{ item.city || "-" }} </div>
-            <div class="links-row">
-              <button
-                type="button"
-                class="fav-btn"
-                :class="{ on: isFavorite(item.job_id) }"
-                @click="toggleFavorite(item.job_id, $event)"
-              >
-                {{ isFavorite(item.job_id) ? "已收藏" : "收藏" }}
-              </button>
-              <router-link class="inline-link" :to="`/jobs/${item.job_id}`">查看岗位详情</router-link>
-              <router-link class="inline-link" :to="`/companies/${item.company_relation?.credit_code || ''}`">查看企业详情</router-link>
             </div>
-          </li>
-        </ul>
-        <div ref="sentinelRef" class="load-state">
-          <span v-if="loadingMore">加载中...</span>
-          <span v-else-if="!hasMore && jobs.length">已加载全部岗位</span>
+          </details>
+
+          <p v-if="error" class="error">{{ error }}</p>
         </div>
-        </div>
-        <p class="error">{{ error }}</p>
-      </main>
+      </div>
     </div>
-  </div>
+
+    <Teleport to="body">
+      <FloatingFramePanel
+        :open="jobDetailFrameOpen"
+        :fullscreen="jobDetailFrameFullscreen"
+        :title="jobDetailFrameTitle"
+        :z-index="13100"
+        @backdrop-click="closeDetailFrame"
+      >
+        <template #actions>
+          <button type="button" @click="toggleDetailFrameFullscreen">
+            {{ jobDetailFrameFullscreen ? "缩小" : "放大" }}
+          </button>
+          <button type="button" @click="openDetailFullWindow">完整页面</button>
+          <button type="button" class="danger" @click="closeDetailFrame">关闭</button>
+        </template>
+        <AsyncJobDetail v-if="detailMode === 'job' && selectedJobId" :key="selectedJobId" :embedded-job-id="selectedJobId" />
+        <AsyncCompanyDetail v-else-if="detailMode === 'company' && selectedCreditCode" :key="selectedCreditCode" :embedded-credit-code="selectedCreditCode" />
+      </FloatingFramePanel>
+    </Teleport>
+
+    <JobCompareBar :count="compareCount" :max="maxCompare" @open="openCompare" @clear="clearCompare" />
+    <JobCompareModal :open="compareOpen" :jobs="compareJobs" @close="compareOpen = false" />
 </template>
 
 <style scoped>
-.hero { padding: 88px 20px 52px; text-align: center; background: radial-gradient(circle at top right, #eef2ff, transparent), radial-gradient(circle at top left, #f5f3ff, transparent); }
-.hero h1 { font-size: clamp(2rem, 4.8vw, 3rem); margin-bottom: 12px; }
-.hero p { color: var(--text-muted); }
-.container { max-width: 1100px; margin: 0 auto; padding: 0 20px 80px; }
-.toolbar { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; margin-bottom: 12px; }
-.switch-line { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; color: var(--text-muted); font-size: .9rem; }
-.job-facet-panel {
-  margin: 0 0 14px;
-  padding: 14px 16px;
-  border-radius: 14px;
+.jobs-center-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  width: 100%;
+}
+.jobs-center-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.jobs-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 12px;
   border: 1px solid #e2e8f0;
-  background: #fafbff;
+  background: rgba(255, 255, 255, 0.9);
 }
-.job-facet-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
+.jobs-toolbar--match {
+  grid-template-columns: 1fr;
 }
-.job-facet-actions {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+.jobs-search-wrap {
+  position: relative;
+  min-width: 0;
 }
-.job-facet-collapsed-hint {
-  margin: 0 0 8px;
-  font-size: .84rem;
+.jobs-search--disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+  border-color: #e2e8f0;
 }
-.job-facet-title {
-  margin: 0;
-  font-size: 1rem;
+.jobs-search--disabled::placeholder {
+  color: #cbd5e1;
 }
-.job-facet-loading { font-size: .85rem; margin-bottom: 8px; }
-.job-facet-clear { font-size: .85rem; }
-.job-facet-group { margin-bottom: 12px; }
-.job-facet-group:last-of-type { margin-bottom: 8px; }
-.job-facet-label {
-  font-size: .84rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  margin-bottom: 8px;
+.search-lock-hint {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.68rem;
+  color: #94a3b8;
+  pointer-events: none;
 }
-.job-facet-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.jobs-tab-config {
+  margin-top: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+  padding: 8px 12px;
 }
-.job-facet-chips--scroll {
-  max-height: 160px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-.facet-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid #dbeafe;
-  background: #fff;
-  color: var(--text-main);
-  font-size: .82rem;
+.jobs-tab-config > summary {
   cursor: pointer;
-  transition: border-color .15s, background .15s;
+  color: #475569;
+  font-size: 0.88rem;
+  font-weight: 700;
 }
-.facet-chip:hover { border-color: #93c5fd; background: #eff6ff; }
-.facet-chip.active {
-  border-color: var(--primary-color);
-  background: #eef2ff;
-  color: var(--primary-color);
-  font-weight: 600;
+.jobs-tab-config[open] > summary {
+  margin-bottom: 12px;
+  color: #4338ca;
 }
-.facet-chip-label { max-width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.facet-chip-count {
-  font-size: .74rem;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
+.rag-config-body {
+  padding-top: 4px;
 }
-.facet-chip.active .facet-chip-count { color: #4338ca; }
-.job-facet-foot { margin: 0; font-size: .78rem; }
-.sticky-toolbar { position: sticky; top: 10px; z-index: 5; background: #fff; padding: 8px; border-radius: 12px; border: 1px solid #eceff3; box-shadow: 0 8px 20px rgba(15,23,42,.06); }
-.toolbar-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.me-link { font-size: .86rem; color: var(--primary-color); font-weight: 600; text-decoration: none; }
-.search { width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid #d1d5db; font-size: .95rem; }
-.search:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 4px rgba(99,102,241,.15); }
+.jobs-search {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #dbe1ea;
+  font-size: 0.86rem;
+}
+.jobs-search:focus {
+  outline: none;
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+.jobs-toolbar-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.jobs-sync-toggle {
+  margin: 0;
+  font-size: 0.78rem;
+}
+.jobs-panel-tabs {
+  padding: 0 4px;
+}
+.jobs-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.jobs-tab {
+  border: none;
+  background: transparent;
+  padding: 8px 2px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.jobs-tab.active {
+  color: #4338ca;
+  border-bottom-color: #6366f1;
+}
+.job-detail-frame {
+  width: 100%;
+  height: min(72vh, 720px);
+  border: none;
+  border-radius: 10px;
+  background: #fff;
+}
+.switch-line { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: .9rem; }
 .count { font-size: .85rem; color: var(--text-muted); }
 .rag-toolbar-foot { margin-bottom: 10px; }
 .btn-rag-toggle {
@@ -1520,16 +2032,55 @@ async function cancelRagSync() {
 }
 .rag-log { list-style: none; margin: 0; padding: 8px 12px 12px; font-family: ui-monospace, monospace; font-size: .78rem; line-height: 1.45; }
 .rag-log-line { margin-bottom: 4px; word-break: break-all; }
-.post-grid { list-style: none; display: flex; flex-direction: column; gap: 14px; padding: 0; }
-.list-scroll-wrap { max-height: calc(100vh - 280px); overflow: auto; padding-right: 4px; }
-.post-card { border: 1px solid #eceff3; border-radius: 14px; padding: 16px; background: linear-gradient(180deg, #fff, #fcfcff); transition: all .3s cubic-bezier(0.4, 0, 0.2, 1); }
-.post-card:hover { transform: translateY(-3px); box-shadow: 0 16px 26px rgba(15,23,42,.08); }
-.post-title { font-size: 1.1rem; font-weight: 600; text-decoration: none; color: var(--text-main); }
-.post-meta { font-size: .86rem; color: var(--text-muted); margin-top: 6px; }
-.links-row { margin-top: 10px; display: flex; gap: 12px; }
-.inline-link { font-size: .86rem; text-decoration: none; color: var(--primary-color); font-weight: 600; }
-.empty { text-align: center; padding: 28px 8px; color: var(--text-muted); }
-.load-state { text-align: center; color: var(--text-muted); font-size: .86rem; padding: 6px 0 4px; min-height: 26px; }
+.load-state {
+  text-align: center;
+  color: #64748b;
+  font-size: 0.82rem;
+  padding: 16px 0 8px;
+  min-height: 40px;
+}
 .error { color: var(--danger); margin-top: 8px; min-height: 20px; font-weight: 600; font-size: .9rem; }
-@media (max-width: 900px) { .list-scroll-wrap { max-height: 62vh; } .toolbar-meta { align-items: flex-start; } }
+@media (max-width: 1100px) {
+  .jobs-center-layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .home-main { max-width: 100vw; }
+  .jobs-toolbar { grid-template-columns: 1fr; }
+  .jobs-toolbar-meta { align-items: flex-start; }
+}
+@media (max-width: 720px) {
+  .home-main { padding: 0 10px 76px; }
+}
+.sort-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.sort-tabs-label {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 600;
+  margin-right: 2px;
+}
+.sort-tabs button {
+  padding: 4px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.sort-tabs button:hover {
+  border-color: #c7d2fe;
+  color: #4338ca;
+}
+.sort-tabs button.active {
+  border-color: #6366f1;
+  background: #eef2ff;
+  color: #4338ca;
+}
 </style>

@@ -6,6 +6,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import FloatingFramePanel from "./FloatingFramePanel.vue";
 import { apiGet } from "../api/client";
+import { useIsMobile } from "../composables/useIsMobile";
 import { fetchResumeStore } from "../modules/resume/api";
 import { pickSeriesDefaultVersion, stripTimeCopySuffix } from "../modules/resume/storage";
 import { embedUrl, fullPageUrl } from "../utils/embedFrame";
@@ -31,6 +32,9 @@ const frameOpen = ref(false);
 const frameFullscreen = ref(false);
 const iframeSrc = ref("");
 const frameTitle = ref("");
+
+const { isMobile } = useIsMobile();
+const sheetOpen = ref(false);
 
 const sid = computed(() => (props.studentId || "").trim());
 const guest = computed(() => !sid.value);
@@ -215,7 +219,22 @@ defineExpose({ reload: loadAll });
 </script>
 
 <template>
-  <aside class="planner-rail" aria-label="我的资料">
+  <button
+    v-if="isMobile"
+    type="button"
+    class="rail-sheet-toggle"
+    @click="sheetOpen = !sheetOpen"
+  >
+    我的资料{{ sheetOpen ? ' ▲' : ' ▼' }}
+  </button>
+  <Transition name="sheet-slide">
+    <div v-if="isMobile && sheetOpen" class="rail-sheet-backdrop" @click="sheetOpen = false" />
+  </Transition>
+  <aside
+    class="planner-rail"
+    :class="{ 'planner-rail--sheet': isMobile, 'planner-rail--sheet-open': sheetOpen }"
+    aria-label="我的资料"
+  >
     <div class="planner-rail-head">
       <div class="planner-rail-head-text">
         <h2 class="planner-rail-title">我的资料</h2>
@@ -379,6 +398,10 @@ defineExpose({ reload: loadAll });
   overflow: auto;
   min-width: 0;
   min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  flex: 1 1 auto;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -650,5 +673,49 @@ defineExpose({ reload: loadAll });
 .ctx-refresh:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+.rail-sheet-toggle {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 1090;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 20px;
+  background: var(--home-primary, #5b6adf);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(91, 106, 223, 0.3);
+}
+.rail-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  background: rgba(15, 23, 42, 0.4);
+}
+.planner-rail--sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1085;
+  max-height: 60vh;
+  overflow-y: auto;
+  border-radius: 16px 16px 0 0;
+  transform: translateY(100%);
+  transition: transform 0.25s ease;
+}
+.planner-rail--sheet.planner-rail--sheet-open {
+  transform: translateY(0);
+}
+.sheet-slide-enter-active,
+.sheet-slide-leave-active {
+  transition: opacity 0.25s ease;
+}
+.sheet-slide-enter-from,
+.sheet-slide-leave-to {
+  opacity: 0;
 }
 </style>

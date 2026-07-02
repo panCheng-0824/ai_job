@@ -39,9 +39,10 @@ const items = [
   { path: "/resume/create", label: "我的简历" },
   { path: "/jobs", label: "岗位列表" },
   { path: "/companies", label: "企业列表" },
-  { path: "/student-chat", label: "对话助手" },
-  { path: "/interview/plans", label: "面试大纲" },
-  { path: "/interview/industry", label: "行业分类" },
+  { path: "/student-chat", label: "AI助手" },
+  { path: "/interview/center", label: "面试中心" },
+  { path: "/interview/industry", label: "面试分类" },
+  { path: "/interview/categories", label: "行业字典" },
   { path: "/me", label: "我的" },
   { path: "/tools", label: "工具" }
 ];
@@ -87,8 +88,10 @@ function pathKey(pathname) {
   if (p.startsWith("/student-chat")) return "/student-chat";
   if (p === "/student") return "/student";
   if (p.startsWith("/resume")) return "/resume/create";
-  if (p.startsWith("/interview/plans")) return "/interview/plans";
-  if (p.startsWith("/interview/industry")) return "/interview/industry";
+  if (p.startsWith("/me/interviews/")) return "/interview/center";
+  if (p.startsWith("/interview/center")) return "/interview/center";
+  if (p.startsWith("/interview/plans") || p.startsWith("/interview/industry")) return "/interview/industry";
+  if (p.startsWith("/interview/categories")) return "/interview/categories";
   if (p.startsWith("/jobs")) return "/jobs";
   if (p.startsWith("/companies")) return "/companies";
   if (p.startsWith("/me")) return "/me";

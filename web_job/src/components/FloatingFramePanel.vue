@@ -1,6 +1,7 @@
 <script setup>
-import { watch } from "vue";
+import { computed, watch } from "vue";
 import { FLOATING_RESIZE_HANDLES, useFloatingPanel } from "../composables/useFloatingPanel";
+import { useIsMobile } from "../composables/useIsMobile";
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -11,8 +12,12 @@ const props = defineProps({
 
 defineEmits(["backdrop-click"]);
 
+const { isMobile } = useIsMobile();
+
+const effectiveFullscreen = computed(() => props.fullscreen || isMobile.value);
+
 const { panelStyle, interacting, resetPanel, onDragPointerDown, onResizePointerDown } =
-  useFloatingPanel(() => props.fullscreen);
+  useFloatingPanel(() => effectiveFullscreen.value);
 
 watch(
   () => props.open,
@@ -33,7 +38,7 @@ watch(
     v-show="open"
     class="ffd-panel"
     :class="{
-      'ffd-panel--fullscreen': fullscreen,
+      'ffd-panel--fullscreen': effectiveFullscreen,
       'ffd-panel--interacting': interacting
     }"
     :style="{ ...panelStyle, zIndex: zIndex + 1 }"
@@ -41,7 +46,7 @@ watch(
     aria-modal="true"
     @click.stop
   >
-    <template v-if="!fullscreen">
+    <template v-if="!effectiveFullscreen">
       <div
         v-for="dir in FLOATING_RESIZE_HANDLES"
         :key="dir"

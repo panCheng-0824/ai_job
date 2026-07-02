@@ -2,9 +2,9 @@ import { ref } from "vue";
 
 export const RESUME_AI_RAIL_LS_KEY = "resume_ai_rail_visible";
 
-/** 创建简历页右侧「AI 简历优化」栏是否展开 */
+/** 创建简历页右侧「AI 简历优化」栏是否展开；默认关闭，仅记住用户主动打开 */
 export const resumeAiRailVisibleRef = ref(
-  typeof localStorage !== "undefined" ? localStorage.getItem(RESUME_AI_RAIL_LS_KEY) !== "0" : false
+  typeof localStorage !== "undefined" ? localStorage.getItem(RESUME_AI_RAIL_LS_KEY) === "1" : false
 );
 
 function persist(v) {
@@ -28,7 +28,7 @@ export function setResumeAiRailVisible(visible) {
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (e) => {
     if (e.key === RESUME_AI_RAIL_LS_KEY && e.newValue != null) {
-      resumeAiRailVisibleRef.value = e.newValue !== "0";
+      resumeAiRailVisibleRef.value = e.newValue === "1";
     }
   });
 }

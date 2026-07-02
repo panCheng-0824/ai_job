@@ -119,7 +119,7 @@ def run_planner_agent(
         student_context=student_context,
     )
     # response_format=json_object，降低 Markdown 围栏导致的 JSON 解析失败
-    raw = invoke_llm_json_object(bindings, prompt)
+    raw = invoke_llm_json_object(bindings, prompt, scenario="模拟面试-规划生成")
     data, parse_err = parse_json_object(raw)
     if parse_err:
         return None, parse_err

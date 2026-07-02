@@ -356,9 +356,9 @@ def generate_session_id(student_id: str):
 
 
 @app.get("/api/chat-sessions/{session_id}/history")
-def get_chat_history(session_id: str):
+def get_chat_history(session_id: str, before_index: int = None, limit: int = None):
     try:
-        return session_service.get_history_bundle(session_id)
+        return session_service.get_history_bundle(session_id, before_index=before_index, limit=limit)
     except PortalError as e:
         raise _pe(e) from e
 

@@ -7,6 +7,10 @@ import { sanitizeRichHtml } from "../utils/richText";
 import RagSyncThreeMinuteProgress from "../components/rag/RagSyncThreeMinuteProgress.vue";
 import { useRagSyncThreeMinuteProgress } from "../composables/useRagSyncThreeMinuteProgress";
 
+const props = defineProps({
+  embeddedJobId: { type: String, default: "" }
+});
+
 const route = useRoute();
 const job = ref(null);
 /** 公司性质展示文案（后端未翻译时前端按 job_dwxz 字典兜底） */
@@ -207,7 +211,7 @@ const detailSections = computed(() => {
   ];
 });
 
-const jobId = computed(() => String(route.params.job_id || "").trim());
+const jobId = computed(() => props.embeddedJobId || String(route.params.job_id || "").trim());
 
 /** 职位描述富文本（zwms / content） */
 const jobDescriptionHtml = computed(() =>

@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "copy:cubism": "node scripts/copy-cubism-resources.js",
+    "predev": "node scripts/copy-cubism-resources.js",
+    "prebuild": "node scripts/copy-cubism-resources.js",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"

@@ -2,6 +2,9 @@
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { chatSidebarVisibleRef } from "../composables/useChatSidebarVisible";
+import { isLoggedIn, logout } from "../api/client";
+
+const LOGOUT_VALUE = "__logout__";
 
 const router = useRouter();
 const route = useRoute();
@@ -10,7 +13,7 @@ const options = [
   { value: "/companies", label: "企业列表" },
   { value: "/jobs", label: "岗位列表" },
   { value: "/me", label: "我的" },
-  { value: "/login", label: "切换账号" }
+  { value: LOGOUT_VALUE, label: "退出登录" }
 ];
 
 const model = ref("");
@@ -33,6 +36,12 @@ const hideForChatFocus = computed(
 );
 
 function onChange() {
+  if (model.value === LOGOUT_VALUE) {
+    if (isLoggedIn()) logout({ router });
+    else router.push("/login");
+    syncFromRoute();
+    return;
+  }
   if (model.value) router.push(model.value);
 }
 </script>

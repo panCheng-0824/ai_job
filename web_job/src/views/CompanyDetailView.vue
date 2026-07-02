@@ -6,6 +6,10 @@ import { resolveDictLabel } from "../utils/dictLabel";
 import { fmtRegisteredCapital } from "../utils/formatCompany";
 import { sanitizeRichHtml } from "../utils/richText";
 
+const props = defineProps({
+  embeddedCreditCode: { type: String, default: "" }
+});
+
 const route = useRoute();
 const company = ref(null);
 /** 单位性质展示文案（后端未翻译时前端按 job_dwxz 字典兜底） */
@@ -44,7 +48,7 @@ const normalizedJobs = computed(() =>
   }))
 );
 
-const creditCode = computed(() => String(route.params.credit_code || "").trim());
+const creditCode = computed(() => props.embeddedCreditCode || String(route.params.credit_code || "").trim());
 
 /** 空值统一展示为「-」 */
 function fmt(v) {

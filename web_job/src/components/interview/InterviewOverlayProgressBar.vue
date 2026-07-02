@@ -44,7 +44,8 @@ function dotMeta(q) {
   const seq = Number(q?.seq_no ?? 0);
   const selected =
     props.selectedSeqNo != null ? Number(props.selectedSeqNo) === seq : Number(props.liveSeqNo) === seq;
-  return { kind, seq, selected, clickable: isProgressDotClickable(kind) };
+  const questionText = q?.question_text || "";
+  return { kind, seq, selected, clickable: isProgressDotClickable(kind), questionText };
 }
 
 function dotClass(meta) {
@@ -57,10 +58,12 @@ function dotClass(meta) {
   };
 }
 
-function dotTitle(meta) {
-  if (meta.kind === "done") return `第 ${meta.seq + 1} 题 · 已答（点击查看）`;
-  if (meta.kind === "live") return `第 ${meta.seq + 1} 题 · 答题中`;
-  return `第 ${meta.seq + 1} 题 · 待答`;
+function dotTitle(meta, q) {
+  const preview = (q?.question_text || "").slice(0, 50);
+  const suffix = preview ? ` — "${preview}"` : "";
+  if (meta.kind === "done") return `第 ${meta.seq + 1} 题 · 已答 ✓ 点击回看答题记录${suffix}`;
+  if (meta.kind === "live") return `第 ${meta.seq + 1} 题 · 答题中${suffix}`;
+  return `第 ${meta.seq + 1} 题 · 待答${suffix}`;
 }
 
 function onDotClick(q) {
@@ -73,8 +76,8 @@ function onDotClick(q) {
 <template>
   <div class="progress-wrap">
     <div class="progress-meta">
-      <span class="progress-label">第 {{ displayIndex }} / {{ total || "?" }} 题</span>
-      <span class="progress-pct">{{ percent }}%</span>
+      <span class="progress-label">第 <strong class="progress-num">{{ displayIndex }}</strong> / {{ total || "?" }} 题</span>
+      <span class="progress-pct">{{ percent }}%（已完成）</span>
     </div>
     <div class="progress-track" role="progressbar" :aria-valuenow="percent" aria-valuemin="0" aria-valuemax="100">
       <div class="progress-fill" :style="{ width: `${percent}%` }" />
@@ -92,12 +95,17 @@ function onDotClick(q) {
         role="listitem"
         class="dot-btn"
         :class="dotClass(dotMeta(q))"
-        :title="dotTitle(dotMeta(q))"
+        :title="dotTitle(dotMeta(q), q)"
         :disabled="!dotMeta(q).clickable"
         :aria-current="dotMeta(q).selected ? 'step' : undefined"
         @click="onDotClick(q)"
       />
     </div>
+    <p v-if="total > 0 && total <= 20" class="progress-dots-legend">
+      <span class="legend-dot legend-dot--done">●</span> 已答可回看
+      <span class="legend-dot legend-dot--live">●</span> 答题中
+      <span class="legend-dot legend-dot--pending">●</span> 待答
+    </p>
     <p v-else-if="total > 20" class="progress-dots-hint">共 {{ total }} 题，题号较多请通过下方题干区作答</p>
   </div>
 </template>
@@ -117,6 +125,11 @@ function onDotClick(q) {
 .progress-label {
   font-weight: 600;
   color: var(--text, #0f172a);
+}
+.progress-num {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
 }
 .progress-pct {
   color: var(--text-muted, #64748b);
@@ -155,9 +168,27 @@ function onDotClick(q) {
 }
 .dot-btn.dot--done {
   background: #10b981;
+  position: relative;
+}
+.dot-btn.dot--done::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 7px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
 }
 .dot-btn.dot--live {
   background: #2563eb;
+  animation: dot-pulse 1.5s ease-in-out infinite;
+}
+@keyframes dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2); }
 }
 .dot-btn.dot--pending {
   background: #cbd5e1;
@@ -175,5 +206,28 @@ function onDotClick(q) {
 .dot-btn.dot--disabled {
   cursor: not-allowed;
   opacity: 0.85;
+}
+.progress-dots-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+.legend-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.legend-dot--done {
+  color: #10b981;
+}
+.legend-dot--live {
+  color: #2563eb;
+}
+.legend-dot--pending {
+  color: #cbd5e1;
 }
 </style>

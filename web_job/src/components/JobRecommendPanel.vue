@@ -1,12 +1,12 @@
 <script setup>
 /**
  * 岗位推荐交互面板（学生主页 / 会话聊天共用）。
- * 左侧岗位列表 + 右侧推荐理由 + 点击打开 FloatingFrame 岗位详情。
+ * 左侧岗位列表 + 右侧推荐理由 + 独立按钮打开 FloatingFrame 岗位详情。
  */
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import FloatingFramePanel from "./FloatingFramePanel.vue";
 import JobMatchReasonBlocks from "./JobMatchReasonBlocks.vue";
-import { resolveJobMatchReasonDisplay } from "../utils/jobMatchReason";
+import { useJobRecommendDisplay } from "../composables/useJobRecommendDisplay";
 
 const props = defineProps({
   jobs: { type: Array, default: () => [] },
@@ -17,8 +17,21 @@ const props = defineProps({
   compact: { type: Boolean, default: false }
 });
 
-const selectedJobId = ref(null);
-const hoverJobId = ref(null);
+const {
+  displayJobId,
+  hoverJobId,
+  previewJob,
+  selectedReasonMeta,
+  reasonReady,
+  pinJobForReason,
+  onJobCardHover,
+  onJobCardLeave,
+  sameJobId
+} = useJobRecommendDisplay(
+  () => props.jobs,
+  () => props.recommendation,
+  { autoSync: true }
+);
 
 const jobDetailFrameOpen = ref(false);
 const jobDetailFrameFullscreen = ref(false);
@@ -48,34 +61,6 @@ const cacheHitDetail = computed(() => {
   }
   if (c.cached_rag_q) parts.push(`历史检索句：${c.cached_rag_q}`);
   return parts.join(" · ");
-});
-
-function reasonMetaForJob(job) {
-  if (!job?.job_id) {
-    return { reason: "", sections: [], charCount: 0, score: null };
-  }
-  const rec = props.recommendation?.recommended_jobs || [];
-  const hit = rec.find((x) => x.job_id === job.job_id);
-  return resolveJobMatchReasonDisplay(hit, job);
-}
-
-const selectedReasonMeta = computed(() => {
-  if (!previewJob.value) {
-    return { reason: "", sections: [], charCount: 0, score: null };
-  }
-  return reasonMetaForJob(previewJob.value);
-});
-
-const selectedJob = computed(() => {
-  const id = selectedJobId.value;
-  if (!id) return null;
-  return (props.jobs || []).find((j) => j.job_id === id) || null;
-});
-
-const previewJob = computed(() => {
-  const h = hoverJobId.value;
-  if (h) return (props.jobs || []).find((j) => j.job_id === h) || null;
-  return selectedJob.value;
 });
 
 const reasonPanelTitle = computed(() => {
@@ -142,15 +127,12 @@ function openJobDetailFullWindow() {
   window.open(u.pathname + u.search + u.hash, "_blank", "noopener,noreferrer");
 }
 
-function selectJobForReason(job) {
-  if (!job?.job_id) return;
-  selectedJobId.value = job.job_id;
+function onJobCardSelect(job) {
+  pinJobForReason(job);
 }
 
-function onJobCardActivate(job) {
-  if (!job?.job_id) return;
-  selectJobForReason(job);
-  openJobDetailFrame(job);
+function openPreviewJobDetail() {
+  if (previewJob.value) openJobDetailFrame(previewJob.value);
 }
 
 function onJobDetailDocKey(ev) {
@@ -159,10 +141,6 @@ function onJobDetailDocKey(ev) {
 
 onMounted(() => {
   document.addEventListener("keydown", onJobDetailDocKey);
-  const list = props.jobs || [];
-  if (list.length === 1 && list[0]?.job_id) {
-    selectedJobId.value = list[0].job_id;
-  }
 });
 
 onBeforeUnmount(() => {
@@ -189,15 +167,15 @@ onBeforeUnmount(() => {
             :key="item.job_id"
             class="job-pick"
             :class="{
-              'job-pick--active': selectedJobId === item.job_id,
-              'job-pick--hover': hoverJobId === item.job_id
+              'job-pick--active': sameJobId(displayJobId, item.job_id),
+              'job-pick--hover': sameJobId(hoverJobId, item.job_id)
             }"
             role="button"
             tabindex="0"
-            @click="onJobCardActivate(item)"
-            @keydown.enter.prevent="onJobCardActivate(item)"
-            @mouseenter="hoverJobId = item.job_id"
-            @mouseleave="hoverJobId = null"
+            @click="onJobCardSelect(item)"
+            @keydown.enter.prevent="onJobCardSelect(item)"
+            @mouseenter="onJobCardHover(item)"
+            @mouseleave="onJobCardLeave"
           >
             <div class="job-pick-head">
               <span class="job-pick-title">{{ item.job_title || item.job_name || "-" }}</span>
@@ -214,7 +192,10 @@ onBeforeUnmount(() => {
           </template>
         </ul>
       </div>
-      <div class="result-col reason-panel">
+      <div
+        class="result-col reason-panel"
+        :class="{ 'reason-panel--pinned': Boolean(previewJob) }"
+      >
         <h3 class="section-title">推荐理由</h3>
         <template v-if="!jobs.length">
           <p class="reason-headline">{{ noJobReasonBlocks.headline }}</p>
@@ -231,12 +212,17 @@ onBeforeUnmount(() => {
         </template>
         <template v-else>
           <p v-if="!previewJob" class="muted reason-placeholder">
-            悬停卡片查看推荐理由；点击卡片打开岗位详情（可拖动、缩放、新标签页）。
+            将自动展示首条岗位推荐理由；悬停或点击左侧卡片可切换并固定展示。
           </p>
           <template v-else>
-            <p class="reason-job-title">{{ reasonPanelTitle }}</p>
+            <div class="reason-panel-head">
+              <p class="reason-job-title">{{ reasonPanelTitle }}</p>
+              <button type="button" class="reason-detail-btn" @click="openPreviewJobDetail">
+                查看岗位详情
+              </button>
+            </div>
             <JobMatchReasonBlocks
-              v-if="selectedReasonMeta.reason || selectedReasonMeta.sections?.length"
+              v-if="reasonReady"
               :reason="selectedReasonMeta.reason"
               :sections="selectedReasonMeta.sections"
               :score="selectedReasonMeta.score"
@@ -388,12 +374,41 @@ onBeforeUnmount(() => {
   max-height: min(72vh, 640px);
   overflow: auto;
 }
+.reason-panel--pinned {
+  min-height: min(40vh, 320px);
+}
+.reason-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.reason-detail-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.reason-detail-btn:hover {
+  background: #e0e7ff;
+}
 .reason-headline,
 .reason-job-title {
   font-weight: 700;
   color: #1e293b;
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 0.95rem;
+}
+.reason-job-title {
+  flex: 1;
+  min-width: 0;
 }
 .reason-sub {
   margin: 10px 0 6px;

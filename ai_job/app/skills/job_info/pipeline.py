@@ -28,6 +28,10 @@ from app.skills.job_info.recommendation import (
     decorate_response,
 )
 from app.skills.job_info.retrieval_service import build_recommend_ctx, recommend_from_ctx
+from app.skills.job_info.score_rubric import (
+    dimensions_total,
+    normalize_score_dimensions,
+)
 from app.skills.job_info import semantic_cache
 
 log = logging.getLogger(__name__)
@@ -72,6 +76,12 @@ def resolve_recommend_options(payload: Any) -> Dict[str, Any]:
         top_n_jobs = max(1, min(MAX_TOP_N_JOBS, int(top_n_raw or DEFAULT_TOP_N_JOBS)))
     except (TypeError, ValueError):
         top_n_jobs = DEFAULT_TOP_N_JOBS
+    raw_dims = payload_field(payload, "score_dimensions", None)
+    if raw_dims is None and hasattr(payload, "score_dimensions"):
+        raw_dims = getattr(payload, "score_dimensions", None)
+    if hasattr(raw_dims, "model_dump"):
+        raw_dims = raw_dims.model_dump()
+    score_dimensions = normalize_score_dimensions(raw_dims)
     return {
         "use_student_profile": use_profile,
         "student_context": raw_ctx if use_profile else "",
@@ -83,15 +93,20 @@ def resolve_recommend_options(payload: Any) -> Dict[str, Any]:
             payload_field(payload, "min_recommend_score", DEFAULT_MIN_RECOMMEND_SCORE),
             default=DEFAULT_MIN_RECOMMEND_SCORE,
         ),
+        "score_dimensions": score_dimensions,
+        "score_dimensions_total": dimensions_total(score_dimensions),
         "top_n_jobs": top_n_jobs,
     }
 
 
 def _recommend_options_meta(opts: Dict[str, Any]) -> Dict[str, Any]:
+    dims = normalize_score_dimensions(opts.get("score_dimensions"))
     return {
         "use_student_profile": bool(opts.get("use_student_profile")),
         "score_baseline": int(opts.get("score_baseline", DEFAULT_SCORE_BASELINE)),
         "min_recommend_score": int(opts.get("min_recommend_score", DEFAULT_MIN_RECOMMEND_SCORE)),
+        "score_dimensions": dims,
+        "score_dimensions_total": dimensions_total(dims),
         "top_n_jobs": int(opts.get("top_n_jobs", DEFAULT_TOP_N_JOBS)),
     }
 
@@ -138,6 +153,7 @@ async def deal_data_by_llm(data: Dict[str, Any], payload: Any) -> Dict[str, Any]
     top_n_jobs = int(opts["top_n_jobs"])
     min_score = int(opts["min_recommend_score"])
     score_baseline = int(opts["score_baseline"])
+    score_dimensions = normalize_score_dimensions(opts.get("score_dimensions"))
     use_profile = bool(opts["use_student_profile"])
     options_meta = _recommend_options_meta(opts)
 
@@ -162,6 +178,7 @@ async def deal_data_by_llm(data: Dict[str, Any], payload: Any) -> Dict[str, Any]
             retrieval_text,
             score_baseline=score_baseline,
             use_student_profile=use_profile,
+            score_dimensions=score_dimensions,
         )
     except Exception as e:
         log.warning("岗位素材 LLM 分析失败: %s", e, exc_info=True)
@@ -244,6 +261,7 @@ async def run_job_info_query_async(payload: Any) -> Dict[str, Any]:
     use_profile = bool(opts["use_student_profile"])
     score_baseline = int(opts["score_baseline"])
     min_recommend_score = int(opts["min_recommend_score"])
+    score_dimensions = normalize_score_dimensions(opts.get("score_dimensions"))
 
     # 改写仅执行一次，ctx 供检索与缓存共用
     ctx = await build_recommend_ctx(query, student_context)
@@ -256,6 +274,7 @@ async def run_job_info_query_async(payload: Any) -> Dict[str, Any]:
         use_student_profile=use_profile,
         score_baseline=score_baseline,
         min_recommend_score=min_recommend_score,
+        score_dimensions=score_dimensions,
     )
 
     # --- 读缓存（在线程池执行，避免阻塞 embed 同步调用）---

@@ -3,6 +3,7 @@
 import json  # 解析 JSON 文件
 from pathlib import Path  # 跨平台路径，用于定位配置文件
 from typing import Any, List, Optional, TypedDict, cast  # 类型注解与 TypedDict 结构
+from typing_extensions import NotRequired
 
 
 class ModelEntry(TypedDict):
@@ -14,6 +15,7 @@ class ModelEntry(TypedDict):
     model_name: str  # 模型名称，传给 Chat API
     model_api: str  # OpenAI 兼容服务的 base URL
     model_key: str  # API Key
+    analyze_response_format: NotRequired[str]  # 岗位分析 JSON 模式：none / json_object / json_schema
 
 
 # 每条记录必须出现的键，用于校验 JSON

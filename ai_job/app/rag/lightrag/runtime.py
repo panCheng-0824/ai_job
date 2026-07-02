@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from lc_agent.selection import select_model_by_type_and_level
 from model_cfg import ModelEntry, load_model_list
 
+from app.common.llm_call_log import log_llm_call_from_entry
 from app.skills.job_info.llm_schema import is_unsupported_response_format_error
 
 from .embedding_config import resolve_embedding_params
@@ -157,6 +158,14 @@ def build_openai_funcs(entry: ModelEntry) -> tuple[Any, Any]:
             kw_rf = _keyword_response_format()
             if kw_rf is not None:
                 kwargs["response_format"] = kw_rf
+
+        scenario = "LightRAG-关键词抽取" if kw_extract else "LightRAG-对话生成"
+        log_llm_call_from_entry(
+            scenario,
+            entry,
+            response_format=kwargs.get("response_format"),
+            keyword_extraction=kw_extract,
+        )
 
         async def _invoke() -> str:
             return await openai_complete_if_cache(

@@ -94,7 +94,7 @@ watch(() => [route.params.planId, route.query.version], load);
           <PlanQuestionCardList :questions="detail.questions || []" :page-size="12" interactive />
         </section>
 
-        <router-link class="back" to="/interview/plans">← 返回列表</router-link>
+        <router-link class="back" to="/interview/industry">← 返回列表</router-link>
       </template>
       <p v-else class="muted">加载中…</p>
     </div>

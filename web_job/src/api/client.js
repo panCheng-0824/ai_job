@@ -20,8 +20,72 @@ async function request(path, options = {}) {
   return data;
 }
 
-export function apiGet(path) {
-  return request(path);
+const pendingRequests = new Map();
+const cache = new Map();
+const DEFAULT_TTL = 30_000;
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export function invalidateCache(pathPrefix) {
+  if (!pathPrefix) {
+    cache.clear();
+    return;
+  }
+  for (const key of cache.keys()) {
+    if (key.startsWith(pathPrefix)) {
+      cache.delete(key);
+    }
+  }
+}
+
+export async function apiGetWithCache(path, { ttl = DEFAULT_TTL, retries = 2 } = {}) {
+  const key = path;
+
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < ttl) {
+    return cached.data;
+  }
+
+  if (pendingRequests.has(key)) {
+    return pendingRequests.get(key);
+  }
+
+  const doRequest = async () => {
+    let lastError;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        return await request(path);
+      } catch (e) {
+        lastError = e;
+        if (attempt < retries) {
+          await sleep(1000 * (1 << attempt));
+        }
+      }
+    }
+    throw lastError;
+  };
+
+  const promise = doRequest();
+  pendingRequests.set(key, promise);
+
+  try {
+    const data = await promise;
+    cache.set(key, { data, timestamp: Date.now() });
+    return data;
+  } finally {
+    pendingRequests.delete(key);
+  }
+}
+
+export function apiGet(path, options) {
+  return apiGetWithCache(path, options);
+}
+
+/** 绕过读缓存（ttl=0），用于需实时数据的列表/详情 */
+export function apiGetFresh(path, options = {}) {
+  return apiGetWithCache(path, { ...options, ttl: 0 });
 }
 
 export function apiPost(path, payload) {
@@ -188,6 +252,29 @@ export function apiDelete(path) {
 export function getStudentId() {
   if (typeof window === "undefined") return "";
   return (localStorage.getItem("student_id") || "").trim();
+}
+
+export function isLoggedIn() {
+  return Boolean(getStudentId());
+}
+
+/** 退出登录：清除本地会话标识，可选跳转登录页 */
+export function logout({ redirect = true, router } = {}) {
+  if (typeof window === "undefined") return;
+  if (!window.confirm("确定退出登录？将清除本地会话数据")) return;
+  localStorage.removeItem("student_id");
+  localStorage.removeItem("session_id");
+  localStorage.removeItem("usercode");
+  sessionStorage.removeItem("login_password_hint");
+  sessionStorage.removeItem("home_data_loaded");
+  sessionStorage.removeItem("home_hot_jobs_loaded");
+  sessionStorage.removeItem("jobs_data_loaded");
+  if (!redirect) return;
+  if (router) {
+    router.replace("/login");
+    return;
+  }
+  window.location.replace("/login");
 }
 
 /** 上传录音 → ASR，返回 { text } */

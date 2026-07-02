@@ -46,7 +46,7 @@ def run_evaluator_agent(
 ──角色约束──
 {bindings.role_block}
 """
-    raw = invoke_llm_text(bindings, prompt)
+    raw = invoke_llm_text(bindings, prompt, scenario="模拟面试-回答评估")
     data, err = parse_json_object(raw)
     if err:
         return {"status": "incomplete", "reason": err, "suggested_action": "followup"}, ""

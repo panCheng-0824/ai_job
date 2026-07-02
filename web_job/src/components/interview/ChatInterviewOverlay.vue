@@ -124,20 +124,23 @@ function onViewRecord() {
           </p>
 
           <div class="scene-body">
-            <InterviewOverlayQuestionPanel
-              :key="`q-${displaySeqNo}-${questionText}`"
-              :seq-no="displayQuestionItem?.seq_no ?? displaySeqNo"
-              :question-text="questionText"
-              :thinking-hint="displayQuestionItem?.thinking_hint || ''"
-              :answer-status="displayQuestionItem?.answer_status || session?.evaluatorStatus || 'pending'"
-              :phase="viewMode === 'review' ? 'question' : session?.phase || 'question'"
-            />
-            <InterviewOverlayThread
-              :turns="turns"
-              :streaming="threadStreaming"
-              :streaming-thinking="streamingThinking"
-              :streaming-answer="streamingAnswer"
-            />
+            <Transition name="question-fade" mode="out-in">
+              <div :key="displaySeqNo" class="scene-body__inner">
+                <InterviewOverlayQuestionPanel
+                  :seq-no="displayQuestionItem?.seq_no ?? displaySeqNo"
+                  :question-text="questionText"
+                  :thinking-hint="displayQuestionItem?.thinking_hint || ''"
+                  :answer-status="displayQuestionItem?.answer_status || session?.evaluatorStatus || 'pending'"
+                  :phase="viewMode === 'review' ? 'question' : session?.phase || 'question'"
+                />
+                <InterviewOverlayThread
+                  :turns="turns"
+                  :streaming="threadStreaming"
+                  :streaming-thinking="streamingThinking"
+                  :streaming-answer="streamingAnswer"
+                />
+              </div>
+            </Transition>
           </div>
 
           <InterviewOverlayComposer
@@ -267,6 +270,26 @@ function onViewRecord() {
   min-height: 0;
   flex: 1;
   overflow: hidden;
+}
+.scene-body__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.question-fade-enter-active,
+.question-fade-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.question-fade-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.question-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 .interview-fade-enter-active,
 .interview-fade-leave-active {

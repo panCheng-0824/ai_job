@@ -42,6 +42,8 @@ from model_cfg import load_model_list
 from openai import OpenAI
 
 from app.skills.job_info.context import RecommendRunCtx
+from app.skills.job_info.llm_schema import resolve_analyze_response_format_mode
+from app.skills.job_info.score_rubric import dimensions_scope_token, normalize_score_dimensions
 
 log = logging.getLogger(__name__)
 
@@ -166,6 +168,7 @@ def build_scope(
     use_student_profile: bool = True,
     score_baseline: int = 85,
     min_recommend_score: int = 85,
+    score_dimensions: dict | None = None,
 ) -> str:
     """
     构造缓存分区字符串（逻辑桶名，非 Redis 键）。
@@ -176,7 +179,7 @@ def build_scope(
     kb = kb_fingerprint(use_rag=use_rag)
     engine = "lightrag" if use_rag else "greprag"
     analyze_level = (os.getenv("JOB_RAG_ANALYZE_MODEL_LEVEL", "mid") or "mid").strip()
-    analyze_fmt = (os.getenv("JOB_RAG_ANALYZE_RESPONSE_FORMAT", "json_object") or "json_object").strip()
+    analyze_fmt = resolve_analyze_response_format_mode()
     rewrite_off = _env_bool("JOB_RAG_QUERY_REWRITE_DISABLED", default=False)
     profile_part = "guest"
     if not use_student_profile:
@@ -189,6 +192,7 @@ def build_scope(
             profile_part = "none"
     baseline = max(0, min(100, int(score_baseline or 85)))
     min_score = max(0, min(100, int(min_recommend_score or 85)))
+    dims = normalize_score_dimensions(score_dimensions)
     parts = [
         f"engine={engine}",
         f"kb={kb}",
@@ -201,6 +205,7 @@ def build_scope(
         f"score_base={baseline}",
         f"min_score={min_score}",
         f"use_profile={int(bool(use_student_profile))}",
+        f"dims={dimensions_scope_token(dims)}",
     ]
     return "|".join(parts)
 

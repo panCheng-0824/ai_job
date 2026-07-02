@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-import re
+from typing import Optional
 
-from app.skills.job_info.constants import (
-    DEFAULT_MIN_RECOMMEND_SCORE,
-    DEFAULT_SCORE_BASELINE,
-    DEFAULT_TOP_N_JOBS,
-    MAX_TOP_N_JOBS,
+from app.skills.job_info.constants import DEFAULT_SCORE_BASELINE
+from app.skills.job_info.llm_schema import format_recom_schema_for_prompt
+from app.skills.job_info.score_rubric import (
+    DEFAULT_SCORE_DIMENSIONS,
+    dimensions_total,
+    format_dimensions_for_prompt,
+    normalize_score_dimensions,
 )
 
 ANALYSIS_SYSTEM = (
@@ -24,8 +26,13 @@ def build_analysis_prompt(
     *,
     score_baseline: int = DEFAULT_SCORE_BASELINE,
     use_student_profile: bool = True,
+    score_dimensions: Optional[dict] = None,
+    include_json_schema: bool = False,
 ) -> str:
-    """用户消息：原问题 + 画像 + 知识库素材 + JSON 字段说明。"""
+    """用户消息：原问题 + 画像 + 知识库素材 + JSON 字段说明。
+
+    ``include_json_schema=True`` 时追加 ``RECOM_JSON_SCHEMA``（用于 ``json_object`` 模式）。
+    """
     ctx = (student_context or "").strip()
     if use_student_profile and ctx:
         ctx_block = f"\n\n【学生画像补充】\n{ctx}"
@@ -38,13 +45,16 @@ def build_analysis_prompt(
         ctx_block = ""
     material = (retrieval_context or "").strip()
     baseline = max(0, min(100, int(score_baseline or DEFAULT_SCORE_BASELINE)))
+    dims = normalize_score_dimensions(score_dimensions or DEFAULT_SCORE_DIMENSIONS)
+    dim_total = dimensions_total(dims)
+    dim_block = format_dimensions_for_prompt(dims)
     profile_hint = (
         "【用户原问题】与【学生画像补充】"
         if use_student_profile and ctx
         else "【用户原问题】"
     )
 
-    return (
+    base = (
         "你是高校就业指导助手。请**仅依据**下方【知识库素材】分析，不得编造素材中不存在的岗位或数据。\n"
         "知识库文档 id 常为 job-<岗位ID>，<岗位ID> 与业务 job_id 一致。\n\n"
         f"【用户原问题】\n{user_query.strip()}"
@@ -54,15 +64,11 @@ def build_analysis_prompt(
         f"在生成 JSON 前，先对照{profile_hint}，逐条阅读素材中的岗位信息。"
         "每条 recomList 的 reason 必须让人「看得懂为何推荐、为何是这个分数」，"
         "像就业顾问写给学生的匹配说明，而非空泛套话（禁止仅写「专业对口」「高度匹配」「已推荐」等）。\n\n"
-        f"【评分基准】本次 {baseline} 分表示「良好匹配」参考线："
+        f"【评分体系】本次满分 {dim_total} 分，{baseline} 分表示「良好匹配」参考线："
         f"综合达到该线可视为值得推荐；明显短板应低于 {baseline} 分，"
         f"高度契合且素材充分时可高于 {baseline} 分。\n\n"
-        "【评分维度】（score 满分 100，须在 reason 中解释分数如何形成；素材缺项则该维度降分并说明「素材未提及」）\n"
-        "1) 专业/方向对口（约 0–25）：岗位类别、职责与学生专业/诉求是否一致；\n"
-        "2) 技能与职责匹配（约 0–25）：素材中的技能、软件、项目/职责要求与学生能力画像的吻合度；\n"
-        "3) 门槛匹配（约 0–20）：学历、届别、经验、证书等硬性条件是否满足或可争取；\n"
-        "4) 诉求匹配（约 0–15）：城市、薪资区间、行业、校招/社招等是否符合用户检索意图；\n"
-        "5) 岗位质量（约 0–15）：企业规模、行业前景、岗位发展等（仅基于素材，勿臆测）。\n"
+        f"【评分维度】（score 满分 {dim_total}；素材缺项则该维度降分并说明「素材未提及」）\n"
+        f"{dim_block}\n"
         f"score 须与上述分析自洽：明显不匹配（如专业完全无关）不应给 {baseline} 分以上；"
         "有明确短板须在 reason 中扣分并说明。\n\n"
         "【输出要求】\n"
@@ -75,7 +81,7 @@ def build_analysis_prompt(
         "4) recomList[].reason **不少于 300 个汉字**（不含空格），必须按以下四段标题撰写，"
         "**标题原样保留**（供页面分段展示，四段缺一不可，每段充分展开）：\n"
         "   【匹配结论】说明为何将该岗纳入推荐（结合学生画像与诉求，≥60 字）；\n"
-        "   【评分依据】逐维说明 score 加减分（专业/技能/门槛/诉求/岗位质量，写出分值构成，≥80 字）；\n"
+        "   【评分依据】按五维逐条写出「维度名 X/Y 分 + 依据」（须覆盖全部维度及分值构成，≥80 字）；\n"
         "   【素材依据】至少引用 3 条素材具体事实（职责、技能、学历、薪资、地点、企业等，逐条说明与学生的关联，≥100 字）；\n"
         "   【差异提示】写明差距、风险或需补强之处；若高度匹配也需说明依据（≥60 字）。\n"
         "5) 禁止编造素材中不存在的薪资、城市、企业名、职责；无信息则写「素材未提供」。\n"
@@ -85,6 +91,9 @@ def build_analysis_prompt(
         '"reason":"【匹配结论】示例正文…【评分依据】示例正文…【素材依据】示例正文…【差异提示】示例正文…",'
         '"city":"<城市>","companyName":"<公司>","salaryRange":"<薪资>"}]}'
     )
+    if include_json_schema:
+        base += "\n\n" + format_recom_schema_for_prompt()
+    return base
 
 
 def analysis_system_message(*, use_structured_format: bool) -> str:

@@ -125,10 +125,10 @@ function onL1RowClick(l1) {
 
 .tree-panel {
   background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  padding: 8px;
-  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
+  border: 1px solid var(--home-card-border, rgba(91, 106, 223, 0.12));
+  border-radius: var(--home-radius-lg, 16px);
+  padding: 10px;
+  box-shadow: var(--home-card-shadow, 0 6px 24px rgba(91, 106, 223, 0.07));
 }
 
 .l1-block + .l1-block {

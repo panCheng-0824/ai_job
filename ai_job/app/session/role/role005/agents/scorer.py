@@ -40,7 +40,7 @@ def run_scorer_agent(
 参考答案：{current.reference_answer}
 学生回答：{student_text}
 """
-    raw = invoke_llm_text(bindings, prompt)
+    raw = invoke_llm_text(bindings, prompt, scenario="模拟面试-综合评分")
     data, err = parse_json_object(raw)
     if err:
         return {}, err

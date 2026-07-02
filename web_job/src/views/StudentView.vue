@@ -1,58 +1,110 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { useRoute } from "vue-router";
+/**
+ * 登录后首页：侧栏 + 画像速览 + 智能匹配职位 + 热招职位（对齐设计稿）。
+ * 「学生画像」tab 展示完整档案明细。
+ */
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { apiGet, apiPost } from "../api/client";
 import FloatingFramePanel from "../components/FloatingFramePanel.vue";
-import JobMatchReasonBlocks from "../components/JobMatchReasonBlocks.vue";
-import { resolveJobMatchReasonDisplay } from "../utils/jobMatchReason";
+import JobCompareBar from "../components/jobs/JobCompareBar.vue";
+import JobCompareModal from "../components/jobs/JobCompareModal.vue";
+import HomeMatchHistoryTimeline from "../components/home/HomeMatchHistoryTimeline.vue";
+import HomeHotJobsSection from "../components/home/HomeHotJobsSection.vue";
+import HomeMatchedJobsSection from "../components/home/HomeMatchedJobsSection.vue";
+import HomeProfileOverview from "../components/home/HomeProfileOverview.vue";
+import HomeTopBar from "../components/home/HomeTopBar.vue";
+import StudentProfileDetailPanel from "../components/home/StudentProfileDetailPanel.vue";
+
+const JobDetailView = defineAsyncComponent(() => import("../views/JobDetailView.vue"));
+const CompanyDetailView = defineAsyncComponent(() => import("../views/CompanyDetailView.vue"));
+import {
+  SCORE_DIMENSION_DEFS,
+  clampDimensionScore,
+  cloneDefaultScoreDimensions,
+  sumScoreDimensions
+} from "../constants/jobScoreRubric";
+import { MATCH_PRESETS } from "../config/matchPresets";
+import {
+  formatJobMatchElapsed,
+  useJobMatchWaitTimer
+} from "../composables/useJobMatchWaitTimer";
+import { useJobCompare } from "../composables/useJobCompare";
+import { useJobMatchHistory } from "../composables/useJobMatchHistory";
 
 const route = useRoute();
+const router = useRouter();
 const studentPortrait = ref(null);
+const summary = ref(null);
+const favorites = ref({ jobs: [] });
+const hotJobs = ref([]);
+const hotJobsLoading = ref(false);
+
+const { compareList, compareCount, isSelected, toggleCompare, clearCompare, maxCompare } = useJobCompare();
+const {
+  historyItems,
+  activeHistoryId,
+  historyLoading,
+  loadHistory,
+  saveHistory,
+  selectHistory,
+  applySettingsToForm,
+  applyRecordToView,
+  buildSettingsPayload
+} = useJobMatchHistory();
+const compareOpen = ref(false);
+const compareJobs = ref([]);
+
+function openCompare() {
+  const allJobs = [...jobs.value, ...hotJobs.value];
+  const idSet = new Set(compareList.value);
+  compareJobs.value = allJobs.filter((j) => idSet.has(j.job_id || j.id));
+  compareOpen.value = true;
+}
+const regionFilter = ref("");
+const salaryFilter = ref("");
+const sortFilter = ref("score");
 const error = ref("");
 const query = ref("");
 const jobs = ref([]);
 const companies = ref([]);
 const loading = ref(false);
+/** 岗位推荐等待计时（网格区展示已等待时长与阶段） */
+const matchWait = useJobMatchWaitTimer();
+const { elapsedMs: matchElapsedMs, start: startMatchWait, stop: stopMatchWait } = matchWait;
 /** 最近一次「开始匹配」请求耗时（毫秒），用于展示匹配时长 */
 const lastMatchDurationMs = ref(null);
-/** 匹配进行中：已流逝毫秒（定时刷新，用于等待态展示） */
-const matchElapsedMs = ref(0);
-let matchElapsedTimer = null;
-
-function clearMatchElapsedTimer() {
-  if (matchElapsedTimer != null) {
-    clearInterval(matchElapsedTimer);
-    matchElapsedTimer = null;
-  }
-}
-
-function startMatchElapsedTimer(t0) {
-  clearMatchElapsedTimer();
-  matchElapsedMs.value = 0;
-  matchElapsedTimer = setInterval(() => {
-    matchElapsedMs.value = performance.now() - t0;
-  }, 100);
-}
-/** 是否已执行过至少一次「开始匹配」（用于区分初始态与「暂无数据」） */
-const recommendSearched = ref(false);
-/** 当前在右侧展示推荐理由的岗位 id（点击左侧选中） */
-const selectedJobId = ref(null);
-/** 悬停预览：优先于选中态展示右侧理由 */
-const hoverJobId = ref(null);
+/** 是否已从服务端加载过匹配历史 */
+const historyBootstrapped = ref(false);
 const copyBtnText = ref("复制 JSON");
+/** 是否已执行过至少一次「开始匹配」或已加载历史（用于区分初始态与「暂无数据」） */
+const recommendSearched = ref(false);
 /** LightRAG 检索摘要（与岗位同步知识库） */
 const ragInfo = ref(null);
 /** 与 `/api/skills/job-info-query` 返回的 `recommendation` 对齐：无匹配原因等（列表仍用 `jobs`） */
 const recommendation = ref(null);
+
 /** 是否使用语义相似缓存（需服务端 JOB_INFO_SEM_CACHE_ENABLED=1） */
 const useSemanticCache = ref(true);
 /** 岗位推荐配置（默认折叠隐藏） */
 const useStudentProfile = ref(true);
 const scoreBaseline = ref(85);
 const minRecommendScore = ref(85);
-const topNJobs = ref(5);
+const topNJobs = ref(9);
+const scoreDimensions = ref(cloneDefaultScoreDimensions());
+const scoreDimensionDefs = SCORE_DIMENSION_DEFS;
+const scoreDimensionsTotal = computed(() => sumScoreDimensions(scoreDimensions.value));
+const scoreDimensionsValid = computed(() => scoreDimensionsTotal.value === 100);
 /** 最近一次匹配返回的 cache 元信息（命中时 API 顶层 cache.hit=true） */
 const matchCacheMeta = ref(null);
+const cacheBannerDismissed = ref(false);
+
+const activePreset = ref(null);
+
+function applyPreset(preset) {
+  activePreset.value = preset.key;
+  scoreDimensions.value = { ...preset.weights };
+}
 
 function clampScore(value, fallback = 85) {
   const n = Number.parseInt(String(value), 10);
@@ -64,6 +116,26 @@ function clampTopN(value, fallback = 5) {
   const n = Number.parseInt(String(value), 10);
   if (!Number.isFinite(n)) return fallback;
   return Math.max(1, Math.min(20, n));
+}
+
+function onScoreDimensionChange(key) {
+  const dim = scoreDimensionDefs.find((d) => d.key === key);
+  const fallback = dim ? cloneDefaultScoreDimensions()[key] : 0;
+  scoreDimensions.value = {
+    ...scoreDimensions.value,
+    [key]: clampDimensionScore(scoreDimensions.value[key], fallback)
+  };
+}
+
+function buildScoreDimensionsPayload() {
+  const out = {};
+  for (const dim of scoreDimensionDefs) {
+    out[dim.key] = clampDimensionScore(
+      scoreDimensions.value[dim.key],
+      cloneDefaultScoreDimensions()[dim.key]
+    );
+  }
+  return out;
 }
 
 function buildStudentContextFromPortrait() {
@@ -109,77 +181,29 @@ const cacheHitDetail = computed(() => {
   return parts.join(" · ");
 });
 
-/** 当前预览岗位的推荐理由展示数据 */
-const selectedReasonMeta = computed(() => {
-  if (!previewJob.value) {
-    return { reason: "", sections: [], charCount: 0, score: null };
-  }
-  const rec = recommendation.value?.recommended_jobs || [];
-  const hit = rec.find((x) => x.job_id === previewJob.value.job_id);
-  return resolveJobMatchReasonDisplay(hit, previewJob.value);
-});
-
-const selectedJob = computed(() => {
-  const id = selectedJobId.value;
-  if (!id) return null;
-  return (jobs.value || []).find((j) => j.job_id === id) || null;
-});
-
-/** 右侧理由区：悬停优先，否则为点击选中的岗位 */
-const previewJob = computed(() => {
-  const h = hoverJobId.value;
-  if (h) return (jobs.value || []).find((j) => j.job_id === h) || null;
-  return selectedJob.value;
-});
-
-const reasonPanelTitle = computed(() => {
-  if (!previewJob.value) return "";
-  return previewJob.value.job_title || previewJob.value.job_name || "岗位";
-});
-
-/** 右侧：无岗位时的说明（与后端 no_match_detail / rag 对齐） */
-const noJobReasonBlocks = computed(() => {
-  const rec = recommendation.value;
-  const detail = rec?.no_match_detail;
-  if (detail?.causes?.length) {
-    return {
-      headline: detail.title || "暂无推荐",
-      causes: detail.causes,
-      suggestions: detail.suggestions || []
-    };
-  }
-  const parts = [];
-  if (ragInfo.value?.hint) parts.push(String(ragInfo.value.hint));
-  if (ragInfo.value?.detail) parts.push(String(ragInfo.value.detail));
-  if (rec?.notes?.length) parts.push(rec.notes.join(" "));
-  if (!parts.length) parts.push("当前条件下未返回可展示的推荐岗位，请调整诉求后重试。");
-  return { headline: "暂无推荐", causes: parts, suggestions: [] };
-});
-
-/** 岗位详情弹层（与导航 Portal 弹框交互一致） */
+/** 岗位详情弹层（组件渲染替代 iframe） */
 const jobDetailFrameOpen = ref(false);
 const jobDetailFrameFullscreen = ref(false);
-const jobDetailIframeSrc = ref("");
 const jobDetailFrameTitle = ref("");
+const selectedJobId = ref("");
+const selectedCreditCode = ref("");
+const detailMode = ref("job"); // "job" | "company"
 
 function closeJobDetailFrame() {
   jobDetailFrameOpen.value = false;
   jobDetailFrameFullscreen.value = false;
-  jobDetailIframeSrc.value = "";
   jobDetailFrameTitle.value = "";
-}
-
-function jobDetailEmbedUrl(path) {
-  const u = new URL(path, window.location.origin);
-  u.searchParams.set("_embed", "1");
-  return u.pathname + u.search + u.hash;
+  selectedJobId.value = "";
+  selectedCreditCode.value = "";
 }
 
 function openJobDetailFrame(job) {
   if (!job?.job_id) return;
-  const id = encodeURIComponent(String(job.job_id).trim());
+  const id = String(job.job_id).trim();
+  selectedJobId.value = id;
+  selectedCreditCode.value = "";
+  detailMode.value = "job";
   jobDetailFrameTitle.value = job.job_title || job.job_name || job.job_id || "岗位详情";
-  jobDetailIframeSrc.value = jobDetailEmbedUrl(`/jobs/${id}`);
   jobDetailFrameOpen.value = true;
   jobDetailFrameFullscreen.value = false;
 }
@@ -189,22 +213,11 @@ function toggleJobDetailFullscreen() {
 }
 
 function openJobDetailFullWindow() {
-  if (!jobDetailIframeSrc.value) return;
-  const u = new URL(jobDetailIframeSrc.value, window.location.origin);
-  u.searchParams.delete("_embed");
-  const href = u.pathname + u.search + u.hash;
-  window.open(href, "_blank", "noopener,noreferrer");
-}
-
-function selectJobForReason(job) {
-  if (!job?.job_id) return;
-  selectedJobId.value = job.job_id;
-}
-
-function onJobCardActivate(job) {
-  if (!job?.job_id) return;
-  selectJobForReason(job);
-  openJobDetailFrame(job);
+  if (detailMode.value === "job" && selectedJobId.value) {
+    window.open(`/jobs/${encodeURIComponent(selectedJobId.value)}`, "_blank", "noopener,noreferrer");
+  } else if (detailMode.value === "company" && selectedCreditCode.value) {
+    window.open(`/companies/${encodeURIComponent(selectedCreditCode.value)}`, "_blank", "noopener,noreferrer");
+  }
 }
 
 function onJobDetailDocKey(ev) {
@@ -231,6 +244,43 @@ const counselorRecordList = computed(() => studentPortrait.value?.[SEC.counselor
 const trackingRecordList = computed(() => studentPortrait.value?.[SEC.tracking] || []);
 
 const majorText = computed(() => studentInfo.value["专业名称"] || "-");
+
+const isProfileTab = computed(() => route.query.tab === "profile");
+
+const pageTitle = computed(() => (isProfileTab.value ? "学生画像" : "首页"));
+
+const pageSubtitle = computed(() => {
+  if (isProfileTab.value) {
+    return studentInfo.value["专业名称"]
+      ? `查看与维护 ${studentInfo.value["专业名称"]} 方向的完整档案`
+      : "查看与维护你的完整学生档案";
+  }
+  return intentText.value ? `当前意向：${intentText.value}` : "";
+});
+
+const studentDisplayName = computed(() => studentInfo.value["姓名"] || "");
+
+const intentText = computed(() => {
+  const major = studentInfo.value["专业名称"] || "";
+  const edu = studentInfo.value["学历"] || "";
+  const parts = [];
+  if (major) parts.push(major);
+  if (edu) parts.push(`${edu}岗位`);
+  return parts.join(" · ") || query.value.trim() || "待设置求职意向";
+});
+
+const applicationCount = computed(() => {
+  const n = summary.value?.favorite_job_count;
+  return Number.isFinite(Number(n)) ? Number(n) : 0;
+});
+
+function buildDefaultQuery() {
+  const s = studentInfo.value || {};
+  const major = s["专业名称"] || "对口";
+  const city = s["学校名称"] ? "" : "";
+  const edu = s["学历"] || "";
+  return `想找${city}${major}${edu ? `（${edu}）` : ""}相关岗位，薪资合理、发展稳定`;
+}
 
 /** 后端已输出完整中文 key + null 占位，与写入 Redis 的结构一致 */
 const fullPortraitJson = computed(() => {
@@ -259,12 +309,12 @@ const baseFields = computed(() => {
   ];
 });
 
-function getStudentId() {
+function getStudentIdFromRoute() {
   return route.query.student_id || localStorage.getItem("student_id") || "";
 }
 
 async function loadStudent() {
-  const sid = getStudentId();
+  const sid = getStudentIdFromRoute();
   if (!sid) return;
   try {
     studentPortrait.value = await apiGet(`/api/students/${encodeURIComponent(sid)}`);
@@ -273,29 +323,49 @@ async function loadStudent() {
   }
 }
 
-function formatMatchDuration(ms) {
-  if (!Number.isFinite(ms) || ms < 0) return "—";
-  if (ms < 1000) return `${Math.max(1, Math.round(ms))} 毫秒`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(2)} 秒`;
-  const m = Math.floor(ms / 60000);
-  const s = ((ms % 60000) / 1000).toFixed(1);
-  return `${m} 分 ${s} 秒`;
+async function loadSummary() {
+  const sid = getStudentIdFromRoute();
+  if (!sid) return;
+  try {
+    const q = new URLSearchParams({ student_id: sid });
+    const [sum, fav] = await Promise.all([
+      apiGet(`/api/me/summary?${q}`),
+      apiGet(`/api/me/favorites?${q}`)
+    ]);
+    summary.value = sum;
+    favorites.value = fav || { jobs: [] };
+  } catch {
+    summary.value = null;
+    favorites.value = { jobs: [] };
+  }
 }
 
-async function runRecommend() {
-  if (!query.value.trim()) {
+async function loadHotJobs() {
+  hotJobsLoading.value = true;
+  try {
+    const data = await apiGet("/api/jobs/paged?page=1&pageSize=8&syncedOnly=true");
+    hotJobs.value = data?.items || [];
+  } catch {
+    hotJobs.value = [];
+  } finally {
+    hotJobsLoading.value = false;
+  }
+}
+
+async function runRecommend(customQuery) {
+  const qText = String(customQuery ?? query.value).trim();
+  if (!qText) {
     error.value = "请输入岗位诉求后再查询";
     return;
   }
+  query.value = qText;
   loading.value = true;
   lastMatchDurationMs.value = null;
   matchCacheMeta.value = null;
+  cacheBannerDismissed.value = false;
   ragInfo.value = null;
   recommendation.value = null;
-  selectedJobId.value = null;
-  hoverJobId.value = null;
-  const t0 = performance.now();
-  startMatchElapsedTimer(t0);
+  startMatchWait();
   try {
     error.value = "";
     const studentContext = useStudentProfile.value ? buildStudentContextFromPortrait() : "";
@@ -308,7 +378,8 @@ async function runRecommend() {
       use_student_profile: useStudentProfile.value,
       student_context: studentContext,
       score_baseline: clampScore(scoreBaseline.value),
-      min_recommend_score: clampScore(minRecommendScore.value)
+      min_recommend_score: clampScore(minRecommendScore.value),
+      score_dimensions: buildScoreDimensionsPayload()
     });
     jobs.value = data.jobs || [];
     companies.value = data.companies || [];
@@ -316,21 +387,81 @@ async function runRecommend() {
     recommendation.value = data.recommendation || null;
     matchCacheMeta.value = data.cache && typeof data.cache === "object" ? data.cache : null;
     recommendSearched.value = true;
+
+    if (jobs.value.length > 0) {
+      const settings = buildSettingsPayload({
+        query,
+        useStudentProfile,
+        useSemanticCache,
+        scoreBaseline,
+        minRecommendScore,
+        topNJobs,
+        buildScoreDimensionsPayload
+      });
+      await saveHistory({
+        query: query.value.trim(),
+        settings,
+        jobs: jobs.value,
+        recommendation: recommendation.value
+      });
+    }
   } catch (err) {
     error.value = err.message;
     matchCacheMeta.value = null;
     recommendSearched.value = true;
   } finally {
-    clearMatchElapsedTimer();
-    const elapsed = performance.now() - t0;
-    matchElapsedMs.value = elapsed;
-    lastMatchDurationMs.value = elapsed;
+    stopMatchWait();
+    lastMatchDurationMs.value = matchElapsedMs.value;
     loading.value = false;
   }
 }
 
+const matchFormRefs = {
+  query,
+  useStudentProfile,
+  useSemanticCache,
+  scoreBaseline,
+  minRecommendScore,
+  topNJobs,
+  scoreDimensions
+};
+
+const matchViewRefs = {
+  jobs,
+  recommendation,
+  companies,
+  ragInfo,
+  matchCacheMeta,
+  recommendSearched
+};
+
+function handleHistorySelect(record) {
+  selectHistory(record, matchFormRefs, matchViewRefs);
+}
+
+/** 从服务端加载历史：默认展示最新一条，不调用匹配 API */
+async function bootstrapMatchHistory() {
+  if (isProfileTab.value) {
+    historyBootstrapped.value = true;
+    return;
+  }
+  const items = await loadHistory();
+  historyBootstrapped.value = true;
+  if (items.length > 0) {
+    const latest = items[0];
+    applySettingsToForm(latest, matchFormRefs);
+    applyRecordToView(latest, matchViewRefs);
+    activeHistoryId.value = latest.id ?? null;
+    return;
+  }
+  if (!query.value.trim()) {
+    query.value = buildDefaultQuery();
+  }
+  recommendSearched.value = false;
+}
+
 onBeforeUnmount(() => {
-  clearMatchElapsedTimer();
+  matchWait.reset();
   document.removeEventListener("keydown", onJobDetailDocKey);
 });
 
@@ -347,319 +478,296 @@ async function copyJson() {
   }
 }
 
+function handleJobViewDetail(job) {
+  if (!job?.job_id) return;
+  openJobDetailFrame(job);
+}
+
+function handleJobApply(job) {
+  if (!job?.job_id) return;
+  openJobDetailFrame(job);
+}
+
+function handleJobResume() {
+  router.push("/resume/create");
+}
+
+function handleJobInterview() {
+  router.push("/interview/industry");
+}
+
+function handleHotJobDetail(job) {
+  if (!job?.job_id) return;
+  openJobDetailFrame({
+    job_id: job.job_id,
+    job_title: job.job_title,
+    job_name: job.job_title
+  });
+}
+
+async function bootstrapHome() {
+  const hotJobsLoaded = sessionStorage.getItem("home_hot_jobs_loaded");
+  await Promise.all([loadStudent(), loadSummary()]);
+  if (!hotJobsLoaded) {
+    await loadHotJobs();
+    sessionStorage.setItem("home_hot_jobs_loaded", "1");
+  }
+  await bootstrapMatchHistory();
+}
+
+watch(
+  () => route.query.tab,
+  async (tab) => {
+    if (tab === "profile") return;
+    if (!historyBootstrapped.value) {
+      await bootstrapMatchHistory();
+    }
+  }
+);
+
 onMounted(() => {
-  loadStudent();
+  bootstrapHome();
   document.addEventListener("keydown", onJobDetailDocKey);
 });
 </script>
-
 <template>
-  <div>
-    <section class="hero">
+  <div class="home-main">
+      <HomeTopBar
+        :title="pageTitle"
+        :subtitle="pageSubtitle"
+        :student-name="studentDisplayName"
+      />
 
-      <h1>学生信息与岗位洞察中心</h1>
-      <p>当前登录账号：<code>{{ studentInfo?.["学号"] || "-" }}</code></p>
-    </section>
-    <div class="container">
-      <main style="display: flex; flex-direction: column; gap: 16px;">
-        <section class="panel">
-          <div class="metric-grid">
-            <div class="metric"><p>身份编号</p><strong>{{ studentInfo?.["学号"] || "-" }}</strong></div>
-            <div class="metric"><p>姓名</p><strong>{{ studentInfo?.["姓名"] || "-" }}</strong></div>
-            <div class="metric"><p>专业方向</p><strong>{{ majorText }}</strong></div>
-          </div>
-          <p class="error">{{ error }}</p>
-          <div class="panel-head">
-            <h2 class="section-title">完整学生资料</h2>
-            <button class="toggle" @click="copyJson">{{ copyBtnText }}</button>
-          </div>
-          <div class="form-grid">
-            <label v-for="item in baseFields" :key="item.label" class="field">
-              <span>{{ item.label }}</span>
-              <input :value="item.value ?? '-'" readonly />
-            </label>
-          </div>
-          <details class="collapse-wrap">
-            <summary>展开家庭信息（{{ familyInfoList.length }} 条）</summary>
-            <div class="collapse-body">
-              <div v-if="!familyInfoList.length" class="empty-tip">暂无家庭信息</div>
-              <div v-for="(item, idx) in familyInfoList" v-else :key="`${item['学号']}-${idx}`" class="sub-card">
-                <div class="sub-title">家庭成员 {{ idx + 1 }}</div>
-                <div class="form-grid">
-                  <label class="field"><span>学号</span><input :value="item['学号'] ?? '-'" readonly /></label>
-                  <label class="field"><span>家长姓名</span><input :value="item['家长姓名'] || '-'" readonly /></label>
-                  <label class="field"><span>与本人关系</span><input :value="item['与本人关系'] || '-'" readonly /></label>
-                  <label class="field"><span>家长出生日期</span><input :value="item['家长出生日期'] || '-'" readonly /></label>
-                  <label class="field"><span>证件类型</span><input :value="item['证件类型'] || '-'" readonly /></label>
-                  <label class="field"><span>家长证件号</span><input :value="item['家长证件号'] || '-'" readonly /></label>
-                  <label class="field"><span>家长单位</span><input :value="item['家长单位'] || '-'" readonly /></label>
-                  <label class="field"><span>家长职务</span><input :value="item['家长职务'] || '-'" readonly /></label>
-                  <label class="field"><span>家长职业</span><input :value="item['家长职业'] || '-'" readonly /></label>
-                  <label class="field"><span>家长邮政编码</span><input :value="item['家长邮政编码'] || '-'" readonly /></label>
-                  <label class="field"><span>家长联系电话</span><input :value="item['家长联系电话'] || '-'" readonly /></label>
-                  <label class="field"><span>家长手机号</span><input :value="item['家长手机号'] || '-'" readonly /></label>
-                  <label class="field"><span>平均月收入</span><input :value="item['平均月收入'] ?? '-'" readonly /></label>
-                </div>
-              </div>
-            </div>
-          </details>
-          <details class="collapse-wrap">
-            <summary>展开获奖信息（{{ awardInfoList.length }} 条）</summary>
-            <div class="collapse-body">
-              <div v-if="!awardInfoList.length" class="empty-tip">暂无获奖信息</div>
-              <div v-for="(item, idx) in awardInfoList" v-else :key="`${item['学号']}-${idx}`" class="sub-card">
-                <div class="sub-title">获奖记录 {{ idx + 1 }}</div>
-                <div class="form-grid">
-                  <label class="field"><span>学号</span><input :value="item['学号'] ?? '-'" readonly /></label>
-                  <label class="field"><span>奖项年度</span><input :value="item['奖项年度'] ?? '-'" readonly /></label>
-                  <label class="field"><span>项目名称</span><input :value="item['项目名称'] || '-'" readonly /></label>
-                  <label class="field"><span>项目类别</span><input :value="item['项目类别'] || '-'" readonly /></label>
-                  <label class="field field-wide"><span>项目描述</span><textarea :value="item['项目描述'] || '-'" rows="3" readonly /></label>
-                </div>
-              </div>
-            </div>
-          </details>
-          <details class="collapse-wrap">
-            <summary>展开心理咨询记录（{{ counselingRecordList.length }} 条）</summary>
-            <div class="collapse-body">
-              <div v-if="!counselingRecordList.length" class="empty-tip">暂无心理咨询记录</div>
-              <div v-for="(item, idx) in counselingRecordList" v-else :key="`${item['申请ID']}-${idx}`" class="sub-card">
-                <div class="sub-title">咨询记录 {{ idx + 1 }}</div>
+      <StudentProfileDetailPanel
+        v-if="isProfileTab"
+        :student-info="studentInfo"
+        :base-fields="baseFields"
+        :award-info-list="awardInfoList"
+        :summary="summary"
+        :favorites="favorites.jobs || []"
+        :recent-jobs="hotJobs"
+        :intent-text="intentText"
+        :error="error"
+        @copy-json="copyJson"
+        @view-job="handleHotJobDetail"
+        @view-more="router.push('/jobs')"
+      />
 
-                <div class="form-grid psych-grid">
-                  <label class="field"><span>申请ID</span><input :value="item['申请ID'] || '-'" readonly /></label>
-                  <label class="field"><span>学号</span><input :value="item['学号'] ?? '-'" readonly /></label>
-                  <label class="field"><span>年度</span><input :value="item['年度'] ?? '-'" readonly /></label>
-                  <label class="field"><span>咨询时间</span><input :value="item['咨询时间'] || '-'" readonly /></label>
-                  <label class="field field-wide"><span>咨询议题</span><textarea :value="item['咨询议题'] || '-'" rows="2" readonly /></label>
-                  <label class="field field-wide"><span>咨询效果</span><textarea :value="item['咨询效果'] || '-'" rows="2" readonly /></label>
-                </div>
-              </div>
-            </div>
-          </details>
-          <details class="collapse-wrap">
-            <summary>展开心理干预记录（{{ counselorRecordList.length }} 条）</summary>
-            <div class="collapse-body">
-              <div v-if="!counselorRecordList.length" class="empty-tip">暂无心理干预记录</div>
-              <div v-for="(item, idx) in counselorRecordList" v-else :key="`${item['记录ID']}-${idx}`" class="sub-card">
-                <div class="sub-title">干预记录 {{ idx + 1 }}</div>
+      <template v-else>
+        <div class="home-dashboard">
+          <aside class="home-left">
+            <HomeProfileOverview
+              :student-info="studentInfo"
+              :award-list="awardInfoList"
+              :application-count="applicationCount"
+              :intent-text="intentText"
+            />
+            <HomeMatchHistoryTimeline
+              v-if="!isProfileTab"
+              :items="historyItems"
+              :active-id="activeHistoryId"
+              :loading="historyLoading"
+              @select="handleHistorySelect"
+            />
+          </aside>
 
-                <div class="form-grid psych-grid">
-                  <label class="field"><span>记录ID</span><input :value="item['记录ID'] || '-'" readonly /></label>
-                  <label class="field"><span>学号</span><input :value="item['学号'] ?? '-'" readonly /></label>
-                  <label class="field"><span>咨询申请ID</span><input :value="item['咨询申请ID'] || '-'" readonly /></label>
-                  <label class="field"><span>咨询时间</span><input :value="item['咨询时间'] || '-'" readonly /></label>
-                  <label class="field field-wide"><span>咨询概要</span><textarea :value="item['咨询概要'] || '-'" rows="3" readonly /></label>
-                </div>
-              </div>
-            </div>
-          </details>
-          <details class="collapse-wrap">
-            <summary>展开心理跟踪记录（{{ trackingRecordList.length }} 条）</summary>
-            <div class="collapse-body">
-              <div v-if="!trackingRecordList.length" class="empty-tip">暂无心理跟踪记录</div>
-              <div v-for="(item, idx) in trackingRecordList" v-else :key="`${item['档案主键']}-${idx}`" class="sub-card">
-                <div class="sub-title">跟踪记录 {{ idx + 1 }}</div>
+          <main class="home-right">
+            <p v-if="error" class="home-error">{{ error }}</p>
 
-                <div class="form-grid psych-grid">
-                  <label class="field"><span>学号</span><input :value="item['学号'] ?? '-'" readonly /></label>
-                  <label class="field"><span>档案主键</span><input :value="item['档案主键'] || '-'" readonly /></label>
-                  <label class="field"><span>咨询ID</span><input :value="item['咨询ID'] || '-'" readonly /></label>
-                  <label class="field"><span>添加时间</span><input :value="item['添加时间'] || '-'" readonly /></label>
-                  <label class="field field-wide"><span>寻求问题</span><textarea :value="item['寻求问题'] || '-'" rows="2" readonly /></label>
-                  <label class="field field-wide"><span>问题评估</span><textarea :value="item['问题评估'] || '-'" rows="2" readonly /></label>
-                  <label class="field field-wide"><span>咨询效果</span><textarea :value="item['咨询效果'] || '-'" rows="2" readonly /></label>
-                  <label class="field"><span>学生状态</span><input :value="item['学生状态'] || '-'" readonly /></label>
-                  <label class="field"><span>院系合作</span><input :value="item['院系合作'] || '-'" readonly /></label>
-                  <label class="field field-wide"><span>其他情况</span><textarea :value="item['其他情况'] || '-'" rows="2" readonly /></label>
-                </div>
-              </div>
+            <div
+              v-if="recommendSearched && cacheHitActive && !loading && !cacheBannerDismissed"
+              class="cache-hit-banner"
+              role="status"
+            >
+              <span class="cache-hit-badge">{{ cacheHitTitle }}</span>
+              <span v-if="cacheHitDetail" class="cache-hit-detail">{{ cacheHitDetail }}</span>
+              <button type="button" class="cache-hit-close" aria-label="关闭" @click="cacheBannerDismissed = true">✕</button>
             </div>
-          </details>
-          <details class="collapse-wrap">
-            <summary>展开完整学生资料</summary>
-            <div class="collapse-body">
-              <pre>{{ fullPortraitJson || "加载中..." }}</pre>
-            </div>
-          </details>
-        </section>
 
-        <section class="panel">
-          <h2 class="section-title">岗位推荐</h2>
-          
-          <div class="line">
-            <input v-model="query" placeholder="例如：想找杭州前端、双休、成长空间好的岗位" @keydown.enter.prevent="runRecommend" />
-            <button class="match-btn" :class="{ 'match-btn--busy': loading }" :disabled="loading" @click="runRecommend">
-              {{ loading ? "匹配中…" : "开始匹配" }}
-            </button>
-          </div>
-          <details class="collapse-wrap recommend-config-wrap">
-            <summary>推荐配置</summary>
-            <div class="collapse-body recommend-config-body">
-              <label class="switch-line recommend-config-switch">
-                <input v-model="useStudentProfile" type="checkbox" />
-                关联本人信息（关闭后为游客模式，不带学生档案参与匹配）
-              </label>
-              <div class="recommend-config-grid">
-                <label class="field">
-                  <span>评分基准（良好匹配参考线）</span>
+            <div class="sort-tabs">
+              <span class="sort-tabs-label">排序：</span>
+              <button :class="{ active: sortFilter === 'score' }" @click="sortFilter = 'score'">评分优先</button>
+              <button :class="{ active: sortFilter === 'salary' }" @click="sortFilter = 'salary'">薪资优先</button>
+              <button :class="{ active: sortFilter === 'date' }" @click="sortFilter = 'date'">最新发布</button>
+            </div>
+
+            <HomeMatchedJobsSection
+              v-model:region-filter="regionFilter"
+              v-model:salary-filter="salaryFilter"
+              v-model:sort-filter="sortFilter"
+              :jobs="jobs"
+              :recommendation="recommendation"
+              :loading="loading"
+              :history-loading="historyLoading && !historyBootstrapped"
+              :searched="recommendSearched"
+              :has-history="historyItems.length > 0"
+              :min-score="minRecommendScore"
+              :match-elapsed-ms="matchElapsedMs"
+              :last-match-duration-ms="lastMatchDurationMs"
+              @view-detail="handleJobViewDetail"
+              @apply="handleJobApply"
+              @resume="handleJobResume"
+              @interview="handleJobInterview"
+              @refresh="runRecommend()"
+              @view-more="router.push('/jobs')"
+            />
+
+            <HomeHotJobsSection
+              :jobs="hotJobs"
+              :loading="hotJobsLoading"
+              @view-detail="handleHotJobDetail"
+              @view-more="router.push('/jobs')"
+            />
+
+            <div class="preset-bar">
+              <button
+                v-for="p in MATCH_PRESETS"
+                :key="p.key"
+                type="button"
+                class="preset-chip"
+                :class="{ active: activePreset === p.key }"
+                :title="p.desc"
+                @click="applyPreset(p)"
+              >
+                <span class="preset-chip-icon">{{ p.icon }}</span>
+                <span class="preset-chip-label">{{ p.label }}</span>
+              </button>
+            </div>
+
+            <details class="advanced-wrap">
+              <summary>高级匹配设置</summary>
+              <div class="advanced-body">
+                <div class="line">
                   <input
-                    v-model.number="scoreBaseline"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="1"
-                    @change="scoreBaseline = clampScore(scoreBaseline)"
+                    v-model="query"
+                    placeholder="例如：想找杭州前端、双休、成长空间好的岗位"
+                    @keydown.enter.prevent="runRecommend()"
                   />
+                  <button class="match-btn" :disabled="loading" @click="runRecommend()">
+                    {{ loading ? "匹配中…" : "重新匹配" }}
+                  </button>
+                </div>
+                <label class="switch-line">
+                  <input v-model="useStudentProfile" type="checkbox" />
+                  关联本人信息参与匹配
                 </label>
-                <label class="field">
-                  <span>最低推荐分数</span>
-                  <input
-                    v-model.number="minRecommendScore"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="1"
-                    @change="minRecommendScore = clampScore(minRecommendScore)"
-                  />
+                <label class="switch-line">
+                  <input v-model="useSemanticCache" type="checkbox" />
+                  使用语义缓存
                 </label>
-                <label class="field">
-                  <span>推荐岗位数量</span>
-                  <input
-                    v-model.number="topNJobs"
-                    type="number"
-                    min="1"
-                    max="20"
-                    step="1"
-                    @change="topNJobs = clampTopN(topNJobs)"
-                  />
-                </label>
-              </div>
-              <p class="recommend-config-hint">
-                评分维度：专业/方向对口（0–25）、技能与职责（0–25）、门槛（0–20）、诉求（0–15）、岗位质量（0–15）。
-                默认 {{ scoreBaseline }} 分表示良好匹配；仅返回 score ≥ {{ minRecommendScore }} 分的岗位，最多 {{ topNJobs }} 条。
-              </p>
-              <label class="switch-line">
-                <input v-model="useSemanticCache" type="checkbox" />
-                使用语义缓存
-              </label>
-            </div>
-          </details>
-          <p v-if="loading" class="match-duration match-duration--live">
-            已匹配时长 {{ formatMatchDuration(matchElapsedMs) }}
-          </p>
-          <p
-            v-else-if="recommendSearched && lastMatchDurationMs != null"
-            class="match-duration"
-          >
-            本次匹配用时 {{ formatMatchDuration(lastMatchDurationMs) }}
-            <span v-if="cacheHitActive" class="match-duration-cache-tag">（缓存）</span>
-          </p>
-          <div
-            v-if="recommendSearched && cacheHitActive && !loading"
-            class="cache-hit-banner"
-            role="status"
-          >
-            <span class="cache-hit-badge">{{ cacheHitTitle }}</span>
-            <span v-if="cacheHitDetail" class="cache-hit-detail">{{ cacheHitDetail }}</span>
-            <span class="cache-hit-hint">结果来自历史推荐，未重新检索知识库与大模型分析</span>
-          </div>
-          <div class="match-block">
-            <div v-if="loading" class="match-overlay" role="status" aria-live="polite">
-              <div class="match-spinner" aria-hidden="true" />
-              <p class="match-overlay-title">正在匹配岗位</p>
-              <p class="match-overlay-elapsed">已匹配时长 {{ formatMatchDuration(matchElapsedMs) }}</p>
-              <p class="match-overlay-sub">检索知识库并整理推荐结果…</p>
-            </div>
-            <div class="result-grid" :class="{ 'result-grid--matching': loading }">
-            <div class="result-col">
-              <h3 class="section-title">推荐岗位</h3>
-              <ul class="mini-list">
-                <li v-if="loading" class="match-list-spacer" aria-hidden="true" />
-                <li v-else-if="!recommendSearched" class="empty-tip">输入诉求后点击「开始匹配」</li>
-                <li v-else-if="!jobs.length" class="empty-tip">暂无数据</li>
-                <li
-                  v-else
-                  v-for="item in jobs"
-                  :key="item.job_id"
-                  class="job-pick"
-                  :class="{
-                    'job-pick--active': selectedJobId === item.job_id,
-                    'job-pick--hover': hoverJobId === item.job_id
-                  }"
-                  role="button"
-                  tabindex="0"
-                  @click="onJobCardActivate(item)"
-                  @keydown.enter.prevent="onJobCardActivate(item)"
-                  @mouseenter="hoverJobId = item.job_id"
-                  @mouseleave="hoverJobId = null"
-                >
-                  <div class="job-pick-head">
-                    <span class="job-pick-title">{{ item.job_title || "-" }}</span>
+
+                <div class="recommend-config-grid">
+                  <label class="field">
+                    <span>评分基准（良好匹配参考线）</span>
+                    <input
+                      v-model.number="scoreBaseline"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      @change="scoreBaseline = clampScore(scoreBaseline)"
+                    />
+                  </label>
+                  <label class="field">
+                    <span>最低推荐分数</span>
+                    <input
+                      v-model.number="minRecommendScore"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      @change="minRecommendScore = clampScore(minRecommendScore)"
+                    />
+                  </label>
+                  <label class="field">
+                    <span>推荐岗位数量</span>
+                    <input
+                      v-model.number="topNJobs"
+                      type="number"
+                      min="1"
+                      max="20"
+                      step="1"
+                      @change="topNJobs = clampTopN(topNJobs)"
+                    />
+                  </label>
+                </div>
+
+                <div class="score-dimensions-section">
+                  <p class="score-dimensions-title">五维评分权重（各项为得分上限，合计应为 100 分）</p>
+                  <div class="score-dimensions-grid">
+                    <label v-for="dim in scoreDimensionDefs" :key="dim.key" class="field score-dim-field">
+                      <span>{{ dim.label }}（0–100）</span>
+                      <input
+                        v-model.number="scoreDimensions[dim.key]"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        @change="onScoreDimensionChange(dim.key)"
+                      />
+                      <small class="field-hint">{{ dim.desc }}</small>
+                    </label>
                   </div>
-                  <p class="job-pick-meta job-pick-ids">
-                    <span class="mono">ID {{ item.job_id || "-" }}</span>
-                    <span v-if="item.score != null && item.score !== ''" class="job-score"
-                      >匹配分 {{ item.score }}</span
-                    >
+                  <p
+                    class="score-dimensions-summary"
+                    :class="{ 'score-dimensions-summary--warn': !scoreDimensionsValid }"
+                  >
+                    维度合计 <strong>{{ scoreDimensionsTotal }}</strong> / 100 分
+                    <template v-if="!scoreDimensionsValid"> · 建议调整为合计 100 分，以便与模型评分体系一致</template>
                   </p>
-                  <p class="job-pick-meta">
-                    {{ item.city || "-" }} {{ item.district || "" }} ｜
-                    {{ item.company_name || item.company_relation?.company_name || "-" }}
-                  </p>
-                </li>
-              </ul>
-            </div>
-            <div class="result-col reason-panel">
-              <h3 class="section-title">推荐理由</h3>
-              <div v-if="loading" class="reason-panel-spacer" aria-hidden="true" />
-              <template v-else-if="!jobs.length">
-                <template v-if="!recommendSearched">
-                  <p class="muted reason-placeholder">请先完成左侧岗位匹配查询。</p>
-                </template>
-                <template v-else>
-                  <p class="reason-headline">{{ noJobReasonBlocks.headline }}</p>
-                  <p class="muted reason-sub">未推荐岗位的可能原因：</p>
-                  <ul class="reason-list">
-                    <li v-for="(c, idx) in noJobReasonBlocks.causes" :key="'c-' + idx">{{ c }}</li>
-                  </ul>
-                  <template v-if="noJobReasonBlocks.suggestions?.length">
-                    <p class="muted reason-sub">建议：</p>
-                    <ul class="reason-list">
-                      <li v-for="(s, idx) in noJobReasonBlocks.suggestions" :key="'s-' + idx">{{ s }}</li>
-                    </ul>
-                  </template>
-                </template>
-              </template>
-              <template v-else>
-                <p v-if="!previewJob" class="muted reason-placeholder">
-                  悬停卡片查看推荐理由；点击卡片打开岗位详情（标题栏拖动、边缘缩放、可放大或新标签页打开）。
+                  <table class="score-rubric-table" aria-label="当前评分维度配置">
+                    <thead>
+                      <tr>
+                        <th>维度</th>
+                        <th>上限</th>
+                        <th>说明</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="dim in scoreDimensionDefs" :key="'row-' + dim.key">
+                        <td>{{ dim.label }}</td>
+                        <td>{{ scoreDimensions[dim.key] ?? 0 }}</td>
+                        <td>{{ dim.desc }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <p class="recommend-config-hint">
+                  良好匹配基准 {{ scoreBaseline }} 分；仅返回 score ≥ {{ minRecommendScore }} 分的岗位，最多 {{ topNJobs }} 条。
+                  模型将在【评分依据】中按上表五维逐条写出「维度名 X/Y 分 + 依据」。
                 </p>
-                <template v-else>
-                  <p class="reason-job-title">{{ reasonPanelTitle }}</p>
-                  <JobMatchReasonBlocks
-                    v-if="selectedReasonMeta.reason || selectedReasonMeta.sections?.length"
-                    :reason="selectedReasonMeta.reason"
-                    :sections="selectedReasonMeta.sections"
-                    :score="selectedReasonMeta.score"
-                    :char-count="selectedReasonMeta.charCount"
-                  />
-                  <p v-else class="muted reason-placeholder">该岗位暂无单独生成的推荐理由（可能为检索排序展示）。</p>
-                </template>
-              </template>
-            </div>
-          </div>
-          </div>
-          <details v-if="ragInfo?.enabled && ragInfo.answer_preview" class="rag-details">
-            <summary>查看本次 RAG 检索摘要</summary>
-            <pre class="rag-pre">{{ ragInfo.answer_preview }}</pre>
-          </details>
-          <p v-else-if="ragInfo && !ragInfo.enabled" class="muted rag-fallback">
-            本次为规则匹配（RAG：{{ ragInfo.mode || "未启用" }}<template v-if="ragInfo.detail"> — {{ ragInfo.detail }}</template>）。
-          </p>
-        </section>
-      </main>
+
+                <p v-if="loading" class="match-duration match-duration--live">
+                  已匹配时长 {{ formatJobMatchElapsed(matchElapsedMs) }}
+                </p>
+                <p v-else-if="recommendSearched && lastMatchDurationMs != null" class="match-duration">
+                  本次匹配用时 {{ formatJobMatchElapsed(lastMatchDurationMs) }}
+                  <span v-if="cacheHitActive" class="match-duration-cache-tag">（缓存）</span>
+                </p>
+              </div>
+            </details>
+          </main>
+        </div>
+      </template>
     </div>
+
+    <button
+      type="button"
+      class="ai-assistant"
+      title="AI 就业助手"
+      aria-label="打开 AI 就业助手"
+      @click="router.push('/student-chat')"
+    >
+      <span class="ai-assistant-glow" aria-hidden="true" />
+      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <rect x="14" y="18" width="36" height="28" rx="10" fill="#5b6adf" />
+        <circle cx="26" cy="32" r="4" fill="#fff" />
+        <circle cx="38" cy="32" r="4" fill="#fff" />
+        <path d="M24 40c3 3 13 3 16 0" stroke="#fff" stroke-width="2" stroke-linecap="round" />
+        <path d="M32 10v8M20 14l4 6M44 14l-4 6" stroke="#818cf8" stroke-width="2" stroke-linecap="round" />
+      </svg>
+    </button>
 
     <Teleport to="body">
       <FloatingFramePanel
@@ -676,83 +784,73 @@ onMounted(() => {
           <button type="button" @click="openJobDetailFullWindow">完整页面</button>
           <button type="button" class="danger" @click="closeJobDetailFrame">关闭</button>
         </template>
-        <iframe v-if="jobDetailIframeSrc" :title="jobDetailFrameTitle" :src="jobDetailIframeSrc" />
+        <JobDetailView v-if="detailMode === 'job' && selectedJobId" :key="selectedJobId" :embedded-job-id="selectedJobId" />
+        <CompanyDetailView v-else-if="detailMode === 'company' && selectedCreditCode" :key="selectedCreditCode" :embedded-credit-code="selectedCreditCode" />
       </FloatingFramePanel>
     </Teleport>
-  </div>
+
+    <JobCompareBar :count="compareCount" :max="maxCompare" @open="openCompare" @clear="clearCompare" />
+    <JobCompareModal :open="compareOpen" :jobs="compareJobs" @close="compareOpen = false" />
 </template>
 
 <style scoped>
-.hero { padding: 86px 20px 50px; text-align: center; background: radial-gradient(circle at top right, #eef2ff, transparent), radial-gradient(circle at top left, #f5f3ff, transparent); }
-.badge { display: inline-block; padding: 5px 15px; background: #e0e7ff; color: var(--primary-color); border-radius: 20px; font-size: .85rem; font-weight: 600; margin-bottom: 14px; }
-.hero h1 { font-size: clamp(2.1rem, 5vw, 3rem); margin-bottom: 10px; }
-.hero p { color: var(--text-muted); }
-.container { max-width: 1100px; margin: 0 auto; padding: 0 20px 80px; }
-.panel { background: #fff; border: 1px solid rgba(31,41,55,.08); border-radius: 18px; box-shadow: 0 10px 30px rgba(15,23,42,.06); padding: 18px; }
-.metric-grid { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 16px; }
-.metric { border: 1px solid #eceff3; border-radius: 14px; padding: 12px; background: linear-gradient(180deg, #fff, #fcfcff); }
-.metric p { color: var(--text-muted); font-size: .82rem; }
-.metric strong { display: block; margin-top: 6px; font-size: 1.02rem; }
-.panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.section-title { font-size: 1rem; margin-bottom: 10px; }
-.toggle { border: 1px solid #d1d5db; border-radius: 999px; padding: 7px 10px; background: #fff; cursor: pointer; font-size: .8rem; color: var(--text-main); }
-.collapse-wrap { border: 1px solid #eceff3; border-radius: 12px; background: #fff; padding: 8px 10px; }
-.collapse-wrap + .collapse-wrap { margin-top: 10px; }
-.collapse-wrap > summary { cursor: pointer; color: var(--primary-color); font-size: .9rem; font-weight: 600; user-select: none; }
-.collapse-body { margin-top: 10px; }
-.form-grid { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 10px; }
-.field { display: flex; flex-direction: column; gap: 6px; }
-.field span { font-size: .78rem; color: var(--text-muted); }
-.field input, .field textarea { width: 100%; border: 1px solid #dbe1ea; border-radius: 10px; padding: 9px 10px; background: #f8fafc; color: #111827; font-size: .86rem; }
-.field textarea { resize: vertical; min-height: 72px; }
-.field-wide { grid-column: 1 / -1; }
-.sub-card { border: 1px solid #eceff3; border-radius: 12px; padding: 10px; background: #fcfcff; margin-bottom: 10px; }
-.sub-title { font-size: .88rem; font-weight: 600; margin-bottom: 8px; color: #374151; }
-.psych-meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 10px; }
-.psych-meta span { background: #eef2ff; color: #3730a3; font-size: .78rem; padding: 6px 8px; border-radius: 8px; border: 1px solid #dbeafe; }
-.psych-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.empty-tip { color: var(--text-muted); font-size: .9rem; padding: 10px; border: 1px dashed #d1d5db; border-radius: 10px; }
-pre { margin: 0; border-radius: 10px; background: #0f172a; color: #f8fafc; padding: 12px; max-height: 34vh; overflow: auto; font-size: .78rem; }
-.line { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-bottom: 10px; }
-.recommend-config-wrap { margin-bottom: 10px; }
-.recommend-config-body { display: flex; flex-direction: column; gap: 10px; }
-.recommend-config-grid { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.recommend-config-hint { margin: 0; font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
-.recommend-config-switch { margin: 0; }
-.switch-line { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; color: var(--text-muted); font-size: .9rem; }
-input, button { padding: 10px 12px; border-radius: 10px; border: 1px solid #d1d5db; }
-button { border: none; background: var(--primary-color); color: #fff; font-weight: 600; }
-.result-grid { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
-.result-col { min-width: 0; }
-.job-pick { cursor: pointer; user-select: none; transition: border-color 0.15s, background 0.15s; }
-.job-pick:focus { outline: 2px solid var(--primary-color); outline-offset: 2px; }
-.job-pick--active { border-color: #a5b4fc !important; background: #eef2ff !important; }
-.job-pick--hover { border-color: #c7d2fe !important; background: #f8fafc !important; }
-.job-pick-head { display: flex; align-items: flex-start; justify-content: flex-start; gap: 8px; }
-.job-pick-title { font-weight: 600; color: #111827; font-size: 0.92rem; flex: 1; min-width: 0; }
-.job-pick-meta { color: var(--text-muted); font-size: 0.8rem; margin-top: 6px !important; }
-.job-pick-ids { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin-top: 4px !important; }
-.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.72rem; color: #64748b; word-break: break-all; }
-.job-score { font-weight: 600; color: #4338ca; font-size: 0.78rem; }
-.reason-panel { border: 1px solid #eceff3; border-radius: 12px; padding: 12px; background: #fafafa; min-height: 120px; max-height: min(72vh, 640px); overflow: auto; }
-.reason-headline { font-weight: 700; color: #1e293b; margin: 0 0 8px; font-size: 0.95rem; }
-.reason-job-title { font-weight: 700; color: #1e293b; margin: 0 0 10px; font-size: 0.95rem; }
-.reason-sub { margin: 10px 0 6px; font-size: 0.82rem; }
-.reason-list { margin: 0; padding-left: 1.1rem; color: #374151; font-size: 0.88rem; line-height: 1.55; }
-.reason-list li { margin-bottom: 6px; }
-.reason-placeholder { margin: 0; padding: 8px 0; font-size: 0.88rem; }
-.rag-hint { font-size: 0.82rem; color: var(--text-muted, #6b7280); margin: -4px 0 10px; line-height: 1.45; }
-.rag-details { margin-top: 12px; border: 1px solid #e5e7eb; border-radius: 10px; padding: 8px 10px; background: #fafafa; }
-.rag-details > summary { cursor: pointer; font-size: 0.86rem; font-weight: 600; color: var(--primary-color, #6366f1); }
-.rag-pre { margin: 8px 0 0; white-space: pre-wrap; word-break: break-word; font-size: 0.78rem; line-height: 1.45; color: #374151; max-height: 220px; overflow: auto; }
-.rag-fallback { margin-top: 10px; font-size: 0.8rem; }
-.mini-list { list-style: none; display: grid; gap: 8px; padding: 0; }
-.mini-list li { border: 1px solid #eceff3; border-radius: 10px; padding: 10px; }
-.mini-list a { color: var(--primary-color); text-decoration: none; font-weight: 600; font-size: .9rem; }
-.mini-list p { color: var(--text-muted); font-size: .8rem; margin-top: 4px; }
-.match-duration { margin: 0 0 12px; font-size: 0.86rem; color: #4338ca; font-weight: 600; }
-.match-duration-cache-tag { margin-left: 6px; color: #059669; font-weight: 700; }
-.match-duration--live { color: #6366f1; animation: match-duration-pulse 1.5s ease-in-out infinite; }
+.home-dashboard {
+  display: grid;
+  grid-template-columns: minmax(272px, 300px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  width: 100%;
+}
+.home-right {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+.home-left {
+  position: sticky;
+  top: calc(var(--home-topbar-h, 56px) + 12px);
+  overflow: visible;
+  z-index: 2;
+}
+.home-error {
+  margin: 0 0 12px;
+  color: var(--danger);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.sort-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.sort-tabs-label {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 600;
+  margin-right: 2px;
+}
+.sort-tabs button {
+  padding: 4px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.sort-tabs button:hover {
+  border-color: #c7d2fe;
+  color: #4338ca;
+}
+.sort-tabs button.active {
+  border-color: #6366f1;
+  background: #eef2ff;
+  color: #4338ca;
+}
 .cache-hit-banner {
   display: flex;
   flex-wrap: wrap;
@@ -764,7 +862,6 @@ button { border: none; background: var(--primary-color); color: #fff; font-weigh
   border: 1px solid #a7f3d0;
   background: linear-gradient(180deg, #ecfdf5, #f0fdf4);
   font-size: 0.84rem;
-  line-height: 1.45;
 }
 .cache-hit-badge {
   padding: 3px 10px;
@@ -773,63 +870,259 @@ button { border: none; background: var(--primary-color); color: #fff; font-weigh
   color: #fff;
   font-weight: 700;
   font-size: 0.78rem;
-  white-space: nowrap;
 }
-.cache-hit-detail { color: #047857; font-weight: 600; }
-.cache-hit-hint { color: #6b7280; font-size: 0.8rem; }
+.cache-hit-detail {
+  color: #047857;
+  font-weight: 600;
+}
+.cache-hit-close {
+  margin-left: auto;
+  padding: 2px 6px;
+  border: none;
+  background: none;
+  color: #9ca3af;
+  font-size: 0.8rem;
+  cursor: pointer;
+  line-height: 1;
+}
+.cache-hit-close:hover {
+  color: #475569;
+}
+.advanced-wrap {
+  margin-top: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 8px 12px;
+}
+.advanced-wrap > summary {
+  cursor: pointer;
+  color: #64748b;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+.advanced-body {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+.line input {
+  border: 1px solid #dbe1ea;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.86rem;
+}
+.match-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--primary-color);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+.match-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.switch-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+.recommend-config-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 4px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field span {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.field input {
+  width: 100%;
+  border: 1px solid #dbe1ea;
+  border-radius: 10px;
+  padding: 9px 10px;
+  background: #f8fafc;
+  color: #111827;
+  font-size: 0.86rem;
+}
+.score-dimensions-section {
+  border: 1px solid #eceff3;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fcfcff;
+}
+.score-dimensions-title {
+  margin: 0 0 8px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #374151;
+}
+.score-dimensions-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.score-dim-field .field-hint {
+  font-size: 0.74rem;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+.score-dimensions-summary {
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  color: #4338ca;
+}
+.score-dimensions-summary--warn {
+  color: #b45309;
+}
+.score-rubric-table {
+  width: 100%;
+  margin-top: 10px;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.score-rubric-table th,
+.score-rubric-table td {
+  border: 1px solid #e5e7eb;
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.score-rubric-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+}
+.score-rubric-table td:nth-child(2) {
+  width: 56px;
+  text-align: center;
+  font-weight: 700;
+  color: #4338ca;
+}
+.recommend-config-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.match-duration {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #4338ca;
+  font-weight: 600;
+}
+.match-duration-cache-tag {
+  margin-left: 6px;
+  color: #059669;
+  font-weight: 700;
+}
+.match-duration--live {
+  animation: match-duration-pulse 1.5s ease-in-out infinite;
+}
 @keyframes match-duration-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.72; }
 }
-.match-overlay-elapsed {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: #4338ca;
-}
-.match-block { position: relative; min-height: 160px; }
-.match-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 24px 16px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(6px);
-  border-radius: 12px;
-  border: 1px solid rgba(99, 102, 241, 0.18);
-  animation: match-overlay-in 0.28s ease;
-}
-@keyframes match-overlay-in {
-  from { opacity: 0; transform: scale(0.98); }
-  to { opacity: 1; transform: scale(1); }
-}
-.match-spinner {
-  width: 46px;
-  height: 46px;
+.ai-assistant {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 58px;
+  height: 58px;
+  border: none;
   border-radius: 50%;
-  border: 3px solid #e5e7eb;
-  border-top-color: var(--primary-color, #6366f1);
-  animation: match-spin 0.72s linear infinite;
+  background: transparent;
+  cursor: pointer;
+  z-index: 200;
+  padding: 0;
 }
-@keyframes match-spin {
-  to { transform: rotate(360deg); }
+.ai-assistant svg {
+  width: 58px;
+  height: 58px;
+  filter: drop-shadow(0 8px 20px rgba(91, 106, 223, 0.35));
 }
-.match-overlay-title { margin: 0; font-size: 1rem; font-weight: 700; color: #1e293b; }
-.match-overlay-sub { margin: 0; font-size: 0.82rem; color: var(--text-muted); }
-.result-grid--matching { opacity: 0.42; pointer-events: none; transition: opacity 0.2s ease; }
-.match-btn--busy { box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.35); animation: match-btn-pulse 1.2s ease-in-out infinite; }
-@keyframes match-btn-pulse {
-  0%, 100% { box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25); }
-  50% { box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2); }
+.ai-assistant-glow {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(129, 140, 248, 0.35), transparent 70%);
+  animation: ai-pulse 2.4s ease-in-out infinite;
 }
-.match-list-spacer { min-height: 120px; list-style: none; border: none !important; padding: 0 !important; background: transparent !important; }
-.reason-panel-spacer { min-height: 100px; }
-.error { color: var(--danger); font-size: .9rem; font-weight: 600; min-height: 20px; margin-bottom: 10px; }
-@media (max-width: 980px) { .metric-grid { grid-template-columns: 1fr; } .result-grid { grid-template-columns: 1fr; } .form-grid { grid-template-columns: 1fr; } .psych-meta { grid-template-columns: 1fr; } .psych-grid { grid-template-columns: 1fr; } }
+@keyframes ai-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+@media (max-width: 1100px) {
+  .home-dashboard {
+    grid-template-columns: 1fr;
+  }
+  .home-left {
+    position: static;
+  }
+}
+@media (max-width: 900px) {
+  .home-main {
+    max-width: 100vw;
+  }
+}
+@media (max-width: 720px) {
+  .home-main {
+    padding: 0 10px 76px;
+  }
+  .recommend-config-grid,
+  .score-dimensions-grid {
+    grid-template-columns: 1fr;
+  }
+  .preset-bar { gap: 6px; }
+  .preset-chip { font-size: 0.76rem; padding: 6px 10px; }
+}
+.preset-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.preset-chip:hover {
+  border-color: #c7d2fe;
+  background: #f8faff;
+}
+.preset-chip.active {
+  border-color: #6366f1;
+  background: #eef2ff;
+  color: #4338ca;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+.preset-chip-icon { font-size: 1rem; }
+.preset-chip-label { white-space: nowrap; }
 </style>

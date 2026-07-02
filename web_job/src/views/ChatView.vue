@@ -25,6 +25,7 @@ import ChatInterviewPlanStartBar from "../components/interview/ChatInterviewPlan
 import ChatInterviewOverlay from "../components/interview/ChatInterviewOverlay.vue";
 import ChatPlannerContextRail from "../components/ChatPlannerContextRail.vue";
 import ContextRefCard from "../components/ContextRefCard.vue";
+import HomeTopBar from "../components/home/HomeTopBar.vue";
 import { fetchContextDetail } from "../api/contextDetail";
 import { CONTEXT_DRAG_MIME } from "../constants/contextDrag";
 import { RESUME_OPTIMIZER_USERCODE } from "../constants/resumeOptimizer";
@@ -50,7 +51,7 @@ import {
   pickFirstIncompleteQuestion,
   reconcileQuestionStatuses
 } from "../modules/interview/interviewOverlayHelpers";
-import { fetchInterviewRecordAnswers } from "../modules/interview/api";
+import { fetchInterviewRecordAnswers, fetchInterviewRecordDetail } from "../modules/interview/api";
 
 const JOB_PLANNER_USERCODE = "ROLE001";
 
@@ -64,6 +65,11 @@ const currentSessionId = ref(localStorage.getItem("session_id") || "");
 const models = ref([]);
 const sessions = ref([]);
 const history = ref([]);
+/** 历史消息分页 */
+const HISTORY_PAGE_SIZE = 20;
+const historyStartIndex = ref(0);
+const historyHasMore = ref(false);
+const historyLoadingOlder = ref(false);
 const message = ref("");
 /** 输入区附加上下文（送入模型，界面不展示全文） */
 const composerHiddenContext = ref("");
@@ -88,6 +94,7 @@ const streamingHasThinking = ref(false);
 /** 当前轮是否已开始输出正文 delta（thinking 结束后） */
 const streamingHasAnswer = ref(false);
 const isStreaming = ref(false);
+const streamFailed = ref(false);
 const streamWait = useStreamWaitTimer();
 const { elapsedLabel: streamWaitLabel, isRunning: streamWaitRunning, start: startStreamWait, stop: stopStreamWait } =
   streamWait;
@@ -125,10 +132,7 @@ watch([streamingHasThinking, streamingHasAnswer], ([hasThink, hasAnswer]) => {
   if (hasThink || hasAnswer) stopStreamWait();
 });
 
-/** 语音播报模式下 SSE 阶段占位，避免用户先读完再听 */
-const VOICE_SSE_PLACEHOLDER = "「语音播报」回答生成中…";
-
-/** 大块 SSE delta 时用 rAF 渐进展示，减轻「一段一段」跳跃感（仅非语音播报模式） */
+/** 大块 SSE delta 时用 rAF 渐进展示，减轻「一段一段」跳跃感 */
 let cancelAnswerStreamReveal = () => {};
 
 let voiceRevealStop = null;
@@ -386,13 +390,54 @@ async function openSession(sid) {
     localStorage.setItem("usercode", matched.usercode);
   }
   const data = await apiGet(
-    `/api/chat-sessions/${encodeURIComponent(sid)}/history?student_id=${encodeURIComponent(student)}`
+    `/api/chat-sessions/${encodeURIComponent(sid)}/history?student_id=${encodeURIComponent(student)}&limit=${HISTORY_PAGE_SIZE}`
   );
   history.value = hydrateSessionResumeRenderCache(sid, data.history || []);
   history.value = hydrateSessionInterviewPlanPreviewCache(sid, history.value);
   history.value = await hydrateInterviewPlanStartHistory(sid, student, history.value);
+  historyStartIndex.value = Number(data.start_index ?? 0);
+  historyHasMore.value = Boolean(data.has_more);
+  historyLoadingOlder.value = false;
   thinkingText.value = "";
   rawContent.value = JSON.stringify(data, null, 2);
+}
+
+async function loadMoreHistory() {
+  if (!currentSessionId.value || !historyHasMore.value || historyLoadingOlder.value) return;
+  const student = requireLoggedInStudentId();
+  historyLoadingOlder.value = true;
+  try {
+    const data = await apiGet(
+      `/api/chat-sessions/${encodeURIComponent(currentSessionId.value)}/history?student_id=${encodeURIComponent(student)}&before_index=${historyStartIndex.value}&limit=${HISTORY_PAGE_SIZE}`
+    );
+    const older = data.history || [];
+    if (!older.length) {
+      historyHasMore.value = false;
+      return;
+    }
+    const prevScrollHeight = chatListEl.value?.scrollHeight || 0;
+    const hydrated = hydrateSessionResumeRenderCache(currentSessionId.value, older);
+    const hydrated2 = hydrateSessionInterviewPlanPreviewCache(currentSessionId.value, hydrated);
+    const hydrated3 = await hydrateInterviewPlanStartHistory(currentSessionId.value, student, hydrated2);
+    history.value = [...hydrated3, ...history.value];
+    historyStartIndex.value = Number(data.start_index ?? 0);
+    historyHasMore.value = Boolean(data.has_more);
+    await nextTick();
+    if (chatListEl.value) {
+      chatListEl.value.scrollTop = chatListEl.value.scrollHeight - prevScrollHeight;
+    }
+  } catch (e) {
+    error.value = e.message || "加载更早消息失败";
+  } finally {
+    historyLoadingOlder.value = false;
+  }
+}
+
+function onChatScroll() {
+  if (!chatListEl.value || historyLoadingOlder.value || !historyHasMore.value) return;
+  if (chatListEl.value.scrollTop <= 60) {
+    loadMoreHistory();
+  }
 }
 
 function generateSessionId() {
@@ -420,6 +465,9 @@ async function resetSession() {
   currentSessionId.value = "";
   localStorage.removeItem("session_id");
   history.value = [];
+  historyStartIndex.value = 0;
+  historyHasMore.value = false;
+  historyLoadingOlder.value = false;
   thinkingText.value = "";
   review.value = "";
   rounds.value = 0;
@@ -438,6 +486,15 @@ async function removeSession(sid) {
 
 async function stopStreaming() {
   await interruptAssistantOutput();
+}
+
+function retryLastMessage() {
+  const lastUser = [...history.value].reverse().find((h) => h.role === "user");
+  if (!lastUser || !currentSessionId.value) return;
+  streamFailed.value = false;
+  error.value = "";
+  history.value = history.value.slice(0, -1); // 移除失败的 assistant 气泡
+  sendMessage({ message: lastUser.content || "", keepComposer: true });
 }
 
 function rebuildComposerHiddenContext() {
@@ -567,6 +624,7 @@ async function sendMessage(override = {}) {
   thinkingText.value = "";
   streamingHasThinking.value = false;
   streamingHasAnswer.value = false;
+  streamFailed.value = false;
   review.value = "";
   rounds.value = 0;
   advHistory.value = [];
@@ -696,7 +754,6 @@ async function sendMessage(override = {}) {
 
     if (useVoiceOutput.value && aiIdx >= 0) {
       voiceAssistantAnimating.value = true;
-      history.value[aiIdx].content = "「语音播报」正在准备朗读稿与音频…";
       await nextTick();
       await runVoiceBroadcastPipeline(fullAnswer, aiIdx);
     } else {
@@ -748,12 +805,6 @@ async function sendMessage(override = {}) {
       if (!piece) return;
       streamingHasThinking.value = true;
       thinkingText.value += piece;
-      if (useVoiceOutput.value) {
-        const idx = history.value.length - 1;
-        if (idx >= 0 && history.value[idx].role === "assistant" && !streamingHasAnswer.value) {
-          history.value[idx].content = "「语音播报」深度思考中…";
-        }
-      }
       return;
     }
     if (eventName === "delta") {
@@ -761,16 +812,11 @@ async function sendMessage(override = {}) {
       if (!piece) return;
       const firstAnswerChunk = !streamingHasAnswer.value;
       streamingHasAnswer.value = true;
-      const idx = history.value.length - 1;
       answerTextBuffer += piece;
-      if (useVoiceOutput.value) {
-        history.value[idx].content = VOICE_SSE_PLACEHOLDER;
-      } else {
-        if (streamingHasThinking.value && firstAnswerChunk) {
-          answerDisplayedLen = 0;
-        }
-        scheduleAnswerReveal();
+      if (streamingHasThinking.value && firstAnswerChunk) {
+        answerDisplayedLen = 0;
       }
+      scheduleAnswerReveal();
       return;
     }
     if (eventName === "done") {
@@ -782,10 +828,11 @@ async function sendMessage(override = {}) {
       cancelAnswerStreamReveal = () => {};
       if (!streamEndedOk) {
         isStreaming.value = false;
+        streamFailed.value = true;
         voiceAssistantAnimating.value = false;
         streamingHasThinking.value = false;
         streamingHasAnswer.value = false;
-        error.value = data.detail || "流式发送失败";
+        error.value = data.detail || "连接中断，请点击重试";
         stopStreamWait();
       }
       closeStreamTransport();
@@ -797,10 +844,11 @@ async function sendMessage(override = {}) {
     cancelAnswerStreamReveal = () => {};
     if (streamEndedOk) return;
     isStreaming.value = false;
+    streamFailed.value = true;
     voiceAssistantAnimating.value = false;
     streamingHasThinking.value = false;
     streamingHasAnswer.value = false;
-    error.value = "流式发送失败";
+    error.value = "连接中断，请点击重试";
     stopStreamWait();
     closeStreamTransport();
   };
@@ -945,7 +993,7 @@ function assistantThinkingDisplay(idx, item) {
 function assistantBubblePlaceholder(idx, item) {
   if (item.role !== "assistant" || idx !== history.value.length - 1 || !isStreaming.value) return "";
   if (streamingHasThinking.value || streamingHasAnswer.value) {
-    return useVoiceOutput.value ? "「语音播报」深度思考中…" : "深度思考中…";
+    return "深度思考中…";
   }
   const wait = streamWaitRunning.value ? streamWaitLabel.value : "";
   return wait ? `等待回复中… ${wait}` : "等待回复中…";
@@ -1128,6 +1176,26 @@ async function onInterviewPlanEnter(payload) {
   });
 }
 
+/** 从面试中心房间跳转时自动进入正式面试遮层 */
+async function tryAutoEnterInterview() {
+  if (route.query.autointerview !== "1") return;
+  const recordId = String(route.query.record_id || "").trim();
+  const studentId = loggedInStudentId.value;
+  if (!recordId || !studentId) return;
+  try {
+    const detail = await fetchInterviewRecordDetail(studentId, recordId);
+    await onInterviewPlanEnter({
+      record_id: detail.record_id,
+      interview_session_id: detail.interview_session_id,
+      plan_id: detail.plan_id,
+      chat_session_id: detail.chat_session_id || currentSessionId.value,
+      ctx_key: buildCtxKey(studentId, detail.record_id)
+    });
+  } catch (e) {
+    error.value = e.message || "自动进入面试失败";
+  }
+}
+
 /** 遮层内发送单题回答 */
 async function onInterviewOverlaySend(answerText) {
   if (!interviewModeSession.value) return;
@@ -1146,6 +1214,10 @@ function onInterviewOverlayExit() {
   interviewOverlayQuestions.value = [];
   interviewOverlayTurns.value = [];
   resetInterviewOverlayView();
+  const ret = String(route.query.return || "").trim();
+  if (ret.startsWith("/")) {
+    router.push(ret);
+  }
 }
 
 function applyInterviewTurn(data) {
@@ -1301,9 +1373,13 @@ onMounted(async () => {
     await loadModels();
     await loadStudentMeta();
     await loadSessions();
-    if (currentSessionId.value && loggedInStudentId.value) {
+    const querySessionId = String(route.query.session_id || "").trim();
+    if (querySessionId && loggedInStudentId.value) {
+      await openSession(querySessionId);
+    } else if (currentSessionId.value && loggedInStudentId.value) {
       await openSession(currentSessionId.value);
     }
+    await tryAutoEnterInterview();
   } catch (err) {
     error.value = err.message || "加载失败";
   }
@@ -1327,16 +1403,23 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div
-    class="app"
-    :class="{
-      'app-sidebar-hidden': !chatSidebarVisible,
-      'app-planner-rail': showContextRail
-    }"
-  >
+  <div class="home-main chat-home-main">
+      <HomeTopBar
+        title="AI助手"
+        subtitle="智能问答、岗位推荐与模拟面试，随时为你解答"
+        :student-name="studentName"
+      />
+
+      <div
+        class="app chat-app"
+        :class="{
+          'app-sidebar-hidden': !chatSidebarVisible,
+          'app-planner-rail': showContextRail
+        }"
+      >
     <aside v-show="chatSidebarVisible" class="sidebar">
       <div class="sidebar-toolbar">
-        <span class="sidebar-toolbar-label">会话与列表</span>
+        <span class="sidebar-toolbar-label">会话管理</span>
         <button type="button" class="secondary sidebar-hide-btn" @click="toggleChatSidebar">收起侧栏</button>
       </div>
       <div class="section-title">会话配置</div>
@@ -1461,7 +1544,9 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div ref="chatListEl" class="chat-list" @contextmenu="onContextMenu">
+      <div ref="chatListEl" class="chat-list" @contextmenu="onContextMenu" @scroll="onChatScroll">
+        <div v-if="historyLoadingOlder" class="chat-older-loading">加载更早消息中…</div>
+        <div v-if="historyHasMore && !historyLoadingOlder" class="chat-older-hint" @click="loadMoreHistory">加载更早消息</div>
         <p v-if="!history.length" class="empty-tip">创建会话后开始聊天</p>
         <template v-for="(item, idx) in history" :key="idx">
           <div v-if="item.role === 'user'" class="msg msg-user msg-user--with-refs">
@@ -1478,11 +1563,15 @@ onBeforeUnmount(() => {
           <div v-else class="assistant-turn-wrap">
             <details v-if="assistantThinkingDisplay(idx, item)" class="msg msg-think-fold">
               <summary class="think-summary">
-                <span class="think-icon" aria-hidden="true">◈</span>
-                <span class="think-summary-label">思考过程</span>
-                <span class="think-summary-hint">点击展开</span>
+                <span aria-hidden="true">💭</span>
+                <span class="think-summary-label">AI 分析依据</span>
+                <span class="think-summary-hint">点击查看</span>
+                <span class="think-summary-preview">{{ assistantThinkingDisplay(idx, item).slice(0, 80) }}{{ assistantThinkingDisplay(idx, item).length > 80 ? '…' : '' }}</span>
               </summary>
-              <div class="msg-body think-inner">{{ assistantThinkingDisplay(idx, item) }}</div>
+              <div class="msg-body think-inner">
+                <p class="think-disclaimer">以下为 AI 内部推理过程，仅供参考</p>
+                {{ assistantThinkingDisplay(idx, item) }}
+              </div>
             </details>
             <div
               class="msg"
@@ -1496,7 +1585,7 @@ onBeforeUnmount(() => {
                 <span class="voice-wave">
                   <i></i><i></i><i></i><i></i><i></i>
                 </span>
-                <span class="voice-live-label">播报中</span>
+                <span class="voice-live-label">🔊 播报中</span>
               </div>
               <div
                 v-if="assistantBubblePlaceholder(idx, item)"
@@ -1587,6 +1676,11 @@ onBeforeUnmount(() => {
             </div>
           </details>
         </details>
+
+        <div v-if="streamFailed" class="stream-retry-wrap">
+          <p class="stream-retry-msg">连接中断</p>
+          <button type="button" class="stream-retry-btn" @click="retryLastMessage">重新连接</button>
+        </div>
       </div>
 
       <div class="composer">
@@ -1670,7 +1764,7 @@ onBeforeUnmount(() => {
         </div>
         <div class="composer-actions">
           <span>
-            开语音播报时：助手文字先占位，朗读稿就绪后随音频进度显示，播完恢复全文。语音输入默认持续聆听（手动关闭话筒）
+            语音播报：回复生成后自动朗读，文字随音频同步显示。语音输入：持续聆听，静音约 2 秒后自动发送。（手动关闭话筒停止聆听）
           </span>
           <button
             type="button"
@@ -1722,14 +1816,79 @@ onBeforeUnmount(() => {
       @select-question="onInterviewProgressDotSelect"
       @back-to-live="onInterviewBackToLive"
     />
-  </div>
+      </div>
+    </div>
 </template>
 
 <style scoped>
+.chat-home-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  /* 覆盖全局 home-main 的 88px 底留白，避免聊天区纵向铺不满 */
+  padding: 0 var(--home-main-px, 20px) 12px;
+  box-sizing: border-box;
+}
+
+.chat-app {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 12px;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.app.chat-app {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 12px;
+  background: transparent;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+  align-content: stretch;
+  /* 双栏/三栏时横向铺满主内容区，不再居中限宽 */
+  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+}
+
+.app.chat-app.app-planner-rail {
+  max-width: 100%;
+  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr) minmax(220px, 268px);
+}
+
+.app.chat-app.app-planner-rail.app-sidebar-hidden {
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 268px);
+}
+
+.app.chat-app.app-sidebar-hidden:not(.app-planner-rail) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.chat-app.app-sidebar-hidden {
+  max-width: 100%;
+  width: 100%;
+  padding: 0;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+  background: transparent;
+}
+
 .app {
-  height: 100vh;
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 300px 1fr;
   gap: 14px;
   padding: 14px;
   max-width: 1300px;
@@ -1738,35 +1897,38 @@ onBeforeUnmount(() => {
 }
 .app.app-planner-rail {
   max-width: min(1680px, 100%);
-  grid-template-columns: 320px 1fr minmax(248px, 288px);
+  grid-template-columns: 300px 1fr minmax(248px, 288px);
 }
 .app.app-planner-rail.app-sidebar-hidden {
   grid-template-columns: 1fr minmax(248px, 288px);
 }
 .planner-context-rail {
   min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .app.app-sidebar-hidden:not(.app-planner-rail) {
   grid-template-columns: 1fr;
 }
 .app.app-sidebar-hidden {
-  grid-template-rows: 1fr;
-  max-width: min(1920px, 100%);
+  grid-template-rows: minmax(0, 1fr);
+  max-width: 100%;
   width: 100%;
-  padding: 8px 12px;
-  gap: 0;
+  padding: 0;
+  gap: 12px;
   box-sizing: border-box;
-  height: 100dvh;
-  min-height: 100vh;
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.08), transparent),
-    var(--bg-color);
+  height: 100%;
+  min-height: 0;
+  background: transparent;
 }
 .app.app-sidebar-hidden .main {
   min-height: 0;
   height: 100%;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.06);
+  border-radius: var(--home-radius-lg, 16px);
+  box-shadow: var(--home-card-shadow, 0 6px 24px rgba(91, 106, 223, 0.07));
   --msg-bubble-max-height: min(46vh, 420px);
 }
 .app.app-sidebar-hidden .main-header {
@@ -1814,7 +1976,19 @@ onBeforeUnmount(() => {
   margin-top: min(12vh, 120px);
   font-size: 14px;
 }
-.sidebar { background: rgba(255, 255, 255, 0.82); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 18px 34px rgba(0, 0, 0, 0.06); padding: 14px; overflow: auto; min-width: 0; }
+.sidebar {
+  background: var(--home-card-bg, #fff);
+  border: 1px solid var(--home-card-border, rgba(91, 106, 223, 0.12));
+  border-radius: var(--home-radius-lg, 16px);
+  box-shadow: var(--home-card-shadow, 0 6px 24px rgba(91, 106, 223, 0.07));
+  padding: 14px;
+  overflow: auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
+}
 .sidebar-toolbar {
   display: flex;
   align-items: center;
@@ -1869,18 +2043,37 @@ onBeforeUnmount(() => {
   user-select: text;
 }
 .main {
-  background: rgba(255,255,255,.9);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  box-shadow: 0 18px 34px rgba(0,0,0,.06);
+  background: var(--home-card-bg, #fff);
+  border: 1px solid var(--home-card-border, rgba(91, 106, 223, 0.12));
+  border-radius: var(--home-radius-lg, 16px);
+  box-shadow: var(--home-card-shadow, 0 6px 24px rgba(91, 106, 223, 0.07));
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
   /* 对话气泡与输入区共用最大可视高度 */
   --msg-bubble-max-height: min(40vh, 320px);
 }
-.main-header { padding: 14px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 10px; background: rgba(255, 255, 255, 0.86); }
-.brand { font-weight: 700; background: linear-gradient(to right, var(--primary-color), var(--secondary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.main-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(91, 106, 223, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(180deg, #fafbff, #fff);
+}
+.brand {
+  font-weight: 800;
+  color: var(--home-primary, #5b6adf);
+  background: none;
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: unset;
+}
 .header-meta { margin-top: 4px; color: var(--text-muted); font-size: 12px; }
 .stream-wait-pill {
   display: inline-block;
@@ -1910,9 +2103,45 @@ button { padding: 10px 14px; border: none; background: var(--primary-color); col
 .chat-list {
   padding: 16px;
   overflow: auto;
-  background: linear-gradient(180deg, #fbfbff 0%, #f8fafc 100%);
+  background: linear-gradient(180deg, #fafbff 0%, #f8fafc 100%);
 }
 .empty-tip { color: var(--text-muted); text-align: center; margin-top: 80px; }
+.chat-older-loading,
+.chat-older-hint {
+  text-align: center;
+  padding: 10px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.chat-older-hint {
+  cursor: pointer;
+  color: var(--home-primary, #5b6adf);
+  font-weight: 600;
+}
+.chat-older-hint:hover { text-decoration: underline; }
+.stream-retry-wrap {
+  text-align: center;
+  padding: 16px 0;
+}
+.stream-retry-msg {
+  margin: 0 0 8px;
+  font-size: 0.84rem;
+  color: #dc2626;
+  font-weight: 600;
+}
+.stream-retry-btn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 10px;
+  background: var(--home-primary, #5b6adf);
+  color: #fff;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.stream-retry-btn:hover {
+  background: #4f5ad4;
+}
 .msg { margin: 7px 0; width: fit-content; max-width: min(76%, 860px); padding: 10px 12px; border-radius: 18px; font-size: 13px; line-height: 1.45; }
 .msg.msg-user,
 .msg.msg-assistant {
@@ -2060,7 +2289,6 @@ button { padding: 10px 14px; border: none; background: var(--primary-color); col
   max-width: 100%;
 }
 .msg-think-fold .think-summary::-webkit-details-marker { display: none; }
-.msg-think-fold .think-icon { color: #9ca3af; font-size: 10px; }
 .msg-think-fold .think-summary-hint { font-weight: 500; color: #9ca3af; font-size: 11px; }
 .msg-think-fold[open] .think-summary {
   background: #eef2ff;
@@ -2297,7 +2525,7 @@ button { padding: 10px 14px; border: none; background: var(--primary-color); col
   background: #fff;
   color: #4f46e5;
 }
-.mic-chat.on { background: #dc2626; color: #fff; border-color: #dc2626; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25); }
+.mic-chat.on { background: #dc2626; color: #fff; border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.25); }
 .mic-chat:disabled { opacity: 0.5; cursor: not-allowed; }
 .voice-input-hint { margin: 0; font-size: 11px; color: #6e6e73; line-height: 1.35; max-width: 120px; }
 textarea {
@@ -2323,13 +2551,13 @@ textarea {
   min-width: 132px;
   padding: 9px 14px;
   border: 1px solid rgba(255, 255, 255, 0.22);
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 48%, #b91c1c 100%);
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 48%, #b45309 100%);
   background-size: 200% 200%;
   color: #fff;
   box-shadow:
-    0 0 0 1px rgba(220, 38, 38, 0.2),
-    0 4px 14px rgba(220, 38, 38, 0.35),
-    0 0 24px rgba(239, 68, 68, 0.22);
+    0 0 0 1px rgba(217, 119, 6, 0.2),
+    0 4px 14px rgba(217, 119, 6, 0.35),
+    0 0 24px rgba(245, 158, 11, 0.22);
   animation: stop-btn-glow 2.4s ease-in-out infinite;
 }
 .composer-actions .send-btn.stop-mode::before {
@@ -2349,9 +2577,9 @@ textarea {
 .composer-actions .send-btn.stop-mode:hover {
   transform: translateY(-1px);
   box-shadow:
-    0 0 0 1px rgba(220, 38, 38, 0.28),
-    0 8px 20px rgba(220, 38, 38, 0.42),
-    0 0 32px rgba(239, 68, 68, 0.3);
+    0 0 0 1px rgba(217, 119, 6, 0.28),
+    0 8px 20px rgba(217, 119, 6, 0.42),
+    0 0 32px rgba(245, 158, 11, 0.3);
 }
 .composer-actions .send-btn.stop-mode:active {
   transform: translateY(0) scale(0.98);
@@ -2415,16 +2643,16 @@ textarea {
   0%, 100% {
     background-position: 0% 50%;
     box-shadow:
-      0 0 0 1px rgba(220, 38, 38, 0.2),
-      0 4px 14px rgba(220, 38, 38, 0.32),
-      0 0 20px rgba(239, 68, 68, 0.18);
+      0 0 0 1px rgba(217, 119, 6, 0.2),
+      0 4px 14px rgba(217, 119, 6, 0.32),
+      0 0 20px rgba(245, 158, 11, 0.18);
   }
   50% {
     background-position: 100% 50%;
     box-shadow:
-      0 0 0 1px rgba(220, 38, 38, 0.28),
-      0 6px 18px rgba(220, 38, 38, 0.42),
-      0 0 28px rgba(239, 68, 68, 0.28);
+      0 0 0 1px rgba(217, 119, 6, 0.28),
+      0 6px 18px rgba(217, 119, 6, 0.42),
+      0 0 28px rgba(245, 158, 11, 0.28);
   }
 }
 @keyframes stop-btn-shimmer {
@@ -2545,7 +2773,39 @@ textarea {
 
 @media (max-width: 960px) {
   .app { grid-template-columns: 1fr; height: auto; min-height: 100vh; }
+  .app.chat-app,
+  .app.chat-app.app-planner-rail,
+  .app.chat-app.app-sidebar-hidden {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+  }
+  .sidebar,
+  .main,
+  .planner-context-rail {
+    height: auto;
+    max-height: none;
+  }
   .msg { max-width: 92%; }
   .voice-card-grid { grid-template-columns: 1fr; }
+}
+.think-summary-preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+  color: #9ca3af;
+  font-size: 11px;
+  margin: 0 8px;
+}
+.think-disclaimer {
+  margin: 0 0 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed #e5e7eb;
+  font-size: 11px;
+  color: #9ca3af;
+  font-style: italic;
 }
 </style>

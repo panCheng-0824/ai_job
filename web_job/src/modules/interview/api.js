@@ -1,7 +1,21 @@
 /**
  * 面试模块 API — 与 server_job /api/interview 及 /api/me/interview-records 对齐。
  */
-import { apiDelete, apiGet, apiPost, apiPut, getStudentId } from "../../api/client";
+import {
+  apiDelete,
+  apiGet,
+  apiGetFresh,
+  apiPost,
+  apiPut,
+  getStudentId,
+  invalidateCache
+} from "../../api/client";
+
+const INTERVIEW_RECORDS_PREFIX = "/api/me/interview-records";
+
+function bumpInterviewRecordsCache() {
+  invalidateCache(INTERVIEW_RECORDS_PREFIX);
+}
 
 function sidQuery(studentId) {
   const sid = encodeURIComponent(String(studentId || getStudentId() || "").trim());
@@ -70,11 +84,12 @@ export async function deleteInterviewPlan(studentId, planId) {
   return apiDelete(`/api/interview/plans/${encodeURIComponent(planId)}?${q}`);
 }
 
-/** 我的面试记录列表 */
-export async function fetchInterviewRecords(studentId, { summaryStatus = "" } = {}) {
+/** 我的面试记录列表；fresh=true 时强制请求最新数据 */
+export async function fetchInterviewRecords(studentId, { summaryStatus = "", fresh = false } = {}) {
   const q = new URLSearchParams(sidQuery(studentId));
   if (summaryStatus) q.set("summary_status", summaryStatus);
-  return apiGet(`/api/me/interview-records?${q}`);
+  const path = `/api/me/interview-records?${q}`;
+  return fresh ? apiGetFresh(path) : apiGet(path);
 }
 
 /** 单条面试记录详情 */
@@ -92,7 +107,9 @@ export async function fetchInterviewRecordAnswers(studentId, recordId) {
 /** 删除单条面试记录（含关联会话与答题，不删大纲题库） */
 export async function deleteInterviewRecord(studentId, recordId) {
   const q = sidQuery(studentId);
-  return apiDelete(`/api/me/interview-records/${encodeURIComponent(recordId)}?${q}`);
+  const result = await apiDelete(`/api/me/interview-records/${encodeURIComponent(recordId)}?${q}`);
+  bumpInterviewRecordsCache();
+  return result;
 }
 
 /**
@@ -122,10 +139,12 @@ export async function startInterviewFromPlan({
   plan_version,
   chat_session_id
 } = {}) {
-  return apiPost("/api/interview/plan/start", {
+  const result = await apiPost("/api/interview/plan/start", {
     studentId: student_id || getStudentId(),
     planId: plan_id,
     planVersion: plan_version ?? null,
     chatSessionId: chat_session_id || ""
   });
+  bumpInterviewRecordsCache();
+  return result;
 }

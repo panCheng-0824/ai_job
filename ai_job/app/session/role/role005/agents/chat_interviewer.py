@@ -75,7 +75,7 @@ def run_chat_interviewer_agent(
         materials_block=materials_block,
         current_question=current_question,
     )
-    raw = invoke_llm_text(bindings, prompt)
+    raw = invoke_llm_text(bindings, prompt, scenario="模拟面试-对话提问")
     if not raw:
         return {}, "模型无输出或已取消"
     data, err = parse_json_object(raw)

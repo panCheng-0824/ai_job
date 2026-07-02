@@ -26,9 +26,12 @@ const continueChatQuery = computed(() => {
 
 const planDetailLink = computed(() => {
   if (!props.detail.plan_id) return null;
-  const q = props.detail.plan_version != null ? { version: String(props.detail.plan_version) } : {};
+  const q = { planId: props.detail.plan_id };
+  if (props.detail.plan_version != null) {
+    q.version = String(props.detail.plan_version);
+  }
   return {
-    path: `/interview/plans/${encodeURIComponent(props.detail.plan_id)}`,
+    path: "/interview/industry",
     query: q
   };
 });

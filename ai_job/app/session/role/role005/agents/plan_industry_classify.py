@@ -63,7 +63,7 @@ def _pick_from_list(
 JSON 示例：
 {{"category_id":"ind_xxx","category_name":"…","confidence":0.86,"reason":"…"}}
 """
-    raw = invoke_llm_json_object(bindings, prompt)
+    raw = invoke_llm_json_object(bindings, prompt, scenario="模拟面试-行业分类")
     data, err = parse_json_object(raw)
     if err:
         return None, None, err

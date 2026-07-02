@@ -47,8 +47,8 @@ export function jobMatchReasonCharCount(text) {
 }
 
 /**
- * @param {{ match_reason?: string, match_reason_sections?: object[], match_reasons?: string[], score?: number }} hit
- * @param {{ match_reasons?: string[], score?: number }} [job]
+ * @param {{ match_reason?: string, match_reason_sections?: object[], match_reasons?: string[], score?: number, job_id?: string|number }} hit
+ * @param {{ match_reasons?: string[], match_reason_sections?: object[], score?: number, job_id?: string|number }} [job]
  */
 export function resolveJobMatchReasonDisplay(hit, job) {
   const reason =
@@ -57,6 +57,9 @@ export function resolveJobMatchReasonDisplay(hit, job) {
     (Array.isArray(job?.match_reasons) && job.match_reasons.length ? job.match_reasons.join("；") : "");
 
   let sections = Array.isArray(hit?.match_reason_sections) ? hit.match_reason_sections : null;
+  if (!sections?.length && Array.isArray(job?.match_reason_sections) && job.match_reason_sections.length) {
+    sections = job.match_reason_sections;
+  }
   if (!sections?.length) {
     sections = parseJobMatchReason(reason);
   }

@@ -9,7 +9,8 @@ const props = defineProps({
   rows: { type: Number, default: 5 },
   allowMultiple: { type: Boolean, default: true },
   entryLabel: { type: String, default: "条" },
-  accent: { type: String, default: "#4f46e5" }
+  accent: { type: String, default: "#4f46e5" },
+  studioMode: { type: Boolean, default: false }
 });
 
 const emit = defineEmits(["update:items"]);
@@ -49,19 +50,19 @@ function moveItem(index, dir) {
 </script>
 
 <template>
-  <div class="section-blocks" :style="{ '--sec-accent': accent }">
+  <div class="section-blocks" :class="{ 'section-blocks--studio': studioMode }" :style="{ '--sec-accent': accent }">
     <div class="section-blocks-head">
-      <span class="section-label">{{ sectionKey }}</span>
+      <h3 class="section-label">{{ sectionKey }}</h3>
       <button
         v-if="allowMultiple"
         type="button"
         class="btn-add-entry"
         @click="addItem"
       >
-        + 添加{{ entryLabel }}
+        {{ studioMode ? "添加" : `+ 添加${entryLabel}` }}
       </button>
     </div>
-    <p v-if="hint" class="section-hint">{{ hint }}</p>
+    <p v-if="hint && !studioMode" class="section-hint">{{ hint }}</p>
 
     <div
       v-for="(item, index) in items"
@@ -133,6 +134,52 @@ function moveItem(index, dir) {
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 6px;
+}
+.section-blocks--studio {
+  margin-bottom: 0;
+  padding: 0 0 18px;
+  border-top: 1px solid #eef2f6;
+  border-bottom: none;
+}
+.section-blocks--studio .section-blocks-head {
+  margin-bottom: 12px;
+  padding: 10px 22px;
+  background: linear-gradient(90deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 1px solid #eef2f6;
+}
+.section-blocks--studio .section-label {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+.section-blocks--studio .entry-card--solo {
+  margin: 0 22px;
+}
+.section-blocks--studio .btn-add-entry {
+  border-color: #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.76rem;
+  padding: 4px 12px;
+}
+.section-blocks--studio .field span {
+  font-size: 0.74rem;
+  color: #94a3b8;
+}
+.section-blocks--studio .field input,
+.section-blocks--studio .field textarea {
+  border: none;
+  border-bottom: 1px solid #e8ecf4;
+  border-radius: 0;
+  padding: 6px 0;
+  background: transparent;
+}
+.section-blocks--studio .field input:focus,
+.section-blocks--studio .field textarea:focus {
+  outline: none;
+  border-bottom-color: var(--sec-accent);
 }
 .section-label {
   font-weight: 600;

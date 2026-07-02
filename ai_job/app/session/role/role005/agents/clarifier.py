@@ -28,4 +28,7 @@ def run_clarifier_agent(
 题目：{q_text}
 学生疑问：{student_text}
 """
-    return invoke_llm_text(bindings, prompt) or "请围绕题目考察的能力点作答，可结合你真实项目经历说明。"
+    return (
+        invoke_llm_text(bindings, prompt, scenario="模拟面试-澄清追问")
+        or "请围绕题目考察的能力点作答，可结合你真实项目经历说明。"
+    )

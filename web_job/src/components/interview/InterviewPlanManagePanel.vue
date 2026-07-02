@@ -12,7 +12,7 @@ defineProps({
   guest: { type: Boolean, default: false }
 });
 
-defineEmits(["create", "edit", "delete"]);
+defineEmits(["create", "detail", "edit", "delete"]);
 </script>
 
 <template>
@@ -41,6 +41,7 @@ defineEmits(["create", "edit", "delete"]);
         v-for="p in plans"
         :key="p.plan_row_id"
         :item="p"
+        @detail="(planId, version) => $emit('detail', planId, version)"
         @edit="(planId, version) => $emit('edit', planId, version)"
         @delete="(planId) => $emit('delete', planId)"
       />
@@ -55,9 +56,9 @@ defineEmits(["create", "edit", "delete"]);
   height: 100%;
   min-height: 0;
   background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
+  border: 1px solid var(--home-card-border, rgba(91, 106, 223, 0.12));
+  border-radius: var(--home-radius-lg, 16px);
+  box-shadow: var(--home-card-shadow, 0 6px 24px rgba(91, 106, 223, 0.07));
   overflow: hidden;
 }
 

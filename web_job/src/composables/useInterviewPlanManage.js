@@ -35,6 +35,11 @@ export function useInterviewPlanManage() {
   const saving = ref(false);
   const guest = ref(false);
 
+  const detailVisible = ref(false);
+  const detail = ref(null);
+  const detailLoading = ref(false);
+  const detailError = ref("");
+
   const searchResult = computed(() => filterIndustryCategoryTree(industryTree.value, searchQuery.value));
   const displayTree = computed(() => searchResult.value.items);
   const searchExpandIds = computed(() => searchResult.value.expandIds);
@@ -105,6 +110,7 @@ export function useInterviewPlanManage() {
   async function openEdit(planId, version) {
     const sid = getStudentId();
     if (!sid) return;
+    detailVisible.value = false;
     formMode.value = "edit";
     formError.value = "";
     formSuccess.value = "";
@@ -126,6 +132,48 @@ export function useInterviewPlanManage() {
     formVisible.value = false;
     formError.value = "";
     formSuccess.value = "";
+  }
+
+  async function openDetail(planId, version) {
+    const sid = getStudentId();
+    guest.value = !sid;
+    if (!sid) {
+      detailVisible.value = true;
+      detail.value = null;
+      detailError.value = "";
+      detailLoading.value = false;
+      return;
+    }
+    detailVisible.value = true;
+    detailLoading.value = true;
+    detailError.value = "";
+    detail.value = null;
+    try {
+      detail.value = await fetchInterviewPlanDetail(sid, planId, version);
+    } catch (e) {
+      detailError.value = e.message || "加载大纲失败";
+    } finally {
+      detailLoading.value = false;
+    }
+  }
+
+  async function switchDetailVersion(version) {
+    const planId = detail.value?.plan_id;
+    if (!planId || version == null) return;
+    await openDetail(planId, version);
+  }
+
+  function closeDetail() {
+    detailVisible.value = false;
+    detail.value = null;
+    detailError.value = "";
+  }
+
+  function editFromDetail() {
+    if (!detail.value?.plan_id) return;
+    const { plan_id: planId, version } = detail.value;
+    closeDetail();
+    openEdit(planId, version);
   }
 
   /** 编辑升版保存后：拉取最新版本详情回填表单 */
@@ -213,11 +261,19 @@ export function useInterviewPlanManage() {
     formLoading,
     saving,
     guest,
+    detailVisible,
+    detail,
+    detailLoading,
+    detailError,
     loadIndustryTree,
     selectIndustry,
     loadPlans,
     openCreate,
     openEdit,
+    openDetail,
+    switchDetailVersion,
+    closeDetail,
+    editFromDetail,
     closeForm,
     submitForm,
     removePlan,

@@ -1,14 +1,20 @@
 <script setup>
-import { onMounted, ref, watch } from "vue";
-import { useRoute } from "vue-router";
+/**
+ * 个人中心 — 收藏 / 关注 / 评价 / 面试记录，使用首页侧栏壳层。
+ */
+import { computed, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { apiGet, getStudentId } from "../api/client";
+import HomeTopBar from "../components/home/HomeTopBar.vue";
+import StudentAvatar from "../components/home/StudentAvatar.vue";
 import InterviewRecordCard from "../components/interview/InterviewRecordCard.vue";
 import { fetchInterviewRecords } from "../modules/interview/api";
 
 const route = useRoute();
+const router = useRouter();
 
 const activeTab = ref("overview");
-const sidLabel = ref("-");
+const studentName = ref("");
 const guest = ref(false);
 const loadError = ref("");
 const summary = ref(null);
@@ -17,7 +23,6 @@ const follows = ref({ companies: [] });
 const jobReviews = ref({ items: [] });
 const companyReviews = ref({ items: [] });
 const tagMaps = ref({ job: {}, company: {} });
-/** 我的面试记录（V2 student_interview_records） */
 const interviewRecords = ref({ items: [] });
 
 const tabs = [
@@ -28,6 +33,12 @@ const tabs = [
   { id: "revj", label: "岗位评价" },
   { id: "revc", label: "企业评价" }
 ];
+
+const studentId = computed(() => getStudentId());
+const accountSubtitle = computed(() => {
+  if (guest.value) return "登录后查看收藏、关注与个人数据";
+  return `学号 ${studentId.value || "—"}`;
+});
 
 function starsStr(n) {
   const s = Math.max(1, Math.min(5, Number(n) || 0));
@@ -47,12 +58,21 @@ async function onInterviewRecordDeleted(recordId) {
   };
 }
 
+async function loadStudentName(sid) {
+  try {
+    const data = await apiGet(`/api/students/${encodeURIComponent(sid)}`);
+    studentName.value = data?.["学生基本信息"]?.["姓名"] || "";
+  } catch {
+    studentName.value = "";
+  }
+}
+
 async function loadAll() {
-  const sid = getStudentId();
-  sidLabel.value = sid || "未登录";
+  const sid = studentId.value;
   guest.value = !sid;
   loadError.value = "";
   summary.value = null;
+  studentName.value = "";
   if (!sid) {
     favorites.value = { jobs: [] };
     follows.value = { companies: [] };
@@ -70,7 +90,8 @@ async function loadAll() {
       apiGet(`/api/me/reviews/jobs?${q}`),
       apiGet(`/api/me/reviews/companies?${q}`),
       apiGet("/api/review-tags"),
-      fetchInterviewRecords(sid)
+      fetchInterviewRecords(sid, { fresh: true }),
+      loadStudentName(sid)
     ]);
     summary.value = sum;
     favorites.value = fav;
@@ -96,7 +117,15 @@ function applyTabFromRoute() {
   const t = route.query.tab;
   if (typeof t === "string" && tabs.some((x) => x.id === t)) {
     activeTab.value = t;
+    return;
   }
+  activeTab.value = "overview";
+}
+
+function selectTab(id) {
+  activeTab.value = id;
+  const query = id === "overview" ? {} : { tab: id };
+  router.replace({ path: "/me", query });
 }
 
 onMounted(() => {
@@ -108,47 +137,89 @@ watch(() => route.query.tab, applyTabFromRoute);
 </script>
 
 <template>
-  <div>
-    <section class="hero">
-      <h1>我的</h1>
-      <p>学号：<code>{{ sidLabel }}</code></p>
-      <p v-if="guest" class="warn">
-        未检测到登录学号，请先在
-        <router-link to="/login">登录页</router-link>
-        登录。
-      </p>
-    </section>
-    <div class="container">
-      <div class="tabs">
+  <div class="home-main me-main">
+      <HomeTopBar
+        title="个人中心"
+        subtitle="管理收藏、关注、评价与面试记录"
+        :student-name="studentName"
+      />
+
+      <section class="account-card">
+        <div class="account-profile">
+          <StudentAvatar
+            :name="studentName"
+            :student-id="studentId"
+            size="xl"
+            editable
+            title="点击修改头像"
+          />
+          <div class="account-meta">
+            <strong>{{ guest ? "未登录" : studentName || "同学" }}</strong>
+            <span>{{ accountSubtitle }}</span>
+          </div>
+        </div>
+        <div v-if="guest" class="account-actions">
+          <router-link to="/login" class="account-btn account-btn--primary">前往登录</router-link>
+        </div>
+        <div v-else class="account-actions">
+          <button type="button" class="account-btn account-btn--ghost" @click="selectTab('overview')">数据概览</button>
+        </div>
+      </section>
+
+      <div class="me-tabs" role="tablist" aria-label="个人中心分类">
         <button
           v-for="t in tabs"
           :key="t.id"
           type="button"
-          class="tab"
+          role="tab"
+          class="me-tab"
           :class="{ active: activeTab === t.id }"
-          @click="activeTab = t.id"
+          :aria-selected="activeTab === t.id"
+          @click="selectTab(t.id)"
         >
           {{ t.label }}
         </button>
       </div>
-      <p v-if="loadError" class="error">{{ loadError }}</p>
-      <div v-show="activeTab === 'overview'" class="panel">
+
+      <p v-if="loadError" class="me-error">{{ loadError }}</p>
+
+      <div v-show="activeTab === 'overview'" class="me-panel">
         <div v-if="summary" class="stat-grid">
-          <div class="stat"><span>收藏岗位</span><strong>{{ summary.favorite_job_count }}</strong></div>
-          <div class="stat"><span>关注企业</span><strong>{{ summary.followed_company_count }}</strong></div>
-          <div class="stat"><span>岗位评价</span><strong>{{ summary.job_review_count }}</strong></div>
-          <div class="stat"><span>企业评价</span><strong>{{ summary.company_review_count }}</strong></div>
+          <div class="stat">
+            <span>收藏岗位</span>
+            <strong>{{ summary.favorite_job_count }}</strong>
+          </div>
+          <div class="stat">
+            <span>关注企业</span>
+            <strong>{{ summary.followed_company_count }}</strong>
+          </div>
+          <div class="stat">
+            <span>岗位评价</span>
+            <strong>{{ summary.job_review_count }}</strong>
+          </div>
+          <div class="stat">
+            <span>企业评价</span>
+            <strong>{{ summary.company_review_count }}</strong>
+          </div>
         </div>
-        <p v-else-if="!guest && !loadError" class="muted">加载中…</p>
+        <p v-else-if="guest" class="empty">请先登录</p>
+        <p v-else-if="!loadError" class="muted">加载中…</p>
         <p class="muted hint">在岗位列表、岗位详情可收藏岗位；在企业列表、企业详情可关注企业并提交评价。</p>
       </div>
-      <div v-show="activeTab === 'interviews'" class="panel">
-        <p class="muted hint">模拟面试确认大纲后，记录会出现在此处。也可从<router-link to="/interview/plans">面试大纲</router-link>查看题库。</p>
+
+      <div v-show="activeTab === 'interviews'" class="me-panel">
+        <p class="muted hint">
+          面试记录已整合至
+          <router-link to="/interview/center">面试中心</router-link>，可查看待面试与历史回放。
+        </p>
         <ul class="cards">
           <li v-if="guest" class="empty">请先登录</li>
-          <li v-else-if="!(interviewRecords.items || []).length" class="empty">暂无面试记录</li>
+          <li v-else-if="!(interviewRecords.items || []).length" class="empty">
+            暂无面试记录 ·
+            <router-link to="/interview/center">前往面试中心</router-link>
+          </li>
           <InterviewRecordCard
-            v-for="r in interviewRecords.items || []"
+            v-for="r in (interviewRecords.items || []).slice(0, 3)"
             v-else
             :key="r.record_id"
             :item="r"
@@ -156,8 +227,12 @@ watch(() => route.query.tab, applyTabFromRoute);
             @deleted="onInterviewRecordDeleted"
           />
         </ul>
+        <p v-if="!guest && (interviewRecords.items || []).length > 3" class="muted hint">
+          <router-link to="/interview/center">查看全部 {{ interviewRecords.items.length }} 条记录 →</router-link>
+        </p>
       </div>
-      <div v-show="activeTab === 'fav'" class="panel">
+
+      <div v-show="activeTab === 'fav'" class="me-panel">
         <ul class="cards">
           <li v-if="guest" class="empty">请先登录</li>
           <li v-else-if="!(favorites.jobs || []).length" class="empty">暂无收藏</li>
@@ -169,7 +244,8 @@ watch(() => route.query.tab, applyTabFromRoute);
           </li>
         </ul>
       </div>
-      <div v-show="activeTab === 'fol'" class="panel">
+
+      <div v-show="activeTab === 'fol'" class="me-panel">
         <ul class="cards">
           <li v-if="guest" class="empty">请先登录</li>
           <li v-else-if="!(follows.companies || []).length" class="empty">暂无关注</li>
@@ -181,7 +257,8 @@ watch(() => route.query.tab, applyTabFromRoute);
           </li>
         </ul>
       </div>
-      <div v-show="activeTab === 'revj'" class="panel">
+
+      <div v-show="activeTab === 'revj'" class="me-panel">
         <ul class="cards">
           <li v-if="guest" class="empty">请先登录</li>
           <li v-else-if="!(jobReviews.items || []).length" class="empty">暂无岗位评价</li>
@@ -195,7 +272,8 @@ watch(() => route.query.tab, applyTabFromRoute);
           </li>
         </ul>
       </div>
-      <div v-show="activeTab === 'revc'" class="panel">
+
+      <div v-show="activeTab === 'revc'" class="me-panel">
         <ul class="cards">
           <li v-if="guest" class="empty">请先登录</li>
           <li v-else-if="!(companyReviews.items || []).length" class="empty">暂无企业评价</li>
@@ -210,64 +288,121 @@ watch(() => route.query.tab, applyTabFromRoute);
         </ul>
       </div>
     </div>
-  </div>
 </template>
 
 <style scoped>
-.hero {
-  padding: 88px 20px 36px;
-  text-align: center;
-  background: radial-gradient(circle at top right, #eef2ff, transparent),
-    radial-gradient(circle at top left, #f5f3ff, transparent);
+.me-main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
-.hero h1 {
-  font-size: clamp(1.75rem, 4vw, 2.2rem);
-  margin-bottom: 8px;
+.account-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 18px;
+  background: var(--home-card-bg, #fff);
+  border: 1px solid var(--home-card-border, rgba(91, 106, 223, 0.12));
+  border-radius: var(--home-radius-lg, 16px);
+  box-shadow: var(--home-card-shadow, 0 6px 24px rgba(91, 106, 223, 0.07));
 }
-.hero p {
-  color: var(--text-muted, #6b7280);
-  font-size: 0.95rem;
+.account-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
-.warn {
-  color: var(--danger, #dc2626);
+.account-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #c7d2fe, #818cf8);
+  color: #312e81;
+  font-size: 1.05rem;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.account-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.account-meta strong {
+  font-size: 1rem;
+  color: #0f172a;
+}
+.account-meta span {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+.account-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.account-btn {
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 0.8rem;
   font-weight: 600;
-  margin-top: 10px;
+  cursor: pointer;
+  text-decoration: none;
+  border: 1px solid transparent;
 }
-.warn a {
-  color: var(--primary-color, #6366f1);
+.account-btn--primary {
+  background: linear-gradient(135deg, #5b6adf, #6366f1);
+  color: #fff;
 }
-.container {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 0 18px 80px;
+.account-btn--ghost {
+  background: #fff;
+  border-color: #c7d2fe;
+  color: var(--home-primary, #5b6adf);
 }
-.tabs {
+.account-btn--ghost:hover {
+  background: #eef2ff;
+}
+.me-tabs {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 18px;
 }
-.tab {
-  border: 1px solid #e5e7eb;
+.me-tab {
+  border: 1px solid #e2e8f0;
   background: #fff;
   border-radius: 999px;
   padding: 8px 14px;
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   cursor: pointer;
-  color: #374151;
+  color: #475569;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
-.tab.active {
-  border-color: var(--primary-color, #6366f1);
-  color: var(--primary-color, #6366f1);
-  font-weight: 600;
+.me-tab:hover {
+  border-color: #c7d2fe;
+  color: var(--home-primary, #5b6adf);
+}
+.me-tab.active {
+  border-color: var(--home-primary, #5b6adf);
+  color: var(--home-primary, #5b6adf);
+  font-weight: 700;
   background: #eef2ff;
 }
-.panel {
-  background: #fff;
-  border: 1px solid rgba(31, 41, 55, 0.08);
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+.me-panel {
+  background: var(--home-card-bg, #fff);
+  border: 1px solid var(--home-card-border, rgba(91, 106, 223, 0.12));
+  border-radius: var(--home-radius-lg, 16px);
+  padding: 16px 18px;
+  box-shadow: var(--home-card-shadow, 0 6px 24px rgba(91, 106, 223, 0.07));
+}
+.me-error {
+  color: #b91c1c;
+  font-weight: 600;
+  font-size: 0.88rem;
 }
 .stat-grid {
   display: grid;
@@ -276,20 +411,21 @@ watch(() => route.query.tab, applyTabFromRoute);
   margin-bottom: 12px;
 }
 .stat {
-  border: 1px solid #eceff3;
+  border: 1px solid #e8ecff;
   border-radius: 12px;
   padding: 12px;
   text-align: center;
+  background: #f8faff;
 }
 .stat strong {
   display: block;
   font-size: 1.35rem;
   margin-top: 4px;
-  color: var(--primary-color, #6366f1);
+  color: var(--home-primary, #5b6adf);
 }
 .stat span {
   font-size: 0.8rem;
-  color: var(--text-muted, #6b7280);
+  color: #64748b;
 }
 .cards {
   list-style: none;
@@ -299,23 +435,37 @@ watch(() => route.query.tab, applyTabFromRoute);
   gap: 10px;
 }
 .card-li {
-  border: 1px solid #eceff3;
+  border: 1px solid #e8ecff;
   border-radius: 12px;
   padding: 12px;
+  background: #fafbff;
 }
 .card-li a {
-  color: var(--primary-color, #6366f1);
+  color: var(--home-primary, #5b6adf);
   font-weight: 600;
   text-decoration: none;
 }
+.card-li a:hover {
+  text-decoration: underline;
+}
 .muted {
-  color: var(--text-muted, #6b7280);
+  color: #64748b;
   font-size: 0.85rem;
   margin-top: 6px;
 }
 .hint {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   margin-top: 12px;
+}
+.hint a,
+.empty a {
+  color: var(--home-primary, #5b6adf);
+  font-weight: 600;
+  text-decoration: none;
+}
+.hint a:hover,
+.empty a:hover {
+  text-decoration: underline;
 }
 .stars {
   color: #f59e0b;
@@ -328,13 +478,17 @@ watch(() => route.query.tab, applyTabFromRoute);
   margin-top: 4px;
 }
 .empty {
-  color: var(--text-muted, #6b7280);
+  color: #64748b;
   padding: 20px;
   text-align: center;
 }
-.error {
-  color: var(--danger, #dc2626);
-  font-weight: 600;
-  margin-bottom: 12px;
+@media (max-width: 720px) {
+  .account-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .account-actions {
+    justify-content: flex-end;
+  }
 }
 </style>

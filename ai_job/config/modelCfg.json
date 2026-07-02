@@ -5,7 +5,8 @@
     "model_provider": "openai",
     "model_name": "Qwen3.6-27B-OptiQ-4bit",
     "model_api": "http://127.0.0.1:8000/v1",
-    "model_key": "pc0824tq"
+    "model_key": "pc0824tq",
+    "analyze_response_format": "none"
   },
   {
     "model_type": "chat",
@@ -13,7 +14,17 @@
     "model_provider": "openai",
     "model_name": "gemma-4-26b-a4b-it-4bit",
     "model_api": "http://127.0.0.1:8000/v1",
-    "model_key": "pc0824tq"
+    "model_key": "pc0824tq",
+    "analyze_response_format": "none"
+  },
+  {
+    "model_type": "chat",
+    "model_level": "mid-tmp",
+    "model_provider": "openai",
+    "model_name": "deepseek-v4-pro",
+    "model_api": "https://api.deepseek.com",
+    "model_key": "sk-d20e1b4660a14076a2961026b663382d",
+    "analyze_response_format": "none"
   },
   {
     "model_type": "chat",
@@ -21,7 +32,8 @@
     "model_provider": "openai",
     "model_name": "gemma-4-31b-it-4bit",
     "model_api": "http://127.0.0.1:8000/v1",
-    "model_key": "pc0824tq"
+    "model_key": "pc0824tq",
+    "analyze_response_format": "none"
   },
 
   {
@@ -30,16 +42,17 @@
     "model_provider": "openai",
     "model_name": "deepseek-v4-pro",
     "model_api": "https://api.deepseek.com",
-    "model_key": "sk-d20e1b4660a14076a2961026b663382d"
+    "model_key": "sk-d20e1b4660a14076a2961026b663382d",
+    "analyze_response_format": "none"
   },
-
     {
     "model_type": "chat",
     "model_level": "top-pro",
     "model_provider": "openai",
-    "model_name": "doubao-seed-character-251128",
+    "model_name": "doubao-seed-2-0-lite-260428",
     "model_api": "https://ark.cn-beijing.volces.com/api/v3",
-    "model_key": "ark-e96cca34-8de0-43a4-914d-e3e6a7b1b2d0-c2321"
+    "model_key": "ark-e96cca34-8de0-43a4-914d-e3e6a7b1b2d0-c2321",
+    "analyze_response_format": "json_object"
   },
   {
     "model_type": "embedding",

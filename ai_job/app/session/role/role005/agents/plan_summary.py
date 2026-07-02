@@ -83,7 +83,7 @@ def run_plan_summary_agent(
         plan=plan,
         materials_excerpt=materials_excerpt,
     )
-    raw = invoke_llm_json_object(bindings, prompt)
+    raw = invoke_llm_json_object(bindings, prompt, scenario="模拟面试-规划摘要")
     data, parse_err = parse_json_object(raw)
     if parse_err:
         return None, parse_err

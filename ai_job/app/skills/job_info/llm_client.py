@@ -14,9 +14,11 @@ from app.skills.job_info.llm_prompt import (
     analysis_system_message,
     build_analysis_prompt,
 )
+from app.common.llm_call_log import log_llm_call_from_entry
 from app.skills.job_info.llm_schema import (
     is_unsupported_response_format_error,
     llm_response_format,
+    resolve_analyze_response_format_mode,
 )
 from app.skills.job_rag_query_rewrite import _select_chat_by_level
 
@@ -45,7 +47,7 @@ def invoke_chat_completion(
                 **base_kwargs,
                 response_format=response_format,
             )
-            return (resp.choices[0].message.content or "").strip()
+            return (resp.choices[0].message.content or resp.choices[0].message.reasoning_content or "").strip()
         except Exception as e:
             if not is_unsupported_response_format_error(e):
                 raise
@@ -65,6 +67,7 @@ def analyze_retrieval_sync(
     *,
     score_baseline: int = 85,
     use_student_profile: bool = True,
+    score_dimensions: dict | None = None,
 ) -> Dict[str, Any]:
     """
     同步分析检索素材，返回规范化后的 recom JSON 对象。
@@ -76,7 +79,19 @@ def analyze_retrieval_sync(
     entry: ModelEntry = _select_chat_by_level(load_model_list(), level)
     client = OpenAI(api_key=entry["model_key"], base_url=entry["model_api"])
 
-    response_format = llm_response_format()
+    response_format_mode = resolve_analyze_response_format_mode(entry)
+    response_format = llm_response_format(entry)
+    include_json_schema = response_format_mode == "json_object"
+    max_tokens = int(os.getenv("JOB_RAG_ANALYZE_MAX_TOKENS", "20480"))
+    log_llm_call_from_entry(
+        "岗位推荐-检索素材分析",
+        entry,
+        response_format=response_format,
+        response_format_mode=response_format_mode,
+        include_json_schema=include_json_schema,
+        temperature=0.2,
+        max_tokens=max_tokens,
+    )
     messages: List[Dict[str, str]] = [
         {
             "role": "system",
@@ -90,6 +105,8 @@ def analyze_retrieval_sync(
                 retrieval_context,
                 score_baseline=score_baseline,
                 use_student_profile=use_student_profile,
+                score_dimensions=score_dimensions,
+                include_json_schema=include_json_schema,
             ),
         },
     ]
@@ -98,7 +115,7 @@ def analyze_retrieval_sync(
         model=entry["model_name"],
         messages=messages,
         temperature=0.2,
-        max_tokens=int(os.getenv("JOB_RAG_ANALYZE_MAX_TOKENS", "2048")),
+        max_tokens=max_tokens,
         response_format=response_format,
     )
     if not content:

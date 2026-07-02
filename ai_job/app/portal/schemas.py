@@ -1,6 +1,6 @@
 """门户 HTTP API 请求体模型（与路由层共用）。"""
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -10,6 +10,16 @@ from app.skills.job_info.constants import (
     DEFAULT_TOP_N_JOBS,
     MAX_TOP_N_JOBS,
 )
+
+
+class ScoreDimensionWeights(BaseModel):
+    """五维评分权重（各项上限之和通常为 100）。"""
+
+    major: int = Field(default=25, ge=0, le=100, description="专业/方向对口")
+    skill: int = Field(default=25, ge=0, le=100, description="技能与职责匹配")
+    threshold: int = Field(default=20, ge=0, le=100, description="门槛匹配")
+    intent: int = Field(default=15, ge=0, le=100, description="诉求匹配")
+    quality: int = Field(default=15, ge=0, le=100, description="岗位质量")
 
 
 class SessionInitRequest(BaseModel):
@@ -70,6 +80,8 @@ class JobInfoQueryRequest(BaseModel):
     score_baseline: int = Field(default=DEFAULT_SCORE_BASELINE, ge=0, le=100)
     # 返回岗位最低 score 阈值（0–100），低于此分的条目会被过滤
     min_recommend_score: int = Field(default=DEFAULT_MIN_RECOMMEND_SCORE, ge=0, le=100)
+    # 五维评分权重（写入 LLM 提示词；缺省 25/25/20/15/15）
+    score_dimensions: Optional[ScoreDimensionWeights] = None
     # 是否使用语义相似缓存（需服务端 JOB_INFO_SEM_CACHE_ENABLED=1）；默认 True
     use_semantic_cache: bool = True
     # 已废弃：LightRAG 固定 only_need_context，保留字段仅为 API 兼容

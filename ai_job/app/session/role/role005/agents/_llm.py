@@ -11,6 +11,7 @@ from typing import Any, Dict, Optional
 
 from langchain_core.messages import HumanMessage
 
+from app.common.llm_call_log import log_llm_call_from_langchain
 from app.session.role.role005.config import resolve_role005_llm_response_format
 from app.session.role.role_util.bindings import GraphBindings, is_cancelled
 
@@ -36,6 +37,7 @@ def invoke_llm_text(
     bindings: GraphBindings,
     prompt: str,
     *,
+    scenario: str = "ROLE005",
     response_format: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
@@ -49,6 +51,12 @@ def invoke_llm_text(
     """
     if is_cancelled(bindings):
         return ""
+    log_llm_call_from_langchain(
+        scenario,
+        bindings.llm,
+        model_level=str(bindings.identity.get("model_level") or ""),
+        response_format=response_format,
+    )
     messages = [HumanMessage(content=prompt)]
     if not response_format:
         msg = bindings.llm.invoke(messages)
@@ -69,7 +77,12 @@ def invoke_llm_text(
         return str(getattr(msg, "content", msg) or "").strip()
 
 
-def invoke_llm_json_object(bindings: GraphBindings, prompt: str) -> str:
+def invoke_llm_json_object(
+    bindings: GraphBindings,
+    prompt: str,
+    *,
+    scenario: str = "ROLE005-JSON",
+) -> str:
     """
     以 JSON 对象模式调用 LLM（``response_format={"type": "json_object"}``）。
 
@@ -78,4 +91,4 @@ def invoke_llm_json_object(bindings: GraphBindings, prompt: str) -> str:
     设为 none/off 时与 ``invoke_llm_text`` 相同，仅依赖 Prompt 约束。
     """
     fmt = resolve_role005_llm_response_format()
-    return invoke_llm_text(bindings, prompt, response_format=fmt)
+    return invoke_llm_text(bindings, prompt, scenario=scenario, response_format=fmt)

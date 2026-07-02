@@ -2,6 +2,7 @@ package org.example.server_job.ai.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.example.server_job.student.service.StudentJobMatchHistoryService;
 import org.example.server_job.student.service.StudentPortalActivityService;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,10 +25,16 @@ import java.util.Map;
 public class StudentPortalController {
 
     private final StudentPortalActivityService portalActivityService;
+    private final StudentJobMatchHistoryService jobMatchHistoryService;
     private final ObjectMapper objectMapper;
 
-    public StudentPortalController(StudentPortalActivityService portalActivityService, ObjectMapper objectMapper) {
+    public StudentPortalController(
+            StudentPortalActivityService portalActivityService,
+            StudentJobMatchHistoryService jobMatchHistoryService,
+            ObjectMapper objectMapper
+    ) {
         this.portalActivityService = portalActivityService;
+        this.jobMatchHistoryService = jobMatchHistoryService;
         this.objectMapper = objectMapper;
     }
 
@@ -53,6 +60,20 @@ public class StudentPortalController {
     @GetMapping("/me/favorites")
     public Map<String, Object> meFavorites(@RequestParam("student_id") String studentId) {
         return portalActivityService.getMeFavorites(studentId);
+    }
+
+    /** 智能匹配历史列表（每生最多 5 条，按时间倒序） */
+    @GetMapping("/me/job-match-history")
+    public Map<String, Object> meJobMatchHistory(@RequestParam("student_id") String studentId) {
+        return jobMatchHistoryService.listHistory(studentId);
+    }
+
+    /** 保存一次成功匹配记录（返回岗位才算成功） */
+    @PostMapping("/me/job-match-history")
+    public Map<String, Object> meJobMatchHistorySave(@RequestBody String body) throws Exception {
+        JsonNode n = objectMapper.readTree(body == null ? "{}" : body);
+        String sid = n.path("student_id").asText();
+        return jobMatchHistoryService.saveHistory(sid, n);
     }
 
     @PostMapping("/me/favorites/toggle")

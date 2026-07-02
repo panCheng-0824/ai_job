@@ -1,9 +1,8 @@
 <script setup>
 /**
- * 面试大纲列表卡片 — 点击进入详情，底部编辑/删除不冒泡。
+ * 面试大纲列表卡片 — 点击打开详情弹窗，底部编辑/删除不冒泡。
  */
 import { computed } from "vue";
-import { useRouter } from "vue-router";
 import { formatDateTime } from "../../modules/interview/formatters";
 import { planStatusMeta } from "../../modules/interview/planBasicMeta";
 import PlanStatusPill from "./PlanStatusPill.vue";
@@ -12,23 +11,16 @@ const props = defineProps({
   item: { type: Object, required: true }
 });
 
-const emit = defineEmits(["edit", "delete"]);
-
-const router = useRouter();
+const emit = defineEmits(["detail", "edit", "delete"]);
 
 const status = computed(() => planStatusMeta(props.item?.status));
-
-const detailTo = computed(() => ({
-  path: `/interview/plans/${encodeURIComponent(props.item.plan_id)}`,
-  query: { version: props.item.version }
-}));
 
 const displayTitle = computed(
   () => props.item.title || props.item.target_role || props.item.plan_id || "未命名大纲"
 );
 
-function goDetail() {
-  router.push(detailTo.value);
+function openDetail() {
+  emit("detail", props.item.plan_id, props.item.version);
 }
 
 function onEdit(e) {
@@ -47,9 +39,9 @@ function onDelete(e) {
     class="plan-card"
     role="link"
     tabindex="0"
-    @click="goDetail"
-    @keydown.enter="goDetail"
-    @keydown.space.prevent="goDetail"
+    @click="openDetail"
+    @keydown.enter="openDetail"
+    @keydown.space.prevent="openDetail"
   >
     <div class="card-body">
       <header class="card-head">

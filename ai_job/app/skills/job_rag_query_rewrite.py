@@ -13,6 +13,8 @@ from typing import List, Tuple
 from model_cfg import ModelEntry, load_model_list
 from openai import OpenAI
 
+from app.common.llm_call_log import log_llm_call_from_entry
+
 log = logging.getLogger(__name__)
 
 
@@ -70,6 +72,12 @@ def rewrite_job_query_sync(user_query: str, student_context: str = "") -> str:
     user_content = "\n\n".join(parts)
 
     try:
+        log_llm_call_from_entry(
+            "岗位推荐-查询改写",
+            entry,
+            temperature=0.2,
+            max_tokens=420,
+        )
         client = OpenAI(api_key=entry["model_key"], base_url=entry["model_api"])
         resp = client.chat.completions.create(
             model=entry["model_name"],

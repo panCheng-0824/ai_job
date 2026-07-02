@@ -75,7 +75,7 @@ def run_interviewer_agent(
         turn_action=turn_action,
         student_text=student_text,
     )
-    raw = invoke_llm_text(bindings, prompt)
+    raw = invoke_llm_text(bindings, prompt, scenario="模拟面试-提问")
     data, err = parse_json_object(raw)
     if err:
         return {}, err

@@ -42,7 +42,8 @@ const props = defineProps({
   currentDraft: { type: Object, default: null },
   activeSeries: { type: Object, default: null },
   globalDefaultRecord: { type: Object, default: null },
-  accent: { type: String, default: "#4f46e5" }
+  accent: { type: String, default: "#4f46e5" },
+  panelTitle: { type: String, default: "版本与默认" }
 });
 
 const emit = defineEmits([
@@ -84,7 +85,7 @@ function formatTime(rec) {
   <div class="version-rail">
     <section class="panel panel-version" :class="{ 'panel-version--collapsed': !versionPanelOpen }">
       <div class="panel-version-head">
-        <h3 class="rail-title">版本与默认</h3>
+        <h3 class="rail-title">{{ panelTitle }}</h3>
         <button
           type="button"
           class="panel-toggle"
