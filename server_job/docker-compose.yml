@@ -1,0 +1,28 @@
+# server_job 应用容器（中间件仍用 ~/workspace/docker/docker-compose.yml）
+#
+# 启动顺序：
+#   1. cd ~/workspace/docker && docker compose up -d
+#   2. cd /path/to/server_job && cp .env.docker.example .env.docker && docker compose up -d --build
+#
+services:
+  server_job:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: server_job:local
+    container_name: server_job
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env.docker
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    external: true
+    # compose 项目在 ~/workspace/docker 时默认网络名；若不同可用 docker network ls 查看
+    name: docker_app-network

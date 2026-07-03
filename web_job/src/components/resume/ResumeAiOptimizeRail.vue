@@ -9,6 +9,8 @@ import { apiGet, apiPost, apiPostSse } from "../../api/client";
 import { RESUME_AI_DRAG_MIME } from "../../constants/resumeAiDrag";
 import { RESUME_OPTIMIZER_USERCODE } from "../../constants/resumeOptimizer";
 import { dispatchResumeRender } from "../../composables/useResumeRenderBridge";
+import { subscribeResumeAiContext } from "../../composables/useResumeAiContextBridge";
+import { buildCompanyContextItem, buildJobContextItem } from "../../modules/resume/aiContext";
 import { resumePreviewHasContent } from "../../modules/resume/previewText";
 
 const INCLUDE_LEFT_FORM_KEY = "resume_ai_include_left_form";
@@ -108,23 +110,11 @@ function onOcrRecognized(payload) {
 }
 
 function jobDragPayload(job) {
-  return {
-    kind: "job",
-    refId: job.job_id,
-    title: job.job_title || job.job_name || job.job_id,
-    subtitle: `${job.city || ""} ${job.company_relation?.company_name || ""}`.trim(),
-    payload: job
-  };
+  return buildJobContextItem(job) || { kind: "job", refId: "", title: "", payload: job };
 }
 
 function companyDragPayload(company) {
-  return {
-    kind: "company",
-    refId: company.credit_code,
-    title: company.company_name || company.credit_code,
-    subtitle: company.industry || "",
-    payload: company
-  };
+  return buildCompanyContextItem(company) || { kind: "company", refId: "", title: "", payload: company };
 }
 
 function onDragStart(ev, payload) {
@@ -396,6 +386,7 @@ async function handleSubmit() {
         message: displayMessage,
         message_context: hiddenContext,
         context_cards: contextCards,
+        student_id: studentId,
         use_role_pipeline: false,
         use_adversarial_harness: false,
         adversarial_desc: ""
@@ -452,12 +443,20 @@ function onIncludeLeftFormChange() {
   localStorage.setItem(INCLUDE_LEFT_FORM_KEY, includeLeftForm.value ? "1" : "0");
 }
 
-onMounted(() => loadFavoritesAndFollows());
+let unsubscribeResumeAiContext = () => {};
+
+onMounted(() => {
+  loadFavoritesAndFollows();
+  unsubscribeResumeAiContext = subscribeResumeAiContext((item) => {
+    addContextItem(item);
+  });
+});
 watch(sid, () => loadFavoritesAndFollows());
 watch(leftDraftReady, (ready) => {
   if (!ready) includeLeftForm.value = false;
 });
 onBeforeUnmount(() => {
+  unsubscribeResumeAiContext();
   streamAbortController?.abort();
   streamAbortController = null;
 });
@@ -466,7 +465,7 @@ onBeforeUnmount(() => {
 <template>
   <aside class="ai-rail" :class="{ 'ai-rail--embedded': embedded }" aria-label="AI 简历优化">
     <header v-if="embedded" class="ai-hero">
-      <p class="ai-hero-desc">可勾选带入左侧表单作基准，再结合 OCR / 岗位 / 企业与补充说明提交优化</p>
+    
       <div class="ai-hero-stats" aria-label="素材统计">
         <span class="ai-stat-pill" :class="{ 'ai-stat-pill--on': materialCounts.ocr > 0 }">简历 {{ materialCounts.ocr }}</span>
         <span class="ai-stat-pill ai-stat-pill--job" :class="{ 'ai-stat-pill--on': materialCounts.job > 0 }">岗位 {{ materialCounts.job }}</span>
@@ -533,7 +532,7 @@ onBeforeUnmount(() => {
         <div class="ai-fold-body ai-fold-body--ocr">
           <p class="ai-fold-hint">支持图片、PDF、Word，拖拽或选择文件即可识别</p>
           <div class="ai-ocr-wrap">
-            <OcrView compact @recognized="onOcrRecognized" />
+            <OcrView compact hide-language-option @recognized="onOcrRecognized" />
           </div>
         </div>
       </details>
@@ -808,6 +807,9 @@ onBeforeUnmount(() => {
 .ai-section-icon { color: #a855f7; font-size: 0.75rem; }
 .ai-section-meta { font-size: 0.68rem; color: #9ca3af; text-align: right; }
 .ai-section--drop {
+  position: sticky;
+  top: 0;
+  z-index: 4;
   padding: 12px;
   border-radius: 14px;
   background: #fff;

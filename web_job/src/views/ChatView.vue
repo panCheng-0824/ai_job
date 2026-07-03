@@ -1,7 +1,13 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { apiGet, apiPost, apiPostSse, apiDelete, fetchTtsPostStream, playTtsStreamFromResponse, getStudentId } from "../api/client";
+import { apiGetFresh, apiPost, apiPostSse, apiDelete, fetchTtsPostStream, playTtsStreamFromResponse, getStudentId, invalidateCache } from "../api/client";
+import {
+  normalizeChatSessionsResponse,
+  sessionCardSubtitle,
+  sessionCardTitle,
+  upsertChatSession
+} from "../utils/chatSessionList";
 import {
   hydrateSessionResumeRenderCache,
   mergePersistedHistory,
@@ -20,6 +26,7 @@ import {
   contextRailVisibleRef,
   toggleContextRailVisible
 } from "../composables/useChatPlannerRailVisible";
+import { normalizeMatchApiResponse } from "../utils/jobDedupe";
 import JobRecommendPanel from "../components/JobRecommendPanel.vue";
 import ChatInterviewPlanStartBar from "../components/interview/ChatInterviewPlanStartBar.vue";
 import ChatInterviewOverlay from "../components/interview/ChatInterviewOverlay.vue";
@@ -347,15 +354,25 @@ const sessionInfo = computed(() => {
 });
 
 async function loadModels() {
-  models.value = await apiGet("/api/user-models");
+  models.value = await apiGetFresh("/api/user-models");
   if (!usercode.value && models.value.length) usercode.value = models.value[0].usercode;
 }
 
+function chatSessionsListPath() {
+  return `/api/chat-sessions?student_id=${encodeURIComponent(loggedInStudentId.value)}`;
+}
+
+function invalidateChatSessionsCache() {
+  invalidateCache("/api/chat-sessions");
+}
+
 async function loadSessions() {
-  if (!loggedInStudentId.value) return (sessions.value = []);
-  sessions.value = await apiGet(
-    `/api/chat-sessions?student_id=${encodeURIComponent(loggedInStudentId.value)}`
-  );
+  if (!loggedInStudentId.value) {
+    sessions.value = [];
+    return;
+  }
+  const data = await apiGetFresh(chatSessionsListPath());
+  sessions.value = normalizeChatSessionsResponse(data);
 }
 
 async function loadStudentMeta() {
@@ -365,7 +382,7 @@ async function loadStudentMeta() {
     return;
   }
   try {
-    const data = await apiGet(`/api/students/${encodeURIComponent(sid)}`);
+    const data = await apiGetFresh(`/api/students/${encodeURIComponent(sid)}`);
     studentName.value = data?.["学生基本信息"]?.["姓名"] || "";
   } catch (_) {
     studentName.value = "";
@@ -380,6 +397,21 @@ function requireLoggedInStudentId() {
   return sid;
 }
 
+function syncCurrentSessionInList() {
+  const sid = currentSessionId.value;
+  if (!sid) return;
+  const idx = sessions.value.findIndex((s) => s.session_id === sid);
+  if (idx < 0) return;
+  sessions.value[idx] = {
+    ...sessions.value[idx],
+    history: history.value.map((t) => ({
+      role: t.role,
+      content: t.content,
+      context_cards: t.context_cards
+    }))
+  };
+}
+
 async function openSession(sid) {
   const student = requireLoggedInStudentId();
   currentSessionId.value = sid;
@@ -389,7 +421,7 @@ async function openSession(sid) {
     usercode.value = matched.usercode;
     localStorage.setItem("usercode", matched.usercode);
   }
-  const data = await apiGet(
+  const data = await apiGetFresh(
     `/api/chat-sessions/${encodeURIComponent(sid)}/history?student_id=${encodeURIComponent(student)}&limit=${HISTORY_PAGE_SIZE}`
   );
   history.value = hydrateSessionResumeRenderCache(sid, data.history || []);
@@ -407,7 +439,7 @@ async function loadMoreHistory() {
   const student = requireLoggedInStudentId();
   historyLoadingOlder.value = true;
   try {
-    const data = await apiGet(
+    const data = await apiGetFresh(
       `/api/chat-sessions/${encodeURIComponent(currentSessionId.value)}/history?student_id=${encodeURIComponent(student)}&before_index=${historyStartIndex.value}&limit=${HISTORY_PAGE_SIZE}`
     );
     const older = data.history || [];
@@ -450,12 +482,19 @@ async function createSession() {
     error.value = sid ? "请选择对话角色" : "请先在登录页登录学号";
     return;
   }
+  if (isStreaming.value) {
+    await stopStreaming();
+  }
+  invalidateChatSessionsCache();
   const payload = await apiPost("/api/chat-sessions/init", {
     session_id: generateSessionId(),
     student_id: sid,
     usercode: usercode.value.trim()
   });
   localStorage.setItem("usercode", usercode.value.trim());
+  if (payload?.session) {
+    sessions.value = upsertChatSession(sessions.value, payload.session);
+  }
   await openSession(payload.session.session_id);
   await loadSessions();
   rawContent.value = JSON.stringify(payload, null, 2);
@@ -475,13 +514,27 @@ async function resetSession() {
   rawContent.value = "等待创建会话...";
 }
 
+/** 新建会话：创建并进入，侧栏列表即时同步 */
+async function startNewChat() {
+  await createSession();
+}
+
 async function removeSession(sid) {
+  if (!window.confirm("确定删除该会话？删除后无法恢复。")) return;
   const student = requireLoggedInStudentId();
-  await apiDelete(
-    `/api/chat-sessions/${encodeURIComponent(sid)}?student_id=${encodeURIComponent(student)}`
-  );
-  if (sid === currentSessionId.value) await resetSession();
-  await loadSessions();
+  const prevSessions = sessions.value;
+  sessions.value = sessions.value.filter((s) => s.session_id !== sid);
+  invalidateChatSessionsCache();
+  try {
+    await apiDelete(
+      `/api/chat-sessions/${encodeURIComponent(sid)}?student_id=${encodeURIComponent(student)}`
+    );
+    if (sid === currentSessionId.value) await resetSession();
+    await loadSessions();
+  } catch (e) {
+    sessions.value = prevSessions;
+    error.value = e.message || "删除会话失败";
+  }
 }
 
 async function stopStreaming() {
@@ -732,6 +785,8 @@ async function sendMessage(override = {}) {
     isStreaming.value = false;
     stopStreamWait();
     closeStreamTransport();
+    syncCurrentSessionInList();
+    invalidateChatSessionsCache();
     await loadSessions();
     await nextTick();
     if (chatListEl.value) chatListEl.value.scrollTop = chatListEl.value.scrollHeight;
@@ -1023,7 +1078,7 @@ function attachJobRecommendToAssistant(payload) {
   if (idx < 0 || history.value[idx].role !== "assistant") return;
   history.value[idx] = {
     ...history.value[idx],
-    job_recommend: payload
+    job_recommend: normalizeMatchApiResponse(payload)
   };
 }
 
@@ -1443,8 +1498,8 @@ onBeforeUnmount(() => {
         </select>
       </div>
       <div class="row input-line">
-        <button @click="createSession">创建 / 进入会话</button>
-        <button class="secondary" @click="resetSession">新建会话</button>
+        <button type="button" @click="startNewChat">新建聊天</button>
+        <button type="button" class="secondary" @click="resetSession">清空当前</button>
       </div>
       <div class="selected-model-meta">
         角色：{{ currentModel?.role_name || "-" }}<br />
@@ -1495,13 +1550,14 @@ onBeforeUnmount(() => {
       </div>
       <div class="section-title">会话列表</div>
       <div class="session-list">
+        <p v-if="!sessions.length" class="session-empty">暂无会话，点击「新建聊天」开始</p>
         <div v-for="s in sessions" :key="s.session_id" class="session-item" :class="{ active: s.session_id === currentSessionId }">
           <div class="session-main" @click="openSession(s.session_id)">
-            <div><strong>{{ s.session_id }}</strong></div>
-            <div class="session-meta">{{ s.role_name || s.usercode }} | {{ s.model_level || "-" }}</div>
+            <div class="session-title">{{ sessionCardTitle(s) }}</div>
+            <div class="session-meta">{{ sessionCardSubtitle(s) }}</div>
           </div>
           <div class="session-actions">
-            <button class="secondary" @click="removeSession(s.session_id)">删除</button>
+            <button type="button" class="secondary" @click.stop="removeSession(s.session_id)">删除</button>
           </div>
         </div>
       </div>
@@ -1828,8 +1884,8 @@ onBeforeUnmount(() => {
   min-height: 0;
   height: 100%;
   overflow: hidden;
-  /* 覆盖全局 home-main 的 88px 底留白，避免聊天区纵向铺不满 */
-  padding: 0 var(--home-main-px, 20px) 12px;
+  /* 顶部间距与其他模块一致；仅压缩底部留白避免聊天区纵向铺不满 */
+  padding: 12px var(--home-main-px, 20px) 12px;
   box-sizing: border-box;
 }
 
@@ -2095,9 +2151,11 @@ button { padding: 10px 14px; border: none; background: var(--primary-color); col
 .input-line { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .selected-model-meta { margin-top: 8px; padding: 8px 10px; border: 1px dashed #d9d9de; border-radius: 10px; color: #6e6e73; font-size: 12px; line-height: 1.45; background: #fafafc; }
 .session-list { margin-top: 6px; display: grid; gap: 8px; }
+.session-empty { margin: 4px 0; font-size: 11px; color: #94a3b8; line-height: 1.5; }
 .session-item { border: 1px solid #e5e5ea; background: #fff; border-radius: 12px; padding: 8px; }
 .session-item.active { border-color: rgba(99, 102, 241, .45); box-shadow: 0 0 0 3px rgba(99, 102, 241, .11); }
 .session-main { cursor: pointer; font-size: 12px; color: #1d1d1f; line-height: 1.4; }
+.session-title { font-weight: 700; line-height: 1.35; word-break: break-word; }
 .session-meta { color: #6e6e73; font-size: 11px; margin-top: 4px; }
 .session-actions { display: flex; justify-content: flex-end; margin-top: 6px; }
 .chat-list {

@@ -117,22 +117,46 @@ export function updateResumeInPlace(record, opts = {}) {
 }
 
 /**
- * 新增一条时间戳副本；设为该简历线默认，可选设为对话全局默认。
+ * 保存前将当前副本内容固化为同简历线下的历史快照（带时间戳展示名）。
+ * @param {import('./types').ResumeRecord} existing
+ */
+export function appendVersionSnapshot(existing) {
+  const store = loadStore();
+  const ser = existing.seriesId || existing.id;
+  const now = Date.now();
+  const base = stripTimeCopySuffix(existing.displayName || "") || "简历";
+  const snapshot = {
+    ...existing,
+    id: newResumeId(),
+    seriesId: ser,
+    displayName: appendTimeCopySuffix(base),
+    isSeriesDefault: false,
+    isDefault: false,
+    createdAt: existing.updatedAt || existing.createdAt || now,
+    updatedAt: existing.updatedAt || existing.createdAt || now
+  };
+  store.resumes.push(snapshot);
+  saveStore(store);
+  return snapshot;
+}
+
+/**
+ * 新建一条简历线及首条记录（逻辑展示名，无时间戳后缀）。
  * @param {import('./types').ResumeRecord} record
- * @param {string} seriesKey
  * @param {{ setGlobalDefault?: boolean }} opts
  */
-export function upsertResumeNewVersion(record, seriesKey, opts = {}) {
+export function insertNewResumeRecord(record, opts = {}) {
   const store = loadStore();
-  const ser = seriesKey || newResumeId();
+  const ser = record.seriesId || newResumeId();
   const now = Date.now();
   const rec = {
     ...record,
     seriesId: ser,
+    displayName: stripTimeCopySuffix(record.displayName || "") || "简历",
     isSeriesDefault: true,
     isDefault: false,
-    updatedAt: now,
-    createdAt: record.createdAt ?? now
+    createdAt: record.createdAt ?? now,
+    updatedAt: now
   };
   clearSeriesDefaultInStore(store, ser, rec.id);
   store.resumes.push(rec);
@@ -140,7 +164,7 @@ export function upsertResumeNewVersion(record, seriesKey, opts = {}) {
     clearGlobalDefaultInStore(store, rec.id);
   }
   saveStore(store);
-  return loadStore();
+  return { store: loadStore(), seriesId: ser };
 }
 
 /** @param {string} id @param {'series' | 'global'} scope */

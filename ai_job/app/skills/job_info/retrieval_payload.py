@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from typing import Any, Dict, List, Optional
 
 from app.skills.job_info.constants import RETRIEVAL_PREVIEW_MAX
@@ -35,8 +34,6 @@ def build_retrieval_payload(
 ) -> Dict[str, Any]:
     """组装检索阶段 API 返回体（jobs/companies 恒为空）。"""
     text = (context_text or "").strip()
-    blocks = re.findall(r'```(.*?)```', text, re.DOTALL)
-    text= blocks[2]
     norm_contexts = contexts or []
     preview = text[:RETRIEVAL_PREVIEW_MAX] if text else ""
     rag: Dict[str, Any] = {

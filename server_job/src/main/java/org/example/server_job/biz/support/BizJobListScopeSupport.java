@@ -42,7 +42,8 @@ public class BizJobListScopeSupport {
         if (normalizedKeyword == null || normalizedKeyword.isEmpty()) {
             return;
         }
-        w.and(x -> x.like(BizJobsInfo::getZwmc, normalizedKeyword)
+        w.and(x -> x.like(BizJobsInfo::getJobid, normalizedKeyword)
+                .or().like(BizJobsInfo::getZwmc, normalizedKeyword)
                 .or().like(BizJobsInfo::getYrdw, normalizedKeyword)
                 .or().like(BizJobsInfo::getGzdd, normalizedKeyword)
                 .or().like(BizJobsInfo::getGjz, normalizedKeyword)

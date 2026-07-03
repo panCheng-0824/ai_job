@@ -34,4 +34,12 @@ public interface StudentPortalActivityService {
     Map<String, Object> aggregateJobReviews(String jobId);
 
     Map<String, Object> aggregateCompanyReviews(String creditCode);
+
+    Map<String, Object> getMeApplications(String studentId);
+
+    Map<String, Object> submitJobApplication(String studentId, String jobId, String resumeId, String source);
+
+    Map<String, Object> getMeInterviewBookings(String studentId);
+
+    Map<String, Object> submitJobInterviewBooking(String studentId, String jobId, String source);
 }

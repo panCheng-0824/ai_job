@@ -7,6 +7,7 @@ import logging
 from typing import Any, Dict
 
 from app.skills.job_info.context import RecommendRunCtx
+from app.skills.job_info.lightrag_context import normalize_lightrag_retrieval_context
 from app.skills.job_info.retrieval_payload import (
     build_retrieval_payload,
     error_retrieval_response,
@@ -84,12 +85,25 @@ async def recommend_via_lightrag(ctx: RecommendRunCtx, *, top_k: int) -> Dict[st
             hint="LightRAG 检索无上下文返回，请检查知识库是否已同步岗位或调整检索表述。",
         )
 
+    material, job_chunks = normalize_lightrag_retrieval_context(text)
+    if not material or not job_chunks:
+        return build_retrieval_payload(
+            ctx,
+            kb="lightrag",
+            enabled=False,
+            mode="lightrag_no_job_chunks",
+            context_text="",
+            hint=(
+                "LightRAG 已检索到知识图谱上下文，但未解析出有效岗位 Document Chunks；"
+                "请检查知识库岗位文档是否已入库，或调整检索关键词。"
+            ),
+        )
     return build_retrieval_payload(
         ctx,
         kb="lightrag",
         enabled=True,
         mode="lightrag_context",
-        context_text=text,
-        contexts=[],
-        hint="已返回知识库检索素材；请结合 query（用户原句）由业务侧自定义模型分析。",
+        context_text=material,
+        contexts=job_chunks,
+        hint="已返回岗位文档素材（已丢弃 KG 噪音并按 job_id 去重）；请结合 query 由 LLM 分析。",
     )

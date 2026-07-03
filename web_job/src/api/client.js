@@ -244,6 +244,30 @@ export function apiPut(path, payload) {
   });
 }
 
+/** multipart/form-data 上传（不设 Content-Type，由浏览器带 boundary） */
+export async function apiPostForm(path, formData) {
+  let resp;
+  try {
+    resp = await fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      body: formData
+    });
+  } catch (_) {
+    throw new Error("无法连接后端，请确认 server_job 服务已启动");
+  }
+  const text = await resp.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (_) {
+    data = { detail: text || "响应解析失败" };
+  }
+  if (!resp.ok) {
+    throw new Error(data.detail || data.message || "上传失败");
+  }
+  return data;
+}
+
 export function apiDelete(path) {
   return request(path, { method: "DELETE" });
 }
@@ -267,8 +291,8 @@ export function logout({ redirect = true, router } = {}) {
   localStorage.removeItem("usercode");
   sessionStorage.removeItem("login_password_hint");
   sessionStorage.removeItem("home_data_loaded");
-  sessionStorage.removeItem("home_hot_jobs_loaded");
   sessionStorage.removeItem("jobs_data_loaded");
+  sessionStorage.removeItem("jobs_hot_loaded");
   if (!redirect) return;
   if (router) {
     router.replace("/login");

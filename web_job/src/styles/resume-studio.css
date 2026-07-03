@@ -1,0 +1,245 @@
+/** 我的简历页布局（对齐设计稿 9/10/11，与岗位中心同壳层 + 顶栏） */
+.home-shell.home-shell--resume {
+  --rs-template-w: clamp(200px, 16vw, 248px);
+  --rs-rail-w: clamp(280px, 22vw, 320px);
+  --rs-gap: clamp(12px, 1.2vw, 16px);
+  --rs-sticky-top: calc(var(--home-topbar-h, 56px) + 20px);
+  overflow-x: clip;
+}
+
+.home-shell.home-shell--resume > .home-main {
+  padding: 12px var(--home-main-px, 20px) 88px;
+}
+
+/** 简历页在全屏壳层下由主内容区承接纵向滚动，不影响其他页面滚动模型 */
+.home-shell.home-shell--resume > .home-shell-main > .home-main {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.rs-body {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rs-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.rs-alert {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+}
+
+.rs-alert--success {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+}
+
+.rs-alert--error {
+  color: var(--danger, #dc2626);
+  font-weight: 600;
+  padding: 0;
+}
+
+.rs-alert--muted {
+  color: var(--text-muted, #64748b);
+  padding: 0;
+}
+
+/** 工作区 grid：模板 | 编辑 | 右栏（宽屏三列，设计稿 10/11） */
+.rs-workspace {
+  display: grid;
+  grid-template-columns: var(--rs-template-w, 220px) minmax(0, 1fr);
+  gap: var(--rs-gap, 14px);
+  align-items: start;
+  width: 100%;
+  max-width: 100%;
+  transition: grid-template-columns 0.22s ease;
+}
+
+.rs-workspace--templates-collapsed {
+  --rs-template-w: 44px;
+  gap: 10px;
+}
+
+.rs-workspace--with-rail {
+  grid-template-columns: var(--rs-template-w, 220px) minmax(0, 1fr) var(--rs-rail-w, 300px);
+}
+
+.rs-workspace--templates-collapsed.rs-workspace--with-rail {
+  grid-template-columns: 44px minmax(0, 1fr) var(--rs-rail-w, 300px);
+}
+
+.rs-templates {
+  min-width: 0;
+  max-width: 100%;
+  position: sticky;
+  top: var(--rs-sticky-top, 76px);
+  align-self: start;
+  max-height: calc(100vh - var(--rs-sticky-top, 76px) - 16px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.rs-templates--collapsed {
+  overflow: visible;
+}
+
+.rs-editor {
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rs-editor-sheet-wrap {
+  min-width: 0;
+  width: 100%;
+}
+
+.rs-strip-mobile {
+  display: none;
+  flex-shrink: 0;
+}
+
+/** 右栏：宽屏 grid 第三列；窄屏 fixed 抽屉 */
+.rs-rail {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: sticky;
+  top: var(--rs-sticky-top, 76px);
+  align-self: start;
+  max-height: calc(100vh - var(--rs-sticky-top, 76px) - 16px);
+  overflow: hidden;
+  background: #fff;
+  border-radius: var(--home-radius-lg, 16px);
+  border: 1px solid rgba(91, 106, 223, 0.12);
+  box-shadow: var(--home-card-shadow, 0 6px 24px rgba(91, 106, 223, 0.07));
+}
+
+.rs-rail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 14px 16px 0;
+}
+
+.rs-rail-head h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.rs-rail-close {
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rs-rail-close:hover {
+  border-color: #c7d2fe;
+  color: var(--home-primary, #5b6adf);
+}
+
+.rs-rail-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 10px 14px 14px;
+}
+
+.rs-rail-scrim {
+  display: none;
+}
+
+.rs-rail-card {
+  min-height: 0;
+}
+
+.rs-rail-card--ai {
+  padding: 0;
+  overflow: hidden;
+}
+
+.rs-rail-card--ai .ai-rail {
+  max-height: calc(100vh - var(--rs-sticky-top, 76px) - 56px);
+  border: none;
+  box-shadow: none;
+}
+
+/** 窄屏：隐藏左模板栏、右栏改 overlay */
+@media (max-width: 1180px) {
+  .home-shell.home-shell--resume {
+    --rs-template-w: 0;
+  }
+
+  .rs-templates {
+    display: none;
+  }
+
+  .rs-strip-mobile {
+    display: block;
+  }
+
+  .rs-workspace,
+  .rs-workspace--with-rail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rs-workspace--with-rail .rs-rail {
+    position: fixed;
+    inset: 0 0 0 auto;
+    z-index: 420;
+    width: min(420px, 94vw);
+    max-height: 100dvh;
+    top: 0;
+    border-radius: 16px 0 0 16px;
+    box-shadow: -8px 0 32px rgba(15, 23, 42, 0.18);
+  }
+
+  .rs-rail-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 410;
+    border: none;
+    padding: 0;
+    margin: 0;
+    background: rgba(15, 23, 42, 0.42);
+    cursor: pointer;
+  }
+}
+
+@media (max-width: 720px) {
+  .home-shell.home-shell--resume > .home-main {
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-bottom: 48px;
+  }
+}

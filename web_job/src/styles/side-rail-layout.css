@@ -1,0 +1,73 @@
+/**
+ * 侧栏抽屉内容区：固定视口高度，头部/底部固定，中间滚动。
+ */
+:root {
+  --side-rail-panel-h: calc(100vh - var(--home-topbar-h, 56px) - 56px);
+  --side-rail-panel-h-filter: var(--side-rail-panel-h);
+  --side-rail-handle-w: 20px;
+}
+
+/* 侧栏贴边悬浮：收起时不占主内容列宽 */
+.rail-overlay-host {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.rail-slot {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  max-height: var(--side-rail-panel-h);
+  box-sizing: border-box;
+  padding: 14px;
+}
+
+.rail-slot--filter {
+  --side-rail-panel-h: var(--side-rail-panel-h-filter);
+  padding: 12px 14px;
+}
+
+.rail-slot__head {
+  flex-shrink: 0;
+}
+
+.rail-slot__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 2px;
+}
+
+.rail-slot__foot {
+  flex-shrink: 0;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.side-rail-panel-body,
+.dual-rail-panel-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.side-rail-panel-body > .rail-slot,
+.dual-rail-panel-body > .rail-slot,
+.side-rail-panel-body > .home-reason-panel,
+.dual-rail-panel-body > .jobs-reason-panel {
+  height: 100%;
+  max-height: 100%;
+  padding: 14px;
+}
+
+.side-rail-panel-body > .rail-slot--filter,
+.dual-rail-panel-body > .rail-slot--filter {
+  padding: 12px 14px;
+}

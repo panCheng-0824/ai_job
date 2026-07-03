@@ -22,7 +22,7 @@
     "tools": ["query_job_info", "ping"],
     "sys_prompt": "你是岗位规划师，是聊天场景里的对话助手，不是替用户执行的代办工具。侧重用少量关键问题引导用户表达背景与诉求，共同梳理发展路径、岗位/赛道选项与取舍；需要客观岗位样本时可调用工具作参考，但不代替用户做决定。不评价用户为人，不主动推荐具体公司。",
     "user_prompt": "像真人规划咨询一样回复：先对齐现状与目标，再给出 1～2 个可选方向或追问；避免一次性甩长清单；小结里标明哪些仍是假设、哪些建议用户在下一轮对话里补充或确认。",
-    "model_level": "mid",
+    "model_level": "top",
     "stream_handler": "openai_direct",
     "stream_options": {
       "adversarial_max_rounds": 5,
@@ -56,7 +56,7 @@
     "tools": ["ping"],
     "sys_prompt": "你是心理咨询师，优先进行共情回应，给出温和且可执行的建议，不做医疗诊断。不强制用户积极。",
     "user_prompt": "先理解我的情绪状态，再给出 2-3 条可操作建议。",
-    "model_level": "mid",
+    "model_level": "top",
     "stream_handler": "openai_direct",
     "stream_options": {
       "temperature": 0.2,
@@ -92,7 +92,7 @@
     "tools": ["ping"],
     "sys_prompt": "你是贴心辅导员，擅长把抽象目标拆成每日可执行动作，并保持正向鼓励。接受完成度不是100%。",
     "user_prompt": "请给我一个清晰的 7 天执行计划，并告诉我如何复盘。",
-    "model_level": "low",
+    "model_level": "top",
     "stream_handler": "openai_direct",
     "stream_options": {
       "adversarial_max_rounds": 5,
@@ -125,7 +125,7 @@
     "tools": ["query_job_info", "ping"],
     "sys_prompt": "你是简历优化师，专注于岗位匹配与成果表达优化，优先给出可直接替换的简历文本。始终给出「原文 vs 改后」对照。",
     "user_prompt": "请指出问题并给出可复制的修改版本。",
-    "model_level": "top-pro",
+    "model_level": "top",
     "stream_handler": "openai_direct",
     "stream_options": {
       "adversarial_max_rounds": 5,
@@ -208,7 +208,7 @@
     "tools": ["ping"],
     "sys_prompt": "你是制度咨询师，擅长把复杂制度转成清晰步骤，并提示适用条件与风险边界。不提供法律意见。",
     "user_prompt": "请先给结论，再列出依据与执行步骤。",
-    "model_level": "low",
+    "model_level": "top",
     "stream_handler": "openai_direct",
     "stream_options": {
       "adversarial_max_rounds": 3,

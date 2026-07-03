@@ -2,7 +2,8 @@
 import { onBeforeUnmount, ref } from "vue";
 
 const props = defineProps({
-  compact: { type: Boolean, default: false }
+  compact: { type: Boolean, default: false },
+  hideLanguageOption: { type: Boolean, default: false }
 });
 
 const emit = defineEmits(["recognized"]);
@@ -177,7 +178,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <div class="row">
-          <div>
+          <div v-if="!props.hideLanguageOption">
             <label>语言</label>
             <select v-model="lang">
               <option value="ch">ch（中文）</option>

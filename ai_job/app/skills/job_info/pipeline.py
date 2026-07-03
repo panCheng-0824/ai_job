@@ -20,8 +20,12 @@ from app.skills.job_info.constants import (
 )
 from app.skills.job_info.context import payload_field
 from app.skills.job_info.llm_client import analyze_retrieval_sync
-from app.skills.job_info.llm_jobs import jobs_from_recom_list, jobs_to_recommended_jobs
-from app.skills.job_info.llm_parse import is_recommend_yes, recom_list_from_parsed
+from app.skills.job_info.llm_jobs import (
+    finalize_match_response,
+    jobs_from_recom_list,
+    jobs_to_recommended_jobs,
+)
+from app.skills.job_info.llm_parse import RecomJsonParseError, is_recommend_yes, recom_list_from_parsed
 from app.skills.job_info.recommendation import (
     build_recommendation_matched,
     build_recommendation_no_match,
@@ -180,11 +184,23 @@ async def deal_data_by_llm(data: Dict[str, Any], payload: Any) -> Dict[str, Any]
             use_student_profile=use_profile,
             score_dimensions=score_dimensions,
         )
+    except RecomJsonParseError as e:
+        log.warning("岗位素材 LLM JSON 解析失败: %s", e, exc_info=True)
+        out = decorate_response(data)
+        rag_out = dict(out.get("rag") or {})
+        rag_out["llm_error"] = str(e)
+        rag_out["llm_error_type"] = "parse"
+        if e.raw_preview:
+            rag_out["llm_error_preview"] = e.raw_preview
+        out["rag"] = rag_out
+        out["recommend_options"] = options_meta
+        return out
     except Exception as e:
         log.warning("岗位素材 LLM 分析失败: %s", e, exc_info=True)
         out = decorate_response(data)
         rag_out = dict(out.get("rag") or {})
         rag_out["llm_error"] = str(e)
+        rag_out["llm_error_type"] = "api"
         out["rag"] = rag_out
         out["recommend_options"] = options_meta
         return out
@@ -224,14 +240,16 @@ async def deal_data_by_llm(data: Dict[str, Any], payload: Any) -> Dict[str, Any]
             ],
         )
 
-    return {
-        **data,
-        "jobs": jobs,
-        "companies": [],
-        "llm": llm_summary,
-        "recommend_options": options_meta,
-        "recommendation": rec,
-    }
+    return finalize_match_response(
+        {
+            **data,
+            "jobs": jobs,
+            "companies": [],
+            "llm": llm_summary,
+            "recommend_options": options_meta,
+            "recommendation": rec,
+        }
+    )
 
 
 async def run_job_info_query_async(payload: Any) -> Dict[str, Any]:
@@ -265,6 +283,9 @@ async def run_job_info_query_async(payload: Any) -> Dict[str, Any]:
 
     # 改写仅执行一次，ctx 供检索与缓存共用
     ctx = await build_recommend_ctx(query, student_context)
+    log.info(f"原查询内容: {query}")
+    log.info(f"改写后查询内容: {ctx}")
+
     scope = semantic_cache.build_scope(
         ctx,
         use_rag=use_rag,
@@ -287,11 +308,14 @@ async def run_job_info_query_async(payload: Any) -> Dict[str, Any]:
         )
         if hit is not None:
             response, meta = hit
-            return {**response, "cache": meta}
+            return {**finalize_match_response(response), "cache": meta}
 
     # --- 完整链路 ---
     retrieval = await recommend_from_ctx(ctx, top_n_jobs=top_n_jobs, use_rag=use_rag)
+    log.info(f"根据改写后内容查询到的岗位基本素材: {retrieval}")
+
     result = await deal_data_by_llm(retrieval, payload)
+    log.info(f"岗位推荐分析: {result}")
 
     # --- 写缓存：仅在有检索正文时保存，避免空结果污染缓存 ---
     if _cache_active(payload):
@@ -306,4 +330,4 @@ async def run_job_info_query_async(payload: Any) -> Dict[str, Any]:
                 student_context=student_context,
             )
 
-    return result
+    return finalize_match_response(result)

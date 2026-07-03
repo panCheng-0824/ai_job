@@ -58,4 +58,11 @@ public class AssistApiServiceImpl extends BaseAiApiService implements AssistApiS
         log.info("调用 ai_job 岗位信息查询开始, bodyLength={}", body == null ? 0 : body.length());
         return guard(() -> responseMapper.toResponseEntity(gatewayService.postJson("/skills/job-info-query", body)));
     }
+
+    @Override
+    public ResponseEntity<byte[]> clearJobInfoSemCache() {
+        log.info("调用 ai_job 清空岗位推荐语义缓存");
+        return guard(() -> responseMapper.toResponseEntity(
+                gatewayService.postJson("/skills/job-info-sem-cache/clear", "{}")));
+    }
 }

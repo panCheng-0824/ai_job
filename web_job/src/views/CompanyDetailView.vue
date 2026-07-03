@@ -5,6 +5,7 @@ import { apiDelete, apiGet, apiPost, getStudentId } from "../api/client";
 import { resolveDictLabel } from "../utils/dictLabel";
 import { fmtRegisteredCapital } from "../utils/formatCompany";
 import { sanitizeRichHtml } from "../utils/richText";
+import { openDetailInNewWindow } from "../utils/embedFrame";
 
 const props = defineProps({
   embeddedCreditCode: { type: String, default: "" }
@@ -49,6 +50,16 @@ const normalizedJobs = computed(() =>
 );
 
 const creditCode = computed(() => props.embeddedCreditCode || String(route.params.credit_code || "").trim());
+
+const isEmbedded = computed(
+  () => Boolean(props.embeddedCreditCode) || String(route.query._embed || "") === "1"
+);
+
+function openJobInNewWindow(jobId) {
+  const id = String(jobId || "").trim();
+  if (!id) return;
+  openDetailInNewWindow(`/jobs/${encodeURIComponent(id)}`);
+}
 
 /** 空值统一展示为「-」 */
 function fmt(v) {
@@ -345,7 +356,7 @@ watch(
 </script>
 
 <template>
-  <div>
+  <div class="company-detail-root" :class="{ 'detail-embed-root': isEmbedded }">
     <section class="hero">
 
       <h1>{{ company?.companyName || company?.gsmc || "加载中..." }}</h1>
@@ -466,10 +477,22 @@ watch(
             <span class="info-fold-hint muted">{{ normalizedJobs.length ? `${normalizedJobs.length} 个` : "暂无" }}</span>
           </summary>
           <div id="company-jobs" class="info-fold-body">
-            <ul class="list">
+            <p v-if="isEmbedded" class="embed-link-hint muted">岗位链接将在新窗口打开</p>
+            <ul class="list" :class="{ 'list--cards': isEmbedded }">
               <li v-if="!normalizedJobs.length">暂无该企业岗位数据</li>
               <li v-for="item in normalizedJobs" :key="item.job_id">
-                <router-link :to="`/jobs/${encodeURIComponent(item.job_id)}`">{{ item.job_title || "-" }}</router-link>
+                <button
+                  v-if="isEmbedded"
+                  type="button"
+                  class="detail-ext-link detail-ext-link--title"
+                  @click="openJobInNewWindow(item.job_id)"
+                >
+                  {{ item.job_title || "-" }}
+                  <span class="detail-ext-link-mark" aria-hidden="true">↗</span>
+                </button>
+                <router-link v-else :to="`/jobs/${encodeURIComponent(item.job_id)}`">
+                  {{ item.job_title || "-" }}
+                </router-link>
                 <div class="post-meta">行业：{{ item.district || "-" }}</div>
                 <div class="post-meta">薪资：{{ item.salary_range_month || "-" }}</div>
                 <div class="post-meta">地址：{{ item.city || "-" }}</div>

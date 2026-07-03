@@ -7,6 +7,8 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import FloatingFramePanel from "./FloatingFramePanel.vue";
 import JobMatchReasonBlocks from "./JobMatchReasonBlocks.vue";
 import { useJobRecommendDisplay } from "../composables/useJobRecommendDisplay";
+import { dedupeJobs } from "../utils/jobDedupe";
+import { embedUrl, fullPageUrl } from "../utils/embedFrame";
 
 const props = defineProps({
   jobs: { type: Array, default: () => [] },
@@ -16,6 +18,8 @@ const props = defineProps({
   /** 聊天气泡内紧凑布局 */
   compact: { type: Boolean, default: false }
 });
+
+const displayJobs = computed(() => dedupeJobs(props.jobs || []));
 
 const {
   displayJobId,
@@ -28,7 +32,7 @@ const {
   onJobCardLeave,
   sameJobId
 } = useJobRecommendDisplay(
-  () => props.jobs,
+  () => displayJobs.value,
   () => props.recommendation,
   { autoSync: true }
 );
@@ -101,17 +105,11 @@ function closeJobDetailFrame() {
   jobDetailFrameTitle.value = "";
 }
 
-function jobDetailEmbedUrl(path) {
-  const u = new URL(path, window.location.origin);
-  u.searchParams.set("_embed", "1");
-  return u.pathname + u.search + u.hash;
-}
-
 function openJobDetailFrame(job) {
   if (!job?.job_id) return;
   const id = encodeURIComponent(String(job.job_id).trim());
   jobDetailFrameTitle.value = job.job_title || job.job_name || job.job_id || "岗位详情";
-  jobDetailIframeSrc.value = jobDetailEmbedUrl(`/jobs/${id}`);
+  jobDetailIframeSrc.value = embedUrl(`/jobs/${id}`);
   jobDetailFrameOpen.value = true;
   jobDetailFrameFullscreen.value = false;
 }
@@ -122,9 +120,7 @@ function toggleJobDetailFullscreen() {
 
 function openJobDetailFullWindow() {
   if (!jobDetailIframeSrc.value) return;
-  const u = new URL(jobDetailIframeSrc.value, window.location.origin);
-  u.searchParams.delete("_embed");
-  window.open(u.pathname + u.search + u.hash, "_blank", "noopener,noreferrer");
+  window.open(fullPageUrl(jobDetailIframeSrc.value), "_blank", "noopener,noreferrer");
 }
 
 function onJobCardSelect(job) {
@@ -160,10 +156,10 @@ onBeforeUnmount(() => {
       <div class="result-col">
         <h3 class="section-title">推荐岗位</h3>
         <ul class="mini-list">
-          <li v-if="!jobs.length" class="empty-tip">暂无数据</li>
+          <li v-if="!displayJobs.length" class="empty-tip">暂无数据</li>
           <template v-else>
           <li
-            v-for="item in jobs"
+            v-for="item in displayJobs"
             :key="item.job_id"
             class="job-pick"
             :class="{
@@ -197,7 +193,7 @@ onBeforeUnmount(() => {
         :class="{ 'reason-panel--pinned': Boolean(previewJob) }"
       >
         <h3 class="section-title">推荐理由</h3>
-        <template v-if="!jobs.length">
+        <template v-if="!displayJobs.length">
           <p class="reason-headline">{{ noJobReasonBlocks.headline }}</p>
           <p class="muted reason-sub">未推荐岗位的可能原因：</p>
           <ul class="reason-list">

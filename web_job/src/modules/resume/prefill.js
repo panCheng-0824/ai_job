@@ -12,8 +12,8 @@ export function prefillBasicFromPortrait(portrait) {
   return {
     姓名: String(s["姓名"] ?? "").trim(),
     学号: String(s["学号"] ?? "").trim(),
-    手机: "",
-    邮箱: "",
+    手机: String(s["手机"] ?? "").trim(),
+    邮箱: String(s["邮箱"] ?? "").trim(),
     学校: String(s["学校名称"] ?? "").trim(),
     院系: String(s["院系名称"] ?? "").trim(),
     专业: String(s["专业名称"] ?? "").trim(),

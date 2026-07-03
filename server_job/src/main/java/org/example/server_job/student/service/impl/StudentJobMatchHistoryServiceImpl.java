@@ -1,6 +1,7 @@
 package org.example.server_job.student.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,12 +25,13 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 /**
- * 学生智能匹配历史持久化：保存完整匹配快照，按时间维护最近 5 条。
+ * 学生智能匹配历史持久化：保存完整匹配快照，按时间倒序查询，不限制条数。
  */
 @Service
 public class StudentJobMatchHistoryServiceImpl implements StudentJobMatchHistoryService {
 
-    private static final int MAX_HISTORY = 5;
+    private static final int DEFAULT_PAGE_SIZE = 8;
+    private static final int MAX_PAGE_SIZE = 50;
     private static final DateTimeFormatter ISO_TS = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private final StudentJobMatchHistoryMapper historyMapper;
@@ -47,23 +49,35 @@ public class StudentJobMatchHistoryServiceImpl implements StudentJobMatchHistory
     }
 
     @Override
-    public Map<String, Object> listHistory(String studentId) {
+    public Map<String, Object> listHistory(String studentId, Integer page, Integer pageSize) {
         String sid = normalizeStudentId(studentId);
         ensureStudent(sid);
-        List<StudentJobMatchHistory> rows = historyMapper.selectList(
+        int safePage = Math.max(1, page != null ? page : 1);
+        int safePageSize = Math.max(1, Math.min(pageSize != null ? pageSize : DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE));
+
+        Page<StudentJobMatchHistory> mpPage = new Page<>(safePage, safePageSize);
+        Page<StudentJobMatchHistory> result = historyMapper.selectPage(
+                mpPage,
                 Wrappers.<StudentJobMatchHistory>lambdaQuery()
                         .eq(StudentJobMatchHistory::getStudentId, sid)
                         .orderByDesc(StudentJobMatchHistory::getCreatedAt)
-                        .last("LIMIT " + MAX_HISTORY)
         );
+
         List<Map<String, Object>> items = new ArrayList<>();
-        for (StudentJobMatchHistory row : rows) {
+        for (StudentJobMatchHistory row : result.getRecords()) {
             items.add(toApiRecord(row));
         }
+
+        long total = result.getTotal();
+        boolean hasMore = (long) safePage * safePageSize < total;
+
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("student_id", sid);
         out.put("items", items);
-        out.put("max_count", MAX_HISTORY);
+        out.put("page", safePage);
+        out.put("page_size", safePageSize);
+        out.put("total", total);
+        out.put("has_more", hasMore);
         return out;
     }
 
@@ -109,29 +123,14 @@ public class StudentJobMatchHistoryServiceImpl implements StudentJobMatchHistory
         row.setCreatedAt(LocalDateTime.now());
         historyMapper.insert(row);
 
-        trimOldestBeyondLimit(sid);
-
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("student_id", sid);
         out.put("saved", true);
         out.put("record", toApiRecord(
                 historyMapper.selectById(row.getId())
         ));
-        out.put("items", listHistory(sid).get("items"));
+        out.putAll(listHistory(sid, 1, DEFAULT_PAGE_SIZE));
         return out;
-    }
-
-    /** 超过上限时按 created_at 升序删除最旧记录 */
-    private void trimOldestBeyondLimit(String studentId) {
-        List<StudentJobMatchHistory> all = historyMapper.selectList(
-                Wrappers.<StudentJobMatchHistory>lambdaQuery()
-                        .eq(StudentJobMatchHistory::getStudentId, studentId)
-                        .orderByAsc(StudentJobMatchHistory::getCreatedAt)
-        );
-        int excess = all.size() - MAX_HISTORY;
-        for (int i = 0; i < excess; i++) {
-            historyMapper.deleteById(all.get(i).getId());
-        }
     }
 
     private Map<String, Object> toApiRecord(StudentJobMatchHistory row) {

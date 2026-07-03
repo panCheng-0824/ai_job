@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.server_job.student.service.StudentJobMatchHistoryService;
 import org.example.server_job.student.service.StudentPortalActivityService;
+import org.example.server_job.student.service.StudentProfileExtService;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,15 +30,18 @@ public class StudentPortalController {
 
     private final StudentPortalActivityService portalActivityService;
     private final StudentJobMatchHistoryService jobMatchHistoryService;
+    private final StudentProfileExtService profileExtService;
     private final ObjectMapper objectMapper;
 
     public StudentPortalController(
             StudentPortalActivityService portalActivityService,
             StudentJobMatchHistoryService jobMatchHistoryService,
+            StudentProfileExtService profileExtService,
             ObjectMapper objectMapper
     ) {
         this.portalActivityService = portalActivityService;
         this.jobMatchHistoryService = jobMatchHistoryService;
+        this.profileExtService = profileExtService;
         this.objectMapper = objectMapper;
     }
 
@@ -46,6 +53,31 @@ public class StudentPortalController {
     @GetMapping("/me/summary")
     public Map<String, Object> meSummary(@RequestParam("student_id") String studentId) {
         return portalActivityService.getMeSummary(studentId);
+    }
+
+    /** 合并学籍与学生扩展的完整画像（含求职意向、能力标签） */
+    @GetMapping("/me/profile")
+    public Map<String, Object> meProfile(@RequestParam("student_id") String studentId) {
+        return profileExtService.getMergedProfile(studentId);
+    }
+
+    /** 分段更新学生自助画像（contact / job_intent / ability） */
+    @PutMapping("/me/profile")
+    public Map<String, Object> meProfileUpdate(
+            @RequestParam("student_id") String studentId,
+            @RequestBody String body
+    ) throws Exception {
+        JsonNode n = objectMapper.readTree(body == null ? "{}" : body);
+        return profileExtService.updateProfile(studentId, n);
+    }
+
+    /** 上传学生头像至 MinIO 并写入画像 */
+    @PostMapping("/me/profile/avatar")
+    public Map<String, Object> meProfileAvatar(
+            @RequestParam("student_id") String studentId,
+            @RequestPart("file") MultipartFile file
+    ) {
+        return profileExtService.uploadAvatar(studentId, file);
     }
 
     @GetMapping("/me/context")
@@ -62,10 +94,45 @@ public class StudentPortalController {
         return portalActivityService.getMeFavorites(studentId);
     }
 
-    /** 智能匹配历史列表（每生最多 5 条，按时间倒序） */
+    @GetMapping("/me/applications")
+    public Map<String, Object> meApplications(@RequestParam("student_id") String studentId) {
+        return portalActivityService.getMeApplications(studentId);
+    }
+
+    @PostMapping("/me/applications")
+    public Map<String, Object> meApplicationsSubmit(@RequestBody String body) throws Exception {
+        JsonNode n = objectMapper.readTree(body == null ? "{}" : body);
+        return portalActivityService.submitJobApplication(
+                n.path("student_id").asText(),
+                n.path("job_id").asText(),
+                n.path("resume_id").asText(""),
+                n.path("source").asText("one_click")
+        );
+    }
+
+    @GetMapping("/me/interview-bookings")
+    public Map<String, Object> meInterviewBookings(@RequestParam("student_id") String studentId) {
+        return portalActivityService.getMeInterviewBookings(studentId);
+    }
+
+    @PostMapping("/me/interview-bookings")
+    public Map<String, Object> meInterviewBookingsSubmit(@RequestBody String body) throws Exception {
+        JsonNode n = objectMapper.readTree(body == null ? "{}" : body);
+        return portalActivityService.submitJobInterviewBooking(
+                n.path("student_id").asText(),
+                n.path("job_id").asText(),
+                n.path("source").asText("job_card")
+        );
+    }
+
+    /** 智能匹配历史列表（分页，按时间倒序，默认每页 8 条） */
     @GetMapping("/me/job-match-history")
-    public Map<String, Object> meJobMatchHistory(@RequestParam("student_id") String studentId) {
-        return jobMatchHistoryService.listHistory(studentId);
+    public Map<String, Object> meJobMatchHistory(
+            @RequestParam("student_id") String studentId,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "8") Integer page_size
+    ) {
+        return jobMatchHistoryService.listHistory(studentId, page, page_size);
     }
 
     /** 保存一次成功匹配记录（返回岗位才算成功） */

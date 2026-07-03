@@ -4,6 +4,8 @@ import { useRoute } from "vue-router";
 import { apiDelete, apiGet, apiPost, getStudentId } from "../api/client";
 import { resolveDictLabel } from "../utils/dictLabel";
 import { sanitizeRichHtml } from "../utils/richText";
+import { openDetailInNewWindow } from "../utils/embedFrame";
+import JobIdTag from "../components/jobs/JobIdTag.vue";
 import RagSyncThreeMinuteProgress from "../components/rag/RagSyncThreeMinuteProgress.vue";
 import { useRagSyncThreeMinuteProgress } from "../composables/useRagSyncThreeMinuteProgress";
 
@@ -212,6 +214,21 @@ const detailSections = computed(() => {
 });
 
 const jobId = computed(() => props.embeddedJobId || String(route.params.job_id || "").trim());
+
+const isEmbedded = computed(
+  () => Boolean(props.embeddedJobId) || String(route.query._embed || "") === "1"
+);
+
+function openCompanyInNewWindow() {
+  if (!companyLink.value) return;
+  openDetailInNewWindow(companyLink.value);
+}
+
+function openRelatedJobInNewWindow(relatedJobId) {
+  const id = String(relatedJobId || "").trim();
+  if (!id) return;
+  openDetailInNewWindow(`/jobs/${encodeURIComponent(id)}`);
+}
 
 /** 职位描述富文本（zwms / content） */
 const jobDescriptionHtml = computed(() =>
@@ -507,11 +524,13 @@ watch(
 </script>
 
 <template>
-  <div>
+  <div class="job-detail-root" :class="{ 'detail-embed-root': isEmbedded }">
     <section class="hero">
       
-      <h1>{{ normalizedJob?.job_title || "加载中..." }}</h1>
-      <p>job_id：<code>{{ route.params.job_id }}</code></p>
+      <div class="hero-title-row">
+        <h1>{{ normalizedJob?.job_title || "加载中..." }}</h1>
+        <JobIdTag v-if="jobId" :job-id="jobId" size="inline" />
+      </div>
       <div v-if="jobStatusChips.length" class="hero-tip-row" aria-label="岗位状态">
         <span
           v-for="(c, idx) in jobStatusChips"
@@ -527,7 +546,16 @@ watch(
           <template v-for="([k, v], idx) in kvRows" :key="`${k}-${idx}`">
             <div class="k">{{ k }}</div>
             <div class="v">
-              <router-link v-if="k === '所属企业'" :to="companyLink">{{ v }}</router-link>
+              <button
+                v-if="k === '所属企业' && isEmbedded && companyLink"
+                type="button"
+                class="detail-ext-link"
+                @click="openCompanyInNewWindow"
+              >
+                {{ v }}
+                <span class="detail-ext-link-mark" aria-hidden="true">↗</span>
+              </button>
+              <router-link v-else-if="k === '所属企业'" :to="companyLink">{{ v }}</router-link>
               <template v-else>{{ v }}</template>
             </div>
           </template>
@@ -702,11 +730,23 @@ watch(
             <span class="info-fold-hint muted">{{ normalizedRelated.length ? `${normalizedRelated.length} 个` : "暂无" }}</span>
           </summary>
           <div class="info-fold-body">
+            <p v-if="isEmbedded" class="embed-link-hint muted">企业与其他岗位链接将在新窗口打开</p>
             <div class="job-list-scroll">
-              <ul class="list">
+              <ul class="list" :class="{ 'list--cards': isEmbedded }">
                 <li v-if="!normalizedRelated.length">暂无同企业其他岗位</li>
-                <li v-for="item in normalizedRelated" :key="item.job_id">
-                  <router-link :to="`/jobs/${encodeURIComponent(item.job_id)}`">{{ item.job_title || "-" }}</router-link>
+                <li v-for="item in normalizedRelated" :key="item.job_id" class="related-job-item">
+                  <button
+                    v-if="isEmbedded"
+                    type="button"
+                    class="detail-ext-link detail-ext-link--title"
+                    @click="openRelatedJobInNewWindow(item.job_id)"
+                  >
+                    {{ item.job_title || "-" }}
+                    <span class="detail-ext-link-mark" aria-hidden="true">↗</span>
+                  </button>
+                  <router-link v-else :to="`/jobs/${encodeURIComponent(item.job_id)}`">
+                    {{ item.job_title || "-" }}
+                  </router-link>
                   <div class="post-meta">行业：{{ item.district || "-" }}</div>
                   <div class="post-meta">薪资：{{ item.salary_range_month || "-" }}</div>
                   <div class="post-meta">地址：{{ item.city || "-" }}</div>
@@ -750,9 +790,18 @@ watch(
   font-weight: 600;
   margin-bottom: 10px;
 }
+.hero-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px 12px;
+  margin-bottom: 8px;
+}
 .hero h1 {
   font-size: clamp(1.9rem, 4.4vw, 2.8rem);
-  margin-bottom: 8px;
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .hero p {
   color: var(--text-muted);

@@ -47,4 +47,9 @@ public class AssistController {
     public ResponseEntity<byte[]> jobInfoQuery(@RequestBody String body) {
         return assistApiService.jobInfoQuery(body);
     }
+
+    @PostMapping("/skills/job-info-sem-cache/clear")
+    public ResponseEntity<byte[]> clearJobInfoSemCache() {
+        return assistApiService.clearJobInfoSemCache();
+    }
 }

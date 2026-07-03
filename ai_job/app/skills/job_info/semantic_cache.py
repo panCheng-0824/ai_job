@@ -474,3 +474,40 @@ def store(
         log.debug("语义缓存已写入 scope=%s entries=%s", scope_id(scope), len(entries))
     except Exception as e:
         log.warning("语义缓存列表写失败: %s", e)
+
+
+def clear_all_caches() -> Dict[str, Any]:
+    """
+    清空岗位推荐语义/精确缓存（Redis 键前缀 ``job_info:sem``）。
+
+    与 ``JOB_INFO_SEM_CACHE_ENABLED`` 无关：即使当前未启用，也可清理历史残留键。
+    """
+    try:
+        r = _redis_client()
+    except Exception as e:
+        log.warning("语义缓存 Redis 不可用，无法清空: %s", e)
+        return {
+            "cleared": False,
+            "deleted_keys": 0,
+            "message": f"Redis 不可用: {e}",
+        }
+
+    deleted = 0
+    try:
+        for key in r.scan_iter(match=f"{_PREFIX}*"):
+            r.delete(key)
+            deleted += 1
+    except Exception as e:
+        log.warning("语义缓存清空失败: %s", e)
+        return {
+            "cleared": False,
+            "deleted_keys": deleted,
+            "message": str(e),
+        }
+
+    log.info("岗位推荐语义缓存已清空 deleted_keys=%s", deleted)
+    return {
+        "cleared": True,
+        "deleted_keys": deleted,
+        "message": "已清除岗位推荐语义缓存",
+    }

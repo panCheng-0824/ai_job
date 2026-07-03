@@ -17,15 +17,7 @@
     "model_key": "pc0824tq",
     "analyze_response_format": "none"
   },
-  {
-    "model_type": "chat",
-    "model_level": "mid-tmp",
-    "model_provider": "openai",
-    "model_name": "deepseek-v4-pro",
-    "model_api": "https://api.deepseek.com",
-    "model_key": "sk-d20e1b4660a14076a2961026b663382d",
-    "analyze_response_format": "none"
-  },
+
   {
     "model_type": "chat",
     "model_level": "high",

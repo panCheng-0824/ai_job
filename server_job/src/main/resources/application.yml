@@ -60,6 +60,17 @@ rocketmq:
     endpoints: ${ROCKETMQ_PROXY_GRPC_ENDPOINT:127.0.0.1:18081}
     tag: "*"
 
+minio:
+  enabled: ${MINIO_ENABLED:true}
+  endpoint: ${MINIO_ENDPOINT:http://127.0.0.1:9000}
+  access-key: ${MINIO_ACCESS_KEY:${MINIO_ROOT_USER:root}}
+  # 与 MinIO 官方 Docker 变量 MINIO_ROOT_PASSWORD 对齐；也可用 MINIO_SECRET_KEY
+  secret-key: ${MINIO_SECRET_KEY:${MINIO_ROOT_PASSWORD:pc0824tq}}
+  bucket: ${MINIO_BUCKET:job-portal}
+  # 浏览器访问对象 URL 前缀（需与 endpoint 对外地址一致）
+  public-base-url: ${MINIO_PUBLIC_BASE_URL:http://panjintong.top:9000}
+  avatar-max-bytes: ${MINIO_AVATAR_MAX_BYTES:2097152}
+
 milvus:
   host: ${MILVUS_HOST:localhost}
   port: ${MILVUS_PORT:19530}

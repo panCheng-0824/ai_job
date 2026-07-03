@@ -1,20 +1,26 @@
 <script setup>
 /**
- * 个人中心 — 收藏 / 关注 / 评价 / 面试记录，使用首页侧栏壳层。
+ * 个人中心 — 收藏 / 关注 / 评价 / 投递 / 面试记录，使用首页侧栏壳层。
  */
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { apiGet, getStudentId } from "../api/client";
+import { setStudentServerAvatar } from "../composables/useStudentAvatar";
+import { uploadStudentAvatar } from "../composables/useStudentProfile";
 import HomeTopBar from "../components/home/HomeTopBar.vue";
 import StudentAvatar from "../components/home/StudentAvatar.vue";
 import InterviewRecordCard from "../components/interview/InterviewRecordCard.vue";
+import { maskName, maskStudentField } from "../utils/studentDesensitize";
 import { fetchInterviewRecords } from "../modules/interview/api";
+import { fetchMyApplications } from "../modules/applications/api";
+import { embedUrl } from "../utils/embedFrame";
 
 const route = useRoute();
 const router = useRouter();
 
 const activeTab = ref("overview");
 const studentName = ref("");
+const avatarUrl = ref("");
 const guest = ref(false);
 const loadError = ref("");
 const summary = ref(null);
@@ -24,9 +30,11 @@ const jobReviews = ref({ items: [] });
 const companyReviews = ref({ items: [] });
 const tagMaps = ref({ job: {}, company: {} });
 const interviewRecords = ref({ items: [] });
+const applications = ref({ items: [], jobs: [] });
 
 const tabs = [
   { id: "overview", label: "概览" },
+  { id: "applications", label: "我的投递" },
   { id: "interviews", label: "面试记录" },
   { id: "fav", label: "我的收藏" },
   { id: "fol", label: "我的关注" },
@@ -37,12 +45,30 @@ const tabs = [
 const studentId = computed(() => getStudentId());
 const accountSubtitle = computed(() => {
   if (guest.value) return "登录后查看收藏、关注与个人数据";
-  return `学号 ${studentId.value || "—"}`;
+  const sid = maskStudentField("学号", studentId.value);
+  return `学号 ${sid || "—"}`;
 });
+const displayStudentName = computed(() => maskName(studentName.value) || "同学");
 
 function starsStr(n) {
   const s = Math.max(1, Math.min(5, Number(n) || 0));
   return "★".repeat(s) + "☆".repeat(5 - s);
+}
+
+function formatAppliedAt(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso).slice(0, 16);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function jobDetailTo(jobId) {
+  return embedUrl(`/jobs/${encodeURIComponent(jobId)}`);
+}
+
+function companyDetailTo(creditCode) {
+  return embedUrl(`/companies/${encodeURIComponent(creditCode)}`);
 }
 
 function formatTagLine(ids, map) {
@@ -62,9 +88,18 @@ async function loadStudentName(sid) {
   try {
     const data = await apiGet(`/api/students/${encodeURIComponent(sid)}`);
     studentName.value = data?.["学生基本信息"]?.["姓名"] || "";
+    avatarUrl.value = data?.["学生基本信息"]?.["头像"] || "";
+    setStudentServerAvatar(avatarUrl.value, sid);
   } catch {
     studentName.value = "";
+    avatarUrl.value = "";
   }
+}
+
+async function avatarUploadHandler(file) {
+  const url = await uploadStudentAvatar(file, studentId.value);
+  avatarUrl.value = url;
+  return url;
 }
 
 async function loadAll() {
@@ -79,11 +114,12 @@ async function loadAll() {
     jobReviews.value = { items: [] };
     companyReviews.value = { items: [] };
     interviewRecords.value = { items: [] };
+    applications.value = { items: [], jobs: [] };
     return;
   }
   const q = new URLSearchParams({ student_id: sid });
   try {
-    const [sum, fav, fol, rj, rc, tagsResp, irec] = await Promise.all([
+    const [sum, fav, fol, rj, rc, tagsResp, irec, apps] = await Promise.all([
       apiGet(`/api/me/summary?${q}`),
       apiGet(`/api/me/favorites?${q}`),
       apiGet(`/api/me/follows?${q}`),
@@ -91,6 +127,7 @@ async function loadAll() {
       apiGet(`/api/me/reviews/companies?${q}`),
       apiGet("/api/review-tags"),
       fetchInterviewRecords(sid, { fresh: true }),
+      fetchMyApplications(sid),
       loadStudentName(sid)
     ]);
     summary.value = sum;
@@ -99,6 +136,7 @@ async function loadAll() {
     jobReviews.value = rj;
     companyReviews.value = rc;
     interviewRecords.value = irec;
+    applications.value = apps || { items: [], jobs: [] };
     const job = {};
     const company = {};
     (tagsResp.job_review_tags || []).forEach((t) => {
@@ -140,8 +178,8 @@ watch(() => route.query.tab, applyTabFromRoute);
   <div class="home-main me-main">
       <HomeTopBar
         title="个人中心"
-        subtitle="管理收藏、关注、评价与面试记录"
-        :student-name="studentName"
+        subtitle="管理收藏、关注、投递、评价与面试记录"
+        :student-name="displayStudentName"
       />
 
       <section class="account-card">
@@ -149,12 +187,14 @@ watch(() => route.query.tab, applyTabFromRoute);
           <StudentAvatar
             :name="studentName"
             :student-id="studentId"
+            :image-url="avatarUrl"
             size="xl"
             editable
+            :upload-handler="avatarUploadHandler"
             title="点击修改头像"
           />
           <div class="account-meta">
-            <strong>{{ guest ? "未登录" : studentName || "同学" }}</strong>
+            <strong>{{ guest ? "未登录" : displayStudentName || "同学" }}</strong>
             <span>{{ accountSubtitle }}</span>
           </div>
         </div>
@@ -186,6 +226,10 @@ watch(() => route.query.tab, applyTabFromRoute);
       <div v-show="activeTab === 'overview'" class="me-panel">
         <div v-if="summary" class="stat-grid">
           <div class="stat">
+            <span>投递岗位</span>
+            <strong>{{ summary.application_count ?? 0 }}</strong>
+          </div>
+          <div class="stat">
             <span>收藏岗位</span>
             <strong>{{ summary.favorite_job_count }}</strong>
           </div>
@@ -204,7 +248,24 @@ watch(() => route.query.tab, applyTabFromRoute);
         </div>
         <p v-else-if="guest" class="empty">请先登录</p>
         <p v-else-if="!loadError" class="muted">加载中…</p>
-        <p class="muted hint">在岗位列表、岗位详情可收藏岗位；在企业列表、企业详情可关注企业并提交评价。</p>
+        <p class="muted hint">在岗位列表、岗位详情可一键投递；收藏岗位与关注企业请在对应详情页操作。</p>
+      </div>
+
+      <div v-show="activeTab === 'applications'" class="me-panel">
+        <ul class="cards">
+          <li v-if="guest" class="empty">请先登录</li>
+          <li v-else-if="!(applications.items || []).length" class="empty">暂无投递记录</li>
+          <li v-for="item in applications.items || []" v-else :key="item.job_id" class="card-li">
+            <router-link :to="jobDetailTo(item.job_id)">{{
+              item.job?.job_title || item.job_id
+            }}</router-link>
+            <p class="muted">
+              {{ item.job?.city || "" }}
+              {{ item.job?.company_relation?.company_name ? `｜ ${item.job.company_relation.company_name}` : "" }}
+            </p>
+            <p class="muted small">投递时间：{{ formatAppliedAt(item.applied_at) }}</p>
+          </li>
+        </ul>
       </div>
 
       <div v-show="activeTab === 'interviews'" class="me-panel">
@@ -237,7 +298,7 @@ watch(() => route.query.tab, applyTabFromRoute);
           <li v-if="guest" class="empty">请先登录</li>
           <li v-else-if="!(favorites.jobs || []).length" class="empty">暂无收藏</li>
           <li v-for="j in favorites.jobs || []" v-else :key="j.job_id" class="card-li">
-            <router-link :to="`/jobs/${encodeURIComponent(j.job_id)}`">{{ j.job_title || j.job_id }}</router-link>
+            <router-link :to="jobDetailTo(j.job_id)">{{ j.job_title || j.job_id }}</router-link>
             <p class="muted">
               {{ j.city || "" }} {{ j.district || "" }} ｜ {{ j.company_relation?.company_name || "" }}
             </p>
@@ -250,7 +311,7 @@ watch(() => route.query.tab, applyTabFromRoute);
           <li v-if="guest" class="empty">请先登录</li>
           <li v-else-if="!(follows.companies || []).length" class="empty">暂无关注</li>
           <li v-for="c in follows.companies || []" v-else :key="c.credit_code" class="card-li">
-            <router-link :to="`/companies/${encodeURIComponent(c.credit_code)}`">{{
+            <router-link :to="companyDetailTo(c.credit_code)">{{
               c.company_name || c.credit_code
             }}</router-link>
             <p class="muted">{{ c.industry || "" }}</p>
@@ -263,7 +324,7 @@ watch(() => route.query.tab, applyTabFromRoute);
           <li v-if="guest" class="empty">请先登录</li>
           <li v-else-if="!(jobReviews.items || []).length" class="empty">暂无岗位评价</li>
           <li v-for="x in jobReviews.items || []" v-else :key="x.job_id" class="card-li">
-            <router-link :to="`/jobs/${encodeURIComponent(x.job_id)}`">{{
+            <router-link :to="jobDetailTo(x.job_id)">{{
               (x.job && x.job.job_title) || x.job_id
             }}</router-link>
             <p class="stars">{{ starsStr(x.review?.stars) }}</p>
@@ -278,7 +339,7 @@ watch(() => route.query.tab, applyTabFromRoute);
           <li v-if="guest" class="empty">请先登录</li>
           <li v-else-if="!(companyReviews.items || []).length" class="empty">暂无企业评价</li>
           <li v-for="x in companyReviews.items || []" v-else :key="x.credit_code" class="card-li">
-            <router-link :to="`/companies/${encodeURIComponent(x.credit_code)}`">{{
+            <router-link :to="companyDetailTo(x.credit_code)">{{
               (x.company && x.company.company_name) || x.credit_code
             }}</router-link>
             <p class="stars">{{ starsStr(x.review?.stars) }}</p>
@@ -447,6 +508,9 @@ watch(() => route.query.tab, applyTabFromRoute);
 }
 .card-li a:hover {
   text-decoration: underline;
+}
+.muted.small {
+  font-size: 0.78rem;
 }
 .muted {
   color: #64748b;

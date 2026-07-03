@@ -2,7 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, toRaw, watch } from "vue";
 import { useRoute } from "vue-router";
 import { apiGet } from "../api/client";
-import { syncStudentAvatar, setStudentAvatarFromFile } from "../composables/useStudentAvatar";
+import { useStudentAvatar, setStudentServerAvatar } from "../composables/useStudentAvatar";
+import { uploadStudentAvatar } from "../composables/useStudentProfile";
 import ResumeCopyModal from "../components/resume/ResumeCopyModal.vue";
 import ResumeEditorSheet from "../components/resume/ResumeEditorSheet.vue";
 import ResumeStudioLayout from "../components/resume/ResumeStudioLayout.vue";
@@ -20,15 +21,16 @@ import {
 } from "../modules/resume/templates";
 import {
   appendTimeCopySuffix,
+  appendVersionSnapshot,
   deleteResume,
+  insertNewResumeRecord,
   loadStore,
   newResumeId,
   nextDisplayName,
   pickSeriesDefaultVersion,
   setDefaultResume,
   stripTimeCopySuffix,
-  updateResumeInPlace,
-  upsertResumeNewVersion
+  updateResumeInPlace
 } from "../modules/resume/storage";
 import * as resumeApi from "../modules/resume/api";
 import {
@@ -40,11 +42,19 @@ import {
   setResumeAiRailVisible
 } from "../composables/useResumeAiRailVisible";
 import { subscribeResumeRender } from "../composables/useResumeRenderBridge";
+import { dispatchResumeAiContext } from "../composables/useResumeAiContextBridge";
 import { mergeResumeRenderIntoEditor } from "../modules/resume/applyRenderPayload";
+import {
+  buildResumeDocumentModel,
+  buildResumeDocumentModelFromRecord,
+  exportResumeByFormat
+} from "../modules/resume/exportDocument";
 import { formatResumePreviewText } from "../modules/resume/previewText";
+import { maskName, maskStudentField } from "../utils/studentDesensitize";
 
 const route = useRoute();
 const isEmbed = computed(() => route.query._embed === "1");
+const { avatarUrl: sharedAvatarUrl } = useStudentAvatar();
 
 const error = ref("");
 const loadingStudent = ref(false);
@@ -63,7 +73,12 @@ const resumeStore = ref(loadStore());
 
 const copyModalOpen = ref(false);
 const copyModalGroup = ref(null);
-const avatarUrl = ref("");
+/** 与首页 StudentAvatar 一致：画像头像优先，其次全站共享 ref / localStorage */
+const avatarUrl = computed(() => {
+  const fromPortrait = studentPortrait.value?.["学生基本信息"]?.["头像"]?.trim();
+  if (fromPortrait) return fromPortrait;
+  return sharedAvatarUrl.value;
+});
 
 const TEMPLATES_PANEL_KEY = "resume_templates_panel_open";
 
@@ -149,7 +164,8 @@ function handleTemplateUpload() {
 async function handleAvatarChange(file) {
   if (!file?.type?.startsWith("image/")) return;
   try {
-    avatarUrl.value = await setStudentAvatarFromFile(file);
+    await uploadStudentAvatar(file, getStudentId().trim());
+    resumeApplyNotice.value = "头像已更新，与学生画像保持一致";
   } catch (e) {
     resumeApplyNotice.value = e?.message || "头像上传失败";
   }
@@ -199,9 +215,9 @@ const canSaveInPlace = computed(() => !!draftId.value);
 
 const saveHint = computed(() => {
   if (!draftId.value) {
-    return "将创建新简历线及首条副本，并设为该线的「本简历默认」。";
+    return "保存将创建新简历及首条记录。";
   }
-  return "「保存当前副本」覆盖本条，不产生新历史。「另存为新副本」保留本条并新增带时间戳记录。";
+  return "保存将更新当前简历，并留存修改前的版本快照。另存为会以当前内容新建一份独立简历。";
 });
 
 const currentDraftRecord = computed(() => {
@@ -222,15 +238,28 @@ const globalDefaultRecord = computed(() => {
 
 const studentInfo = computed(() => studentPortrait.value?.["学生基本信息"] || {});
 
-const heroName = computed(() => basic.value.姓名 || studentInfo.value.姓名 || "同学");
+const heroName = computed(() =>
+  maskName(basic.value.姓名 || studentInfo.value.姓名) || "同学"
+);
 
 const heroSubtitle = computed(() =>
-  [basic.value.学校, basic.value.院系, basic.value.专业, basic.value.学历, basic.value.毕业时间]
+  [
+    maskStudentField("学校", basic.value.学校),
+    maskStudentField("院系", basic.value.院系),
+    maskStudentField("专业", basic.value.专业),
+    maskStudentField("学历", basic.value.学历),
+    basic.value.毕业时间
+  ]
     .filter(Boolean)
     .join(" | ")
 );
 
-const studentDisplayName = computed(() => basic.value.姓名 || studentInfo.value.姓名 || "");
+const heroPhone = computed(() => maskStudentField("手机", basic.value.手机));
+const heroEmail = computed(() => maskStudentField("邮箱", basic.value.邮箱));
+
+const studentDisplayName = computed(() =>
+  maskName(basic.value.姓名 || studentInfo.value.姓名) || ""
+);
 
 const pageSubtitle = computed(() => {
   if (displayName.value.trim() && studioRailVisible.value) {
@@ -293,7 +322,12 @@ async function loadStudent() {
   loadingStudent.value = true;
   try {
     error.value = "";
-    studentPortrait.value = await apiGet(`/api/students/${encodeURIComponent(sid)}`);
+    const q = new URLSearchParams({ student_id: sid });
+    studentPortrait.value = await apiGet(`/api/me/profile?${q}`);
+    const avatar = studentPortrait.value?.["学生基本信息"]?.["头像"];
+    if (avatar?.trim()) {
+      setStudentServerAvatar(avatar, sid);
+    }
     if (!draftId.value && !seriesId.value) {
       basic.value = prefillBasicFromPortrait(studentPortrait.value);
     }
@@ -443,15 +477,167 @@ function buildContent() {
   };
 }
 
-/** 原地保存时保留副本名上的时间戳后缀，并同步右侧逻辑名称。 */
-function buildInPlaceDisplayName(existing) {
-  const full = String(existing?.displayName || "").trim();
-  const logical = displayName.value.trim() || stripTimeCopySuffix(full) || "简历";
-  const m = full.match(/^(.*)_(\d{14})$/);
-  if (m) {
-    return `${logical}_${m[2]}`;
+/** 当前工作副本的展示名（逻辑名，无时间戳后缀）。 */
+function buildCurrentDisplayName(existing) {
+  return (
+    displayName.value.trim() ||
+    stripTimeCopySuffix(existing?.displayName || "") ||
+    "简历"
+  );
+}
+
+/** 保存前将已存内容固化为历史快照 payload。 */
+function buildSnapshotPayload(existing, ser) {
+  const content =
+    existing?.content && typeof existing.content === "object"
+      ? existing.content
+      : parseResumeContent(existing?.content);
+  const base = stripTimeCopySuffix(existing?.displayName || "") || displayName.value.trim() || "简历";
+  return {
+    seriesId: ser,
+    templateId: existing?.templateId || selectedTemplateId.value,
+    displayName: appendTimeCopySuffix(base),
+    content,
+    setSeriesDefault: false,
+    setGlobalDefault: false,
+    createdAt: existing?.updatedAt || existing?.createdAt || Date.now()
+  };
+}
+
+async function persistCreateResume(sid, resumeId, seriesKey, payload) {
+  const body = {
+    ...payload,
+    seriesId: seriesKey,
+    setSeriesDefault: true,
+    setGlobalDefault: payload.setGlobalDefault ?? setAsGlobalDefault.value
+  };
+  if (sid) {
+    resumeStore.value = await resumeApi.putResume(sid, resumeId, body);
+  } else {
+    const { store, seriesId: ser } = insertNewResumeRecord(
+      {
+        id: resumeId,
+        templateId: body.templateId,
+        displayName: body.displayName,
+        content: body.content,
+        seriesId: seriesKey,
+        createdAt: body.createdAt ?? Date.now()
+      },
+      { setGlobalDefault: body.setGlobalDefault }
+    );
+    resumeStore.value = store;
+    seriesId.value = ser;
   }
-  return full || appendTimeCopySuffix(logical);
+}
+
+/** 无 id：新增简历；有 id：修改当前并留存修改前快照。 */
+async function saveDraft() {
+  const sid = getStudentId().trim();
+  const store = hasStudentContext() ? resumeStore.value : loadStore();
+
+  if (!draftId.value) {
+    const ser = newResumeId();
+    const newId = newResumeId();
+    const name = resolveLogicalDisplayName(store);
+    seriesId.value = ser;
+    const payload = {
+      templateId: selectedTemplateId.value,
+      displayName: name,
+      content: buildContent(),
+      createdAt: Date.now(),
+      setGlobalDefault: setAsGlobalDefault.value
+    };
+    saving.value = true;
+    try {
+      await persistCreateResume(sid, newId, ser, payload);
+      draftId.value = newId;
+      await loadRecord(newId);
+      error.value = "";
+    } catch (e) {
+      error.value = e.message || "保存失败";
+    } finally {
+      saving.value = false;
+    }
+    return;
+  }
+
+  const existing = getDraftRecord();
+  if (!existing) {
+    draftId.value = null;
+    await saveDraft();
+    return;
+  }
+
+  const ser = seriesId.value || existing.seriesId || existing.id;
+  seriesId.value = ser;
+  const updatePayload = {
+    seriesId: ser,
+    templateId: selectedTemplateId.value,
+    displayName: buildCurrentDisplayName(existing),
+    content: buildContent(),
+    setSeriesDefault: true,
+    setGlobalDefault: setAsGlobalDefault.value
+  };
+
+  saving.value = true;
+  try {
+    if (sid) {
+      const snapshotId = newResumeId();
+      await persistPut(sid, snapshotId, buildSnapshotPayload(existing, ser));
+      await persistPut(sid, draftId.value, updatePayload);
+      await loadRecord(draftId.value);
+    } else {
+      appendVersionSnapshot(existing);
+      resumeStore.value = updateResumeInPlace(
+        {
+          ...existing,
+          ...updatePayload,
+          id: draftId.value,
+          updatedAt: Date.now()
+        },
+        { setGlobalDefault: setAsGlobalDefault.value }
+      );
+      await loadRecord(draftId.value);
+    }
+    error.value = "";
+  } catch (e) {
+    error.value = e.message || "保存失败";
+  } finally {
+    saving.value = false;
+  }
+}
+
+/** 另存为：以当前表单内容新建一份独立简历（新 seriesId + 新逻辑名）。 */
+async function saveAsNewResume() {
+  const sid = getStudentId().trim();
+  const store = hasStudentContext() ? resumeStore.value : loadStore();
+  const ser = newResumeId();
+  const newId = newResumeId();
+  const name = nextDisplayName({
+    studentNo: basic.value.学号,
+    name: basic.value.姓名,
+    store
+  });
+  displayName.value = name;
+  seriesId.value = ser;
+  const payload = {
+    templateId: selectedTemplateId.value,
+    displayName: name,
+    content: buildContent(),
+    createdAt: Date.now(),
+    setGlobalDefault: setAsGlobalDefault.value
+  };
+  saving.value = true;
+  try {
+    await persistCreateResume(sid, newId, ser, payload);
+    draftId.value = newId;
+    await loadRecord(newId);
+    error.value = "";
+  } catch (e) {
+    error.value = e.message || "另存为新简历失败";
+  } finally {
+    saving.value = false;
+  }
 }
 
 async function selectResumeGroup(g) {
@@ -560,101 +746,6 @@ async function persistPut(sid, resumeId, payload) {
   resumeStore.value = await resumeApi.putResume(sid, resumeId, payload);
 }
 
-/** 原地保存当前副本 */
-async function saveDraft() {
-  const sid = getStudentId().trim();
-  const store = hasStudentContext() ? resumeStore.value : loadStore();
-  if (!draftId.value) {
-    await saveAsNewVersion();
-    return;
-  }
-  const existing = getDraftRecord();
-  if (!existing) {
-    await saveAsNewVersion();
-    return;
-  }
-  const ser = seriesId.value || existing.seriesId || existing.id;
-  seriesId.value = ser;
-  const payload = {
-    seriesId: ser,
-    templateId: selectedTemplateId.value,
-    displayName: buildInPlaceDisplayName(existing),
-    content: buildContent(),
-    setSeriesDefault: true,
-    setGlobalDefault: setAsGlobalDefault.value
-  };
-  saving.value = true;
-  try {
-    if (sid) {
-      await persistPut(sid, draftId.value, payload);
-      await loadRecord(draftId.value);
-    } else {
-      resumeStore.value = updateResumeInPlace(
-        {
-          ...existing,
-          ...payload,
-          id: draftId.value,
-          updatedAt: Date.now()
-        },
-        { setGlobalDefault: setAsGlobalDefault.value }
-      );
-      await loadRecord(draftId.value);
-    }
-    error.value = "";
-  } catch (e) {
-    error.value = e.message || "保存失败";
-  } finally {
-    saving.value = false;
-  }
-}
-
-/** 另存为带时间戳的新副本 */
-async function saveAsNewVersion() {
-  const sid = getStudentId().trim();
-  const store = hasStudentContext() ? resumeStore.value : loadStore();
-  const ser = seriesId.value || newResumeId();
-  seriesId.value = ser;
-  const base = resolveLogicalDisplayName(store);
-  const versionName = appendTimeCopySuffix(base);
-  const newId = newResumeId();
-  const payload = {
-    seriesId: ser,
-    templateId: selectedTemplateId.value,
-    displayName: versionName,
-    content: buildContent(),
-    createdAt: Date.now(),
-    setSeriesDefault: true,
-    setGlobalDefault: setAsGlobalDefault.value
-  };
-  saving.value = true;
-  try {
-    if (sid) {
-      await persistPut(sid, newId, payload);
-      draftId.value = newId;
-      await loadRecord(newId);
-    } else {
-      resumeStore.value = upsertResumeNewVersion(
-        {
-          id: newId,
-          templateId: selectedTemplateId.value,
-          displayName: versionName,
-          content: buildContent(),
-          createdAt: Date.now()
-        },
-        ser,
-        { setGlobalDefault: setAsGlobalDefault.value }
-      );
-      draftId.value = newId;
-      await loadRecord(newId);
-    }
-    error.value = "";
-  } catch (e) {
-    error.value = e.message || "另存为副本失败";
-  } finally {
-    saving.value = false;
-  }
-}
-
 async function onSetDefault(id, scope = "series") {
   if (hasStudentContext()) {
     try {
@@ -670,7 +761,7 @@ async function onSetDefault(id, scope = "series") {
 }
 
 async function onDelete(id) {
-  if (!confirm("确定删除该副本？（同一份简历下其他副本仍保留；多份简历互不影响）")) return;
+  if (!confirm("确定删除该版本记录？")) return;
   if (hasStudentContext()) {
     try {
       resumeStore.value = await resumeApi.deleteResumeOnServer(getStudentId().trim(), id);
@@ -686,23 +777,57 @@ async function onDelete(id) {
   await refreshStore();
 }
 
-function exportJson() {
-  const store = hasStudentContext() ? resumeStore.value : loadStore();
-  const id = draftId.value;
-  const rec = id ? store.resumes.find((r) => r.id === id) : null;
-  const payload = rec || {
+function buildExportJsonPayload(rec) {
+  if (rec) {
+    return {
+      ...rec,
+      exportedAt: Date.now()
+    };
+  }
+  return {
     id: draftId.value || "(未保存)",
     templateId: selectedTemplateId.value,
     displayName: displayName.value || "(未命名)",
     content: buildContent(),
     exportedAt: Date.now()
   };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `${(displayName.value || "简历").replace(/[/\\?%*:|"<>]/g, "-")}.json`;
-  a.click();
-  URL.revokeObjectURL(a.href);
+}
+
+function resolveExportRecord(record) {
+  if (record) return record;
+  const store = hasStudentContext() ? resumeStore.value : loadStore();
+  const id = draftId.value;
+  return id ? store.resumes.find((r) => r.id === id) || null : null;
+}
+
+async function exportResume(format = "json", record = null) {
+  error.value = "";
+  const rec = resolveExportRecord(record);
+  const model = rec
+    ? buildResumeDocumentModelFromRecord(rec, currentTemplate.value)
+    : buildResumeDocumentModel({
+        template: currentTemplate.value,
+        basic: buildBasicForSave(toRaw(basic.value)),
+        intent: {
+          targetJobs: String(intent.value.targetJobs ?? "").trim(),
+          targetCompanies: String(intent.value.targetCompanies ?? "").trim()
+        },
+        sections: serializeSections(toRaw(sections.value)),
+        extraNotes: extraNotes.value.trim(),
+        displayName: displayName.value.trim() || buildCurrentDisplayName(rec)
+      });
+  const jsonPayload = buildExportJsonPayload(rec);
+  try {
+    await exportResumeByFormat(format, model, jsonPayload);
+    resumeApplyNotice.value =
+      format === "json"
+        ? "已导出 JSON 文件"
+        : format === "pdf"
+          ? "已导出 PDF 文件"
+          : "已导出 Word 文件";
+  } catch (e) {
+    error.value = e?.message || "导出失败";
+  }
 }
 
 const previewText = computed(() =>
@@ -721,6 +846,21 @@ function updateSectionItems(key, items) {
   sections.value = { ...sections.value, [key]: items };
 }
 
+/** 从岗位卡片带入的优化素材（router.push state） */
+function consumeRouterResumeAiContextState() {
+  const raw = history.state?.resumeAiContext;
+  if (!raw || typeof raw !== "object" || !raw.kind || !raw.refId) return;
+  openAiPanel();
+  dispatchResumeAiContext(raw);
+  resumeApplyNotice.value = "已将推荐岗位加入优化素材篮";
+  try {
+    const next = { ...(history.state || {}) };
+    delete next.resumeAiContext;
+    history.replaceState(next, "");
+  } catch (_) {
+    /* ignore */
+  }
+}
 /** 从对话页 router.push state 带入的 resume_render（跳转后再合并，避免被默认简历覆盖） */
 function consumeRouterResumeRenderState() {
   const raw = history.state?.resumeRender;
@@ -739,8 +879,6 @@ let unsubscribeResumeRender = () => {};
 
 onMounted(async () => {
   window.scrollTo(0, 0);
-  const savedAvatar = syncStudentAvatar(getStudentId().trim());
-  if (savedAvatar) avatarUrl.value = savedAvatar;
   await Promise.all([loadStudent(), refreshStore()]);
   const store = resumeStore.value;
   const defId = store.defaultResumeId;
@@ -758,6 +896,8 @@ onMounted(async () => {
     applyResumeRenderPayload(payload);
   });
   consumeRouterResumeRenderState();
+  await nextTick();
+  consumeRouterResumeAiContextState();
 });
 
 onBeforeUnmount(() => {
@@ -795,7 +935,6 @@ onBeforeUnmount(() => {
 
     <template #editor-prefix>
       <ResumeTemplateStrip v-if="isEmbed" v-model="selectedTemplateId" />
-      <ResumeTemplateStrip v-else class="rs-strip-mobile" v-model="selectedTemplateId" />
     </template>
 
     <template #editor>
@@ -803,8 +942,8 @@ onBeforeUnmount(() => {
         :editor-title="editorTitle"
         :hero-name="heroName"
         :hero-subtitle="heroSubtitle"
-        :phone="basic.手机"
-        :email="basic.邮箱"
+        :phone="heroPhone"
+        :email="heroEmail"
         :avatar-url="avatarUrl"
         :version-open="activeRightPanel === 'version'"
         :ai-open="activeRightPanel === 'ai'"
@@ -818,7 +957,7 @@ onBeforeUnmount(() => {
         :contact-info-keys="CONTACT_INFO_KEYS"
         @change-avatar="handleAvatarChange"
         @version-preview="toggleVersionPanel"
-        @export="exportJson"
+        @export="exportResume"
         @ai-optimize="toggleAiPanel"
         @toggle-edit-section="toggleEditSection"
         @update:items="updateSectionItems"
@@ -831,15 +970,17 @@ onBeforeUnmount(() => {
           :style="{ '--vpp-accent': currentTemplate.accent }"
           :active-series="activeSeriesGroup"
           :resume-groups="resumeGroups"
+          :series-id="seriesId"
           :draft-id="draftId"
           :saving="saving"
           :can-save-in-place="canSaveInPlace"
           :accent="currentTemplate.accent"
           @load-version="loadRecord"
           @delete-version="onDelete"
-          @save-as-copy="saveAsNewVersion"
+          @select-group="selectResumeGroup"
+          @save-as-copy="saveAsNewResume"
           @save-draft="saveDraft"
-          @export-json="exportJson"
+          @export="({ format, record }) => exportResume(format, record)"
         />
       </div>
       <div v-else-if="activeRightPanel === 'ai'" class="rs-rail-card rs-rail-card--ai">

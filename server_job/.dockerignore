@@ -1,0 +1,9 @@
+target/
+.idea/
+.git/
+*.iml
+.env
+.env.*
+!.env.docker.example
+logs/
+*.log

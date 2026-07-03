@@ -105,7 +105,7 @@ public class DataController {
      *
      * @param page     页码，从 1 开始
      * @param pageSize 每页条数，由服务层做上限裁剪
-     * @param keyword    可选；非空时按关键词在库内模糊查询（与前端「回车搜索」对应）
+     * @param keyword    可选；非空时按关键词在库内模糊查询（岗位 ID、职位名、地点、用人单位等，与前端「回车搜索」对应）
      * @param syncedOnly 默认 true：仅查已同步知识库（synRag=1）的岗位
      */
     @GetMapping("/jobs/paged")

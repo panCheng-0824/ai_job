@@ -10,4 +10,6 @@ public interface AssistApiService {
     ResponseEntity<byte[]> onlineSearch(String query, String engine, Integer topk, Boolean deepSearch);
 
     ResponseEntity<byte[]> jobInfoQuery(String body);
+
+    ResponseEntity<byte[]> clearJobInfoSemCache();
 }

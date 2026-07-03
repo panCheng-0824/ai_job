@@ -12,16 +12,22 @@ import org.example.server_job.biz.service.BizJobsInfoService;
 import org.example.server_job.biz.service.BizStudentInfoService;
 import org.example.server_job.biz.support.BizDictBm;
 import org.example.server_job.biz.support.BizDictLabelSupport;
+import org.example.server_job.interview.entity.StudentInterviewRecordEntity;
+import org.example.server_job.interview.mapper.StudentInterviewRecordMapper;
 import org.example.server_job.student.entity.StudentCompanyReview;
 import org.example.server_job.student.entity.StudentCompanyReviewTag;
 import org.example.server_job.student.entity.StudentFavoriteJob;
 import org.example.server_job.student.entity.StudentFollowCompany;
+import org.example.server_job.student.entity.StudentJobApplication;
+import org.example.server_job.student.entity.StudentJobInterviewBooking;
 import org.example.server_job.student.entity.StudentJobReview;
 import org.example.server_job.student.entity.StudentJobReviewTag;
 import org.example.server_job.student.mapper.StudentCompanyReviewMapper;
 import org.example.server_job.student.mapper.StudentCompanyReviewTagMapper;
 import org.example.server_job.student.mapper.StudentFavoriteJobMapper;
 import org.example.server_job.student.mapper.StudentFollowCompanyMapper;
+import org.example.server_job.student.mapper.StudentJobApplicationMapper;
+import org.example.server_job.student.mapper.StudentJobInterviewBookingMapper;
 import org.example.server_job.student.mapper.StudentJobReviewMapper;
 import org.example.server_job.student.mapper.StudentJobReviewTagMapper;
 import org.example.server_job.student.service.StudentPortalActivityService;
@@ -65,6 +71,9 @@ public class StudentPortalActivityServiceImpl implements StudentPortalActivitySe
     private final StudentJobReviewTagMapper jobReviewTagMapper;
     private final StudentCompanyReviewMapper companyReviewMapper;
     private final StudentCompanyReviewTagMapper companyReviewTagMapper;
+    private final StudentJobApplicationMapper applicationMapper;
+    private final StudentJobInterviewBookingMapper interviewBookingMapper;
+    private final StudentInterviewRecordMapper interviewRecordMapper;
 
     public StudentPortalActivityServiceImpl(
             ReviewTagsCatalog reviewTagsCatalog,
@@ -77,7 +86,10 @@ public class StudentPortalActivityServiceImpl implements StudentPortalActivitySe
             StudentJobReviewMapper jobReviewMapper,
             StudentJobReviewTagMapper jobReviewTagMapper,
             StudentCompanyReviewMapper companyReviewMapper,
-            StudentCompanyReviewTagMapper companyReviewTagMapper
+            StudentCompanyReviewTagMapper companyReviewTagMapper,
+            StudentJobApplicationMapper applicationMapper,
+            StudentJobInterviewBookingMapper interviewBookingMapper,
+            StudentInterviewRecordMapper interviewRecordMapper
     ) {
         this.reviewTagsCatalog = reviewTagsCatalog;
         this.bizStudentInfoService = bizStudentInfoService;
@@ -90,6 +102,9 @@ public class StudentPortalActivityServiceImpl implements StudentPortalActivitySe
         this.jobReviewTagMapper = jobReviewTagMapper;
         this.companyReviewMapper = companyReviewMapper;
         this.companyReviewTagMapper = companyReviewTagMapper;
+        this.applicationMapper = applicationMapper;
+        this.interviewBookingMapper = interviewBookingMapper;
+        this.interviewRecordMapper = interviewRecordMapper;
     }
 
     @Override
@@ -105,12 +120,16 @@ public class StudentPortalActivityServiceImpl implements StudentPortalActivitySe
         long fl = followMapper.selectCount(Wrappers.<StudentFollowCompany>lambdaQuery().eq(StudentFollowCompany::getStudentId, sid));
         long jc = jobReviewMapper.selectCount(Wrappers.<StudentJobReview>lambdaQuery().eq(StudentJobReview::getStudentId, sid));
         long cc = companyReviewMapper.selectCount(Wrappers.<StudentCompanyReview>lambdaQuery().eq(StudentCompanyReview::getStudentId, sid));
+        long ac = applicationMapper.selectCount(Wrappers.<StudentJobApplication>lambdaQuery().eq(StudentJobApplication::getStudentId, sid));
+        long ic = interviewRecordMapper.selectCount(Wrappers.<StudentInterviewRecordEntity>lambdaQuery().eq(StudentInterviewRecordEntity::getStudentId, sid));
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("student_id", sid);
         out.put("favorite_job_count", fc);
         out.put("followed_company_count", fl);
         out.put("job_review_count", jc);
         out.put("company_review_count", cc);
+        out.put("application_count", ac);
+        out.put("interview_count", ic);
         return out;
     }
 
@@ -121,6 +140,7 @@ public class StudentPortalActivityServiceImpl implements StudentPortalActivitySe
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("student_id", sid);
         out.put("job_favorited", false);
+        out.put("job_applied", false);
         out.put("company_followed", false);
         out.put("my_job_review", null);
         out.put("my_company_review", null);
@@ -129,6 +149,9 @@ public class StudentPortalActivityServiceImpl implements StudentPortalActivitySe
             out.put("job_favorited", favoriteMapper.selectCount(Wrappers.<StudentFavoriteJob>lambdaQuery()
                     .eq(StudentFavoriteJob::getStudentId, sid)
                     .eq(StudentFavoriteJob::getJobId, jid)) > 0);
+            out.put("job_applied", applicationMapper.selectCount(Wrappers.<StudentJobApplication>lambdaQuery()
+                    .eq(StudentJobApplication::getStudentId, sid)
+                    .eq(StudentJobApplication::getJobId, jid)) > 0);
             StudentJobReview rj = jobReviewMapper.selectOne(Wrappers.<StudentJobReview>lambdaQuery()
                     .eq(StudentJobReview::getStudentId, sid)
                     .eq(StudentJobReview::getJobId, jid)
@@ -628,6 +651,159 @@ public class StudentPortalActivityServiceImpl implements StudentPortalActivitySe
         m.put("employee_count_range", dictLabelSupport.gsgmLabel(c.getGsgm()));
         m.put("company_type", dictLabelSupport.dwxzLabel(c.getDwxz()));
         return m;
+    }
+
+    @Override
+    public Map<String, Object> getMeApplications(String studentId) {
+        String sid = normalizeStudentId(studentId);
+        ensureStudent(sid);
+        List<StudentJobApplication> rows = applicationMapper.selectList(Wrappers.<StudentJobApplication>lambdaQuery()
+                .eq(StudentJobApplication::getStudentId, sid)
+                .orderByDesc(StudentJobApplication::getCreatedAt));
+        List<String> ids = rows.stream().map(StudentJobApplication::getJobId).toList();
+        List<Map<String, Object>> jobs = new ArrayList<>();
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (StudentJobApplication row : rows) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("job_id", row.getJobId());
+            item.put("resume_id", row.getResumeId());
+            item.put("source", row.getSource());
+            item.put("applied_at", toIso(row.getCreatedAt()));
+            BizJobsInfo j = bizJobsInfoService.getById(row.getJobId());
+            if (j != null) {
+                Map<String, Object> hydrated = hydrateJob(j);
+                jobs.add(hydrated);
+                item.put("job", hydrated);
+            }
+            items.add(item);
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("student_id", sid);
+        out.put("job_ids", ids);
+        out.put("jobs", jobs);
+        out.put("items", items);
+        out.put("application_count", rows.size());
+        return out;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> submitJobApplication(String studentId, String jobId, String resumeId, String source) {
+        String sid = normalizeStudentId(studentId);
+        String jid = requireNonBlank(jobId, "job_id");
+        ensureStudent(sid);
+        requireJob(jid);
+        boolean exists = applicationMapper.selectCount(Wrappers.<StudentJobApplication>lambdaQuery()
+                .eq(StudentJobApplication::getStudentId, sid)
+                .eq(StudentJobApplication::getJobId, jid)) > 0;
+        if (exists) {
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("applied", true);
+            out.put("already_applied", true);
+            out.put("job_id", jid);
+            out.put("application_count", applicationMapper.selectCount(Wrappers.<StudentJobApplication>lambdaQuery()
+                    .eq(StudentJobApplication::getStudentId, sid)));
+            return out;
+        }
+        StudentJobApplication row = new StudentJobApplication();
+        row.setStudentId(sid);
+        row.setJobId(jid);
+        String rid = resumeId == null ? "" : resumeId.trim();
+        row.setResumeId(rid.isEmpty() ? null : rid);
+        String src = source == null ? "" : source.trim();
+        row.setSource(src.isEmpty() ? "one_click" : src);
+        applicationMapper.insert(row);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("applied", true);
+        out.put("already_applied", false);
+        out.put("job_id", jid);
+        out.put("application_count", applicationMapper.selectCount(Wrappers.<StudentJobApplication>lambdaQuery()
+                .eq(StudentJobApplication::getStudentId, sid)));
+        log.info("submitJobApplication studentId={}, jobId={}, resumeId={}", sid, jid, row.getResumeId());
+        return out;
+    }
+
+    @Override
+    public Map<String, Object> getMeInterviewBookings(String studentId) {
+        String sid = normalizeStudentId(studentId);
+        ensureStudent(sid);
+        List<StudentJobInterviewBooking> rows = interviewBookingMapper.selectList(
+                Wrappers.<StudentJobInterviewBooking>lambdaQuery()
+                        .eq(StudentJobInterviewBooking::getStudentId, sid)
+                        .orderByDesc(StudentJobInterviewBooking::getCreatedAt)
+        );
+        List<String> ids = rows.stream().map(StudentJobInterviewBooking::getJobId).toList();
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (StudentJobInterviewBooking row : rows) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("booking_id", row.getId());
+            item.put("job_id", row.getJobId());
+            item.put("job_title", row.getJobTitle());
+            item.put("company_name", row.getCompanyName());
+            item.put("source", row.getSource());
+            item.put("booked_at", toIso(row.getCreatedAt()));
+            BizJobsInfo j = bizJobsInfoService.getById(row.getJobId());
+            if (j != null) {
+                item.put("job", hydrateJob(j));
+            }
+            items.add(item);
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("student_id", sid);
+        out.put("job_ids", ids);
+        out.put("items", items);
+        out.put("booking_count", rows.size());
+        return out;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> submitJobInterviewBooking(String studentId, String jobId, String source) {
+        String sid = normalizeStudentId(studentId);
+        String jid = requireNonBlank(jobId, "job_id");
+        ensureStudent(sid);
+        requireJob(jid);
+        BizJobsInfo job = bizJobsInfoService.getById(jid);
+        boolean exists = interviewBookingMapper.selectCount(Wrappers.<StudentJobInterviewBooking>lambdaQuery()
+                .eq(StudentJobInterviewBooking::getStudentId, sid)
+                .eq(StudentJobInterviewBooking::getJobId, jid)) > 0;
+        if (exists) {
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("booked", true);
+            out.put("already_booked", true);
+            out.put("job_id", jid);
+            out.put("booking_count", interviewBookingMapper.selectCount(
+                    Wrappers.<StudentJobInterviewBooking>lambdaQuery()
+                            .eq(StudentJobInterviewBooking::getStudentId, sid)
+            ));
+            return out;
+        }
+        Map<String, Object> hydrated = hydrateJob(job);
+        String jobTitle = String.valueOf(hydrated.getOrDefault("job_title", ""));
+        String companyName = "";
+        Object cr = hydrated.get("company_relation");
+        if (cr instanceof Map companyRel) {
+            companyName = String.valueOf(companyRel.getOrDefault("company_name", ""));
+        }
+        StudentJobInterviewBooking row = new StudentJobInterviewBooking();
+        row.setStudentId(sid);
+        row.setJobId(jid);
+        row.setJobTitle(jobTitle);
+        row.setCompanyName(companyName);
+        String src = source == null ? "" : source.trim();
+        row.setSource(src.isEmpty() ? "job_card" : src);
+        interviewBookingMapper.insert(row);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("booked", true);
+        out.put("already_booked", false);
+        out.put("job_id", jid);
+        out.put("booking_id", row.getId());
+        out.put("booking_count", interviewBookingMapper.selectCount(
+                Wrappers.<StudentJobInterviewBooking>lambdaQuery()
+                        .eq(StudentJobInterviewBooking::getStudentId, sid)
+        ));
+        log.info("submitJobInterviewBooking studentId={}, jobId={}, bookingId={}", sid, jid, row.getId());
+        return out;
     }
 
     private String normalizeStudentId(String raw) {

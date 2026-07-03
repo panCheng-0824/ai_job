@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 from model_cfg import ModelEntry, load_model_list
 from openai import OpenAI
 
-from app.skills.job_info.llm_parse import parse_recom_json
+from app.skills.job_info.llm_parse import RecomJsonParseError, parse_recom_json
 from app.skills.job_info.llm_prompt import (
     analysis_system_message,
     build_analysis_prompt,
@@ -23,6 +23,17 @@ from app.skills.job_info.llm_schema import (
 from app.skills.job_rag_query_rewrite import _select_chat_by_level
 
 log = logging.getLogger(__name__)
+
+_REPAIR_USER_MSG = (
+    "上一段输出不是合法 JSON，无法被程序解析。请只输出一个 JSON 对象，"
+    "不要 markdown 围栏、不要注释、不要其它说明。"
+    "必含字段：isrecommend、reason、recomList；recomList 元素含 jobId、jonName、score、reason。"
+)
+
+
+def _parse_retry_enabled() -> bool:
+    v = (os.getenv("JOB_RAG_ANALYZE_PARSE_RETRY", "1") or "1").strip().lower()
+    return v in ("1", "true", "yes", "on")
 
 
 def invoke_chat_completion(
@@ -60,6 +71,53 @@ def invoke_chat_completion(
     return (resp.choices[0].message.content or "").strip()
 
 
+def _parse_or_repair(
+    client: OpenAI,
+    entry: ModelEntry,
+    messages: List[Dict[str, str]],
+    content: str,
+    *,
+    max_tokens: int,
+    response_format: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """解析 recom JSON；失败且开启重试时，追加一轮修复提示再调模型。"""
+    try:
+        return parse_recom_json(content)
+    except RecomJsonParseError as first_err:
+        if not _parse_retry_enabled():
+            raise
+        log.warning(
+            "岗位分析 JSON 解析失败，尝试修复重试: %s; preview=%s",
+            first_err,
+            first_err.raw_preview[:120],
+        )
+        repair_messages = list(messages) + [
+            {"role": "assistant", "content": content},
+            {"role": "user", "content": _REPAIR_USER_MSG},
+        ]
+        # 修复轮强制 json_object（若网关支持），提高二次成功率
+        repair_format: Optional[Dict[str, Any]] = {"type": "json_object"}
+        if response_format and response_format.get("type") == "json_schema":
+            repair_format = response_format
+        repaired = invoke_chat_completion(
+            client,
+            model=entry["model_name"],
+            messages=repair_messages,
+            temperature=0.1,
+            max_tokens=max_tokens,
+            response_format=repair_format,
+        )
+        if not repaired:
+            raise first_err
+        try:
+            return parse_recom_json(repaired)
+        except RecomJsonParseError as second_err:
+            raise RecomJsonParseError(
+                f"{first_err}; 修复重试后仍失败: {second_err}",
+                raw_preview=second_err.raw_preview or first_err.raw_preview,
+            ) from second_err
+
+
 def analyze_retrieval_sync(
     user_query: str,
     student_context: str,
@@ -73,7 +131,8 @@ def analyze_retrieval_sync(
     同步分析检索素材，返回规范化后的 recom JSON 对象。
 
     环境变量：JOB_RAG_ANALYZE_MODEL_LEVEL、JOB_RAG_ANALYZE_MAX_TOKENS、
-    JOB_RAG_ANALYZE_RESPONSE_FORMAT、JOB_RAG_ANALYZE_JSON_STRICT。
+    JOB_RAG_ANALYZE_RESPONSE_FORMAT、JOB_RAG_ANALYZE_JSON_STRICT、
+    JOB_RAG_ANALYZE_PARSE_RETRY（解析失败是否修复重试，默认开）。
     """
     level = (os.getenv("JOB_RAG_ANALYZE_MODEL_LEVEL", "mid") or "mid").strip()
     entry: ModelEntry = _select_chat_by_level(load_model_list(), level)
@@ -120,4 +179,11 @@ def analyze_retrieval_sync(
     )
     if not content:
         raise ValueError("模型返回为空")
-    return parse_recom_json(content)
+    return _parse_or_repair(
+        client,
+        entry,
+        messages,
+        content,
+        max_tokens=max_tokens,
+        response_format=response_format,
+    )

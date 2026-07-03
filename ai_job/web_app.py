@@ -300,6 +300,14 @@ async def job_info_query(payload: JobInfoQueryRequest):
     return await run_job_info_query_async(payload)
 
 
+@app.post("/api/skills/job-info-sem-cache/clear")
+def clear_job_info_sem_cache():
+    """清空岗位推荐语义/精确缓存（Redis job_info:sem*）。"""
+    from app.skills.job_info.semantic_cache import clear_all_caches
+
+    return clear_all_caches()
+
+
 @app.get("/api/user-models")
 def list_user_models():
     return data_catalog.list_user_models_for_api()

@@ -13,3 +13,10 @@ export function fullPageUrl(embedPath) {
   u.searchParams.delete("_embed");
   return u.pathname + u.search + u.hash;
 }
+
+/** 嵌入/浮层场景：在新标签页打开详情（保持 _embed 简洁布局） */
+export function openDetailInNewWindow(path, extraQuery = {}) {
+  if (typeof window === "undefined") return null;
+  const url = embedUrl(path, extraQuery);
+  return window.open(url, "_blank", "noopener,noreferrer");
+}

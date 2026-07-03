@@ -155,6 +155,7 @@ watch(
   flex: 1;
   min-height: 0;
   background: #f8fafc;
+  overflow: auto;
 }
 .ffd-body :deep(iframe) {
   width: 100%;

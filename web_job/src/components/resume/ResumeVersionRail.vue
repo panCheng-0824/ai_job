@@ -223,15 +223,15 @@ function formatTime(rec) {
       <p class="muted small save-hint">{{ saveHint }}</p>
       <div class="save-actions">
         <button type="button" class="btn primary block" :disabled="saving" @click="emit('save-draft')">
-          {{ canSaveInPlace ? "保存当前副本" : "保存并创建首条副本" }}
+          {{ canSaveInPlace ? "保存" : "保存并创建" }}
         </button>
         <button
           type="button"
           class="btn ghost block"
-          :disabled="saving || !canSaveInPlace"
+          :disabled="saving"
           @click="emit('save-as-copy')"
         >
-          另存为新副本
+          另存为新简历
         </button>
         <div class="btn-row-secondary">
           <button type="button" class="btn ghost btn-sm" @click="emit('new-series')">新简历线</button>
