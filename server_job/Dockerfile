@@ -11,6 +11,11 @@ RUN mvn -B -DskipTests package
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
+# 运行时系统工具（curl 用于 Docker healthcheck）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN groupadd -r app && useradd -r -g app app
 COPY --from=builder /build/target/server_job-*.jar app.jar
 RUN chown app:app app.jar

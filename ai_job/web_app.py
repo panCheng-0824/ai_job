@@ -552,6 +552,12 @@ def internal_chat_complete(payload: InternalChatPayload):
         raise _pe(e) from e
 
 
+@app.get("/api/internal/health")
+def health_check():
+    """Docker / K8s 健康检查端点"""
+    return {"status": "ok", "service": "ai_job"}
+
+
 @app.get("/api/internal/student-profile/{student_id}")
 def internal_get_student_profile(student_id: str):
     sid = (student_id or "").strip()

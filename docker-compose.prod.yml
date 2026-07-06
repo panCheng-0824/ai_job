@@ -1,0 +1,153 @@
+# =========================
+# 就业AI 项目 — 统一 Docker Compose 生产编排
+# =========================
+#
+# 架构说明：
+#   - 中间件层（MySQL/Redis/ES/Neo4j/Milvus/RocketMQ/...）由 ~/workspace/docker/docker-compose.yml 管理
+#   - 本文件只编排三个业务应用容器：web_job / server_job / ai_job
+#   - 应用容器通过 app-network 与中间件互通
+#
+# 启动顺序（首次部署）：
+#   1. cd ~/workspace/docker && docker compose up -d          # 启动中间件
+#   2. cd /path/to/PycharmProjects && docker compose -f docker-compose.prod.yml up -d --build
+#
+# 日常更新：
+#   docker compose -f docker-compose.prod.yml build --no-cache && docker compose -f docker-compose.prod.yml up -d
+#
+
+services:
+  # ========== 1. AI 核心服务 — Python FastAPI ==========
+  ai_job:
+    build:
+      context: ./ai_job
+      dockerfile: Dockerfile
+    image: ${DOCKER_REGISTRY:-}ai_job:${IMAGE_TAG:-latest}
+    container_name: ai_job
+    restart: unless-stopped
+    ports:
+      - "${AI_JOB_PORT:-8001}:8001"
+    env_file:
+      - ./ai_job/.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/internal/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          memory: 8g
+          cpus: "2"
+        reservations:
+          memory: 2g
+          cpus: "1"
+
+  # ========== 2. 后端业务服务 — Java Spring Boot ==========
+  server_job:
+    build:
+      context: ./server_job
+      dockerfile: Dockerfile
+    image: ${DOCKER_REGISTRY:-}server_job:${IMAGE_TAG:-latest}
+    container_name: server_job
+    restart: unless-stopped
+    ports:
+      - "${SERVER_JOB_PORT:-8002}:8002"
+    env_file:
+      - ./server_job/.env
+    environment:
+      # 中间件容器 DNS（覆盖 application.yml 中的 localhost 默认值）
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=app_db
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:-pc0824tq}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-pc0824tq}
+      - ELASTICSEARCH_HOST=es
+      - ELASTICSEARCH_PORT=9200
+      - ELASTICSEARCH_USER=elastic
+      - ELASTICSEARCH_PASSWORD=elastic123456
+      - MONGODB_HOST=server-job-mongodb
+      - MONGODB_PORT=27017
+      - MONGODB_DATABASE=server_job
+      - MONGODB_USER=${MONGO_INITDB_ROOT_USERNAME:-root}
+      - MONGODB_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD:-root123}
+      - NEO4J_HOST=neo4j
+      - NEO4J_BOLT_PORT=7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-123456}
+      - MILVUS_HOST=milvus
+      - MILVUS_PORT=19530
+      - MILVUS_USER=root
+      - MILVUS_PASSWORD=Milvus
+      - ROCKETMQ_PROXY_GRPC_ENDPOINT=server-job-rocketmq-broker:8081
+      - INTERVIEW_MQ_CONSUMER_ENABLED=false
+      - INTERVIEW_MQ_ENABLED=false
+      - MINIO_ENDPOINT=http://milvus-minio:9000
+      - AI_JOB_BASE_URL=http://ai_job:8001
+      # Logstash 日志收集目标
+      - LOGSTASH_HOST=logstash
+      - LOGSTASH_TCP_PORT=5000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - app-network
+    depends_on:
+      ai_job:
+        
+    healthcheck:
+      # JRE 基础镜像无 curl/wget，用 java 检测端口或跳过健康检查
+      # 实际可用: curl 服务端口验证 TCP 连接
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8002 && echo ok || exit 1"]
+      disable: true
+      interval: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+          cpus: "2"
+        reservations:
+          memory: 1g
+          cpus: "1"
+
+  # ========== 3. 前端门户 — Vue SPA + Nginx ==========
+  # 注意：构建上下文为项目根目录，因为需要访问 ../CubismSdkForWeb-5-r.5
+  web_job:
+    build:
+      context: .
+      dockerfile: ./web_job/Dockerfile
+    image: ${DOCKER_REGISTRY:-}web_job:${IMAGE_TAG:-latest}
+    container_name: web_job
+    restart: unless-stopped
+    ports:
+      - "${WEB_JOB_PORT:-80}:80"
+    networks:
+      - app-network
+    depends_on:
+      server_job:
+        
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+        reservations:
+          memory: 128m
+          cpus: "0.25"
+
+networks:
+  app-network:
+    external: true
+    name: docker_app-network

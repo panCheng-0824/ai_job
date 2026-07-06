@@ -1,0 +1,61 @@
+# =========================
+# Jenkins CI/CD — Docker 容器化部署
+# =========================
+# 使用 docker.sock 挂载方式（DinD 更重，单机场景没必要）
+#
+# 部署前准备：
+#   1. 创建数据目录并设权限（Jenkins 容器内 uid=1000）
+#      mkdir -p ~/workspace/docker/jenkins/data && chown 1000:1000 ~/workspace/docker/jenkins/data
+#   2. 启动：docker compose -f docker-compose.jenkins.yml up -d
+#   3. 初始密码：docker logs jenkins 2>&1 | grep -A2 "Please use the following password"
+#   4. 访问：http://localhost:8080
+#
+# 需安装插件（启动后通过 UI 或 Jenkins CLI 安装）：
+#   - Docker Pipeline
+#   - Git
+#   - Pipeline: Stage View（可视化）
+#   - Blue Ocean（可选，现代 UI）
+
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: jenkins
+    restart: unless-stopped
+    ports:
+      - "${JENKINS_HTTP_PORT:-8080}:8080"
+      - "${JENKINS_AGENT_PORT:-50000}:50000"
+    environment:
+      - TZ=Asia/Shanghai
+      - JAVA_OPTS=-Duser.timezone=Asia/Shanghai
+    volumes:
+      # Jenkins 数据持久化（jobs、凭据、插件、构建历史）
+      - ${JENKINS_DATA_DIR:-~/workspace/docker/jenkins/data}:/var/jenkins_home
+      # 挂载 Docker 引擎（让 Jenkins 容器内能操作宿主机 Docker）
+      - /var/run/docker.sock:/var/run/docker.sock
+      # 挂载项目源码（路径与宿主机一致，Jenkinsfile 中可直接用）
+      - ${PROJECT_ROOT:-/Users/a1234/PycharmProjects}:${PROJECT_ROOT:-/Users/a1234/PycharmProjects}
+      # 挂载中间件 Compose 目录（deploy 阶段需要访问网络）
+      - ${INFRA_DIR:-$HOME/workspace/docker}:${INFRA_DIR:-$HOME/workspace/docker}
+      # 可选：挂载 Maven 本地仓库缓存（加速 Java 构建）
+      # - ${HOME}/.m2:/var/jenkins_home/.m2
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+          cpus: "2"
+        reservations:
+          memory: 1g
+          cpus: "1"
+
+networks:
+  app-network:
+    external: true
+    name: docker_app-network

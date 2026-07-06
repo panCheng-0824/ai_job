@@ -1,15 +1,42 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  server_job log4j2 日志配置
+  双输出：Console（本地调试 + Docker log） + Socket → Logstash（JSON 远程收集）
+
+  Logstash 未就绪时 Console 仍可工作；Socket 连不上不影响应用启动。
+-->
 <Configuration status="WARN">
     <Appenders>
+        <!-- ===== ① 控制台输出（本地调试 & Docker log 查看） ===== -->
         <Console name="Console" target="SYSTEM_OUT">
             <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %c{1} - %msg%n"/>
         </Console>
+
+        <!-- ===== ② Logstash Socket：JSON 格式 → TCP → Logstash ===== -->
+        <!--
+          LOGSTASH_HOST 环境变量控制目标：
+            Docker 内：logstash（容器名 DNS）
+            宿主机：127.0.0.1
+          端口与 Logstash input tcp 5000 保持一致
+        -->
+        <Socket name="Logstash" host="${env:LOGSTASH_HOST:-localhost}" port="${env:LOGSTASH_TCP_PORT:-5000}"
+                protocol="TCP" connectTimeoutMillis="5000" reconnectionDelayMillis="10000"
+                bufferedIo="true" bufferSize="8192" immediateFail="false">
+            <JsonLayout complete="false" compact="true" eventEol="true" includeStacktrace="true"
+                        properties="true" propertiesAsList="false">
+                <KeyValuePair key="service" value="server_job"/>
+            </JsonLayout>
+        </Socket>
     </Appenders>
 
     <Loggers>
+        <!-- 项目业务日志：双输出 Console + Logstash -->
         <Logger name="org.example.server_job" level="INFO" additivity="false">
             <AppenderRef ref="Console"/>
+            <AppenderRef ref="Logstash"/>
         </Logger>
+
+        <!-- Spring / 第三方库：仅 Console，避免大量框架日志灌满 Logstash -->
         <Root level="INFO">
             <AppenderRef ref="Console"/>
         </Root>
